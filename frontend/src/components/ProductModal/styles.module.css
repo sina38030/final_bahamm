@@ -1,0 +1,305 @@
+/*  ============ لایه و مودال ============ */
+.overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.45);
+  backdrop-filter:blur(2px);z-index:60;
+}
+.modal{
+  position:fixed;top:5%;left:0;right:0;bottom:0;
+  background:#fff;border-radius:16px 16px 0 0;
+  overflow-y:auto;direction:rtl;
+  z-index:70;transform:translateY(120%);
+  transition:.35s transform;
+}
+.show{opacity:1;transform:translateY(0);}
+
+/* ───────── نوار دکمه‌های روی عکس ───────── */
+.topBar{
+  position:absolute;top:8px;left:0;right:0;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:0 12px;z-index:2;
+  pointer-events:none;          /* فقط خود دکمه‌ها کلیک پذیرند */
+  background:none;              /* ← نوار سفید حذف شد */
+}
+
+.topBar .leftBtns{display:flex;gap:8px}
+
+.iconBtn{
+  width:44px;height:44px;border:none;border-radius:50%;
+  background:rgba(255,255,255,.85);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:22px;pointer-events:auto;
+}
+
+/* قلب پر رنگ شود وقتی .fav رویش اضافه می‌کنیم */
+.iconBtn.fav svg{color:var(--pink,#e50063)}
+
+
+/*  ============ اسلایدر ============ */
+.slider{
+  display:flex;overflow-x:auto;
+  scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
+  height:50vh;user-select:none;
+}
+.slider::-webkit-scrollbar{display:none}
+.slide{min-width:100%;scroll-snap-align:start}
+.slide img{
+  width:100%;height:100%;
+  object-fit:cover;border-radius:16px 16px 0 0;
+}
+/* ───────── Slide Index (۱/۵) ───────── */
+.slideIndex{
+  position:absolute;left:12px;bottom:12px;
+  color:#fff;font-size:14px;text-shadow:0 0 4px #000;
+  background:none;               /* نوار حذف شد */
+  pointer-events:none;
+}
+
+/*  ============ بدنه ============ */
+.body{padding:16px 16px 120px}
+.title{font-size:18px;font-weight:700;margin-bottom:8px}
+.meta{
+  display:flex;flex-wrap:wrap;gap:12px;
+  font-size:14px;color:#666;margin-bottom:16px
+}
+.meta small{font-size:12px;color:#999}
+.meta svg{color:#ffb700;margin-left:4px}
+
+/*  ============ قیمت‌ها ============ */
+.pricing{font-size:15px;line-height:2}
+.pricing div{display:flex;gap:4px}
+.pricing span:first-child{flex:1}
+.price{font-weight:600}
+.free{color:#e50063;font-weight:700}
+.toggleRow{cursor:pointer;align-items:center}
+.rotate{transform:rotate(180deg);transition:.3s}
+
+/*  قیمت دوستان */
+.friendBox{
+  margin:20px 0;padding:2px;background:#e6e6e6;
+  border-radius:10px;display:inline-flex;
+  align-items:center;gap:8px
+}
+.friendLabel{font-size:13px;color:#666}
+.friendPrice{
+  background:#fff;padding:8px 16px;border-radius:8px;
+  font-weight:600
+}
+
+/*  ============ کارت‌های ساده ============ */
+.card{
+  background:#fff;border-radius:12px;padding:16px;
+  margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.08);
+  line-height:2;font-size:14px
+}
+.cardRow{display:flex;justify-content:space-between}
+.green{color:#00a65a;font-weight:700}
+
+/*  لینک بیشتر */
+.moreLink{
+  color:#00a65a;font-size:13px;display:inline-flex;
+  align-items:center;gap:4px;text-decoration:none
+}
+
+/*  بنر تعهدات */
+.bannerWrap{display:flex;gap:12px;margin-bottom:16px}
+.banner{
+  flex:1;background:#d9d9d9;border-radius:12px;
+  height:88px;display:flex;align-items:center;
+  justify-content:center;font-weight:600
+}
+
+/*  عنوان بخش‌ها */
+.sectionTitle{font-size:16px;font-weight:700;margin:24px 0 12px;color:#333}
+
+/*  کارت مرجوعی */
+.returnCard{
+  display:flex;justify-content:space-between;
+  align-items:center;color:#00a65a;font-weight:600;
+  font-size:14px;cursor:pointer
+}
+
+/*  ============ کارت امتیاز ============ */
+.ratingCard{
+  background:#fff;border-radius:12px;padding:16px;
+  margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.08)
+}
+.ratingHead{display:flex;justify-content:space-between}
+.ratingHead h3{font-size:15px;font-weight:600;margin:0}
+.total{font-size:13px;color:#666}
+.ratingMain{text-align:center;margin:12px 0}
+.ratingScore{font-size:32px;font-weight:700;color:#333}
+.starGroup svg{color:#ffb700;font-size:20px;margin:0 1px}
+
+/*  ============ کامنت نمونه ============ */
+.commentCard{
+  background:#fff;border-radius:12px;padding:16px;
+  margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.08);
+  font-size:14px
+}
+.commentCard header{
+  display:flex;justify-content:space-between;
+  font-size:12px;color:#777;margin-bottom:4px
+}
+.commentCard p{margin-top:6px;color:#444}
+.user{color:#555}
+
+/* === نوار اکشن پایین === */
+.actionBar{
+  position:fixed;right:0;left:0;bottom:0;height:72px;
+  display:flex;align-items:center;gap:8px;padding:8px 12px;
+  background:#fff;border-top:1px solid #eee;z-index:90;
+}
+/* آیکن سبد کوچک (سمت راست) */
+.cartIcon{
+  width:44px;height:44px;border:1px solid var(--primary,#e6005c);
+  border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:20px;color:var(--primary,#e6005c);position:relative;
+  cursor:pointer;flex-shrink:0;
+}
+
+.badge{
+  position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;
+  background:var(--primary,#e6005c);color:#fff;font-size:10px;
+  line-height:18px;text-align:center;border-radius:50%;
+}
+.addBtn{
+  flex:1;background:#e50063;color:#fff;border:none;
+  border-radius:10px;padding:12px;font-size:15px;
+}
+/* دکمهٔ دیدن سبد (حالت qty>0) */
+.viewCart{
+  flex:1;padding:12px;border-radius:10px;
+  background:#fff;border:1px solid var(--primary,#e6005c);
+  color:var(--primary,#e6005c);font-size:15px;display:flex;align-items:center;
+  gap:6px;justify-content:center;position:relative;
+}
+.qtyWrap{
+  flex:1;display:flex;align-items:center;gap:12px
+}
+.qtyWrap button{
+  width:44px;height:44px;border:none;background:#e50063;
+  color:#fff;border-radius:10px;font-size:22px;display:flex;
+  align-items:center;justify-content:center
+}
+.qtyWrap span{
+  min-width:32px;text-align:center;font-weight:700;font-size:17px
+}
+
+/* آیکون کوچک */
+.iconXs svg{width:14px;height:14px}
+
+/* ------ Image slider ------ */
+.galleryWrap{position:relative}
+.slider{
+  display:flex;overflow-x:auto;
+  height:50vh;scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;
+}
+.slider::-webkit-scrollbar{display:none}
+.slide{min-width:100%;scroll-snap-align:start}
+.slide img{width:100%;height:100%;object-fit:cover;border-radius:16px 16px 0 0}
+.slideIdx{
+  position:absolute;bottom:12px;left:0;right:0;text-align:center;
+  color:#fff;font-size:14px;text-shadow:0 0 4px #000;
+}
+
+/* ───── Lightbox (Portal) ───── */
+.lbOverlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.96);
+  display:flex;align-items:center;justify-content:center;
+  cursor:zoom-out;z-index:2000;         /* بالاتر از هر چیز */
+  touch-action:none; overscroll-behavior:contain;
+}
+.lbImg{
+  max-width:100%;max-height:100vh;object-fit:contain;cursor:default
+}
+.navBtn{
+  position:absolute;top:50%;transform:translateY(-50%);
+  width:56px;height:56px;border:none;border-radius:50%;
+  background:rgba(255,255,255,.25);color:#fff;font-size:34px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  border:2px solid rgba(255,255,255,.4);
+}
+.navBtn:hover{background:rgba(255,255,255,.35)}
+.right{right:20px}
+.left {left:20px}
+.closeBtn{
+  position:absolute;top:18px;left:18px;width:48px;height:48px;
+  border:none;border-radius:50%;background:rgba(255,255,255,.25);
+  color:#fff;font-size:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  border:2px solid rgba(255,255,255,.4);
+}
+.closeBtn:hover{background:rgba(255,255,255,.35)}
+
+
+
+/* ───── sticky header ───── */
+.stickyBar{
+  position:fixed;top:0;left:0;right:0;height:56px;padding:0 12px;
+  background:#fff;border-bottom:1px solid #eee;
+  display:flex;align-items:center;gap:8px;box-shadow:0 2px 6px rgba(0,0,0,.06);
+  transform:translateY(-100%);transition:.3s transform;z-index:80;
+}
+.barShow{transform:translateY(0)}
+.smallBtn{
+  width:44px;height:44px;border:none;border-radius:50%;
+  background:rgba(255,255,255,.9);font-size:24px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.msg{flex:1;text-align:center;font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+
+/* ───── bottom sheet ───── */
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;
+  transform:translateY(120%);background:#fff;border-radius:16px 16px 0 0;
+  padding:56px 24px 24px;box-shadow:0 -4px 16px rgba(0,0,0,.12);
+  z-index:120;transition:.35s transform;line-height:2;font-size:14px;max-height:75vh;overflow-y:auto;
+}
+.sheetShow{transform:translateY(0)}
+.sheetClose{
+  position:absolute;top:8px;right:8px;width:44px;height:44px;border:none;
+  border-radius:50%;background:#fff;font-size:26px;cursor:pointer;
+  box-shadow:0 2px 8px rgba(0,0,0,.15)
+}
+
+/* ───── share sheet (داخل همان provider) ───── */
+.shareSheet{
+  position:fixed;left:0;right:0;bottom:0;
+  padding:32px 24px 16px;background:#fff;border-radius:16px 16px 0 0;
+  display:flex;justify-content:space-around;gap:12px;
+  box-shadow:0 -4px 16px rgba(0,0,0,.1);transform:translateY(120%);
+  z-index:82;transition:.3s transform;
+}
+.shareSheet.show{transform:translateY(0)}
+.shareItem{
+  flex:1;padding:12px 0;background:#f5f5f5;border:none;border-radius:12px;
+  text-align:center;font-weight:600;cursor:pointer;text-decoration:none;color:#000
+}
+.shareItem i{margin-left:6px}
+.shareClose{
+  position:absolute;top:-28px;right:20px;width:40px;height:40px;font-size:28px;
+  background:#fff;border:none;border-radius:50%;cursor:pointer;
+  box-shadow:0 2px 8px rgba(0,0,0,.15)
+}
+
+
+.modal.show + .overlay{opacity:1}
+.overlay{opacity:0;transition:.35s}
+
+
+
+/* ───────── Toast علاقه‌مندی ───────── */
+.toast{
+  position:absolute;top:64px;left:12px;right:12px;
+  background:rgba(0,0,0,.65);color:#fff;text-align:center;
+  padding:10px;border-radius:12px;font-size:14px;
+  opacity:0;transform:translateY(-10px);
+  transition:.35s opacity,.35s transform;
+  z-index:4;
+}
+.toast.show{opacity:1;transform:translateY(0)}
+
+
+
+
