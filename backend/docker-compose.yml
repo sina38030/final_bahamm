@@ -1,0 +1,40 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
+      - ALGORITHM=${ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - SMS_PROVIDER=${SMS_PROVIDER:-melipayamak}
+      - MELIPAYAMAK_API_KEY=${MELIPAYAMAK_API_KEY:-your-melipayamak-api-key}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://username:password@db:5432/database_name}
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - db
+    restart: unless-stopped
+    command: >
+      bash -c "
+        sleep 5 && 
+        python seed_db.py &&
+        uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+  db:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-bahamm}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data: 
