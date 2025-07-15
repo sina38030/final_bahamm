@@ -1,4 +1,4 @@
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Union
 from datetime import datetime, date
 from pydantic import BaseModel, EmailStr, validator, Field
 from enum import Enum
@@ -537,3 +537,27 @@ class ProfileUpdate(BaseModel):
     last_name: Optional[str] = None
     email: Optional[EmailStr] = None
     password: Optional[str] = None
+
+# Payment schemas
+class PaymentRequest(BaseModel):
+    amount: int  # مبلغ به ریال
+    description: str
+    mobile: Optional[str] = None
+    email: Optional[str] = None
+    order_id: Optional[int] = None
+
+class PaymentResponse(BaseModel):
+    success: bool
+    authority: Optional[str] = None
+    payment_url: Optional[str] = None
+    error: Optional[str] = None
+
+class PaymentVerification(BaseModel):
+    authority: str
+    amount: Optional[int] = None
+
+class PaymentVerificationResponse(BaseModel):
+    success: bool
+    ref_id: Optional[Union[str, int]] = None
+    status: Optional[str] = None
+    error: Optional[str] = None

@@ -12,6 +12,7 @@ from app.routes.search_routes import search_router
 from app.routes.auth import router as auth_router
 from app.routes.user_address_routes import user_address_router
 from app.routes.admin_routes import admin_router
+from app.routes.payment import router as payment_router
 
 def init_routes(app):
     app.include_router(auth_router)
@@ -28,3 +29,4 @@ def init_routes(app):
     app.include_router(search_router)
     app.include_router(user_address_router)
     app.include_router(admin_router)
+    app.include_router(payment_router, prefix="/payment", tags=["payment"])

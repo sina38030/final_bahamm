@@ -16,25 +16,28 @@ class SMSService:
     def __init__(self):
         self.provider = settings.SMS_PROVIDER.lower()
         logger.info(f"Initializing SMS service with provider: {self.provider}")
-        
-        # Check if we're using custom API key from settings
-        if hasattr(settings, 'MELIPAYAMAK_API_KEY') and settings.MELIPAYAMAK_API_KEY:
-            # Extract API key ID for URL construction
-            api_key = settings.MELIPAYAMAK_API_KEY
-            self.melipayamak_api_url = f'https://console.melipayamak.com/api/send/otp/{api_key}'
-            logger.info(f"Using custom Melipayamak API key: {api_key}")
-        else:
-            raise ValueError("MELIPAYAMAK_API_KEY is not set in the environment variables")
-        
-        self.is_test_mode = False  # Set to False to use actual SMS service
+        # Force TEST MODE regardless of provider/key because SMS gateway is disabled for development
+        logger.warning("SMS gateway disabled; running in TEST MODE (no external SMS will be sent).")
+        self.is_test_mode = True
+        # Early exit: skip any provider-specific initialization
+        return
         
         try:
-            if self.provider == "melipayamak":
-                # No initialization needed for Melipayamak
+            # Check if we're using custom API key from settings
+            if hasattr(settings, 'MELIPAYAMAK_API_KEY') and settings.MELIPAYAMAK_API_KEY and settings.MELIPAYAMAK_API_KEY != "":
+                # Extract API key ID for URL construction
+                api_key = settings.MELIPAYAMAK_API_KEY
+                self.melipayamak_api_url = f'https://console.melipayamak.com/api/send/otp/{api_key}'
+                self.is_test_mode = False
+                logger.info(f"Using custom Melipayamak API key: {api_key}")
+            else:
+                logger.warning("MELIPAYAMAK_API_KEY is not set or empty. Using test mode.")
+                self.is_test_mode = True
+        
+            if self.provider == "melipayamak" and not self.is_test_mode:
                 logger.info(f"Melipayamak SMS service initialized with API URL: {self.melipayamak_api_url}")
             else:
-                self.is_test_mode = True
-                logger.warning(f"Unsupported SMS provider '{self.provider}'. Using test mode.")
+                logger.info("SMS service initialized in TEST MODE")
         except Exception as e:
             self.is_test_mode = True
             logger.error(f"Failed to initialize SMS provider: {str(e)}", exc_info=True)
@@ -46,7 +49,8 @@ class SMSService:
             logger.info(f"[TEST MODE] SMS to {phone_number}: {message}")
             # Store the code for testing
             test_verification_codes[phone_number] = code
-            logger.info(f"*** TEST VERIFICATION CODE: {code} ***")
+            logger.info(f"*** TEST VERIFICATION CODE FOR {phone_number}: {code} ***")
+            print(f"*** VERIFICATION CODE FOR {phone_number}: {code} ***")
             return True
         
         try:

@@ -50,7 +50,15 @@ async def root():
     logger.debug("Root endpoint called")
     return {"message": "Welcome to the Bahamm App"}
 
+@app.get("/health")
+async def health():
+    return {"status": "healthy", "service": "Bahamm Backend"}
+
 @api_app.get("/")
 async def api_root():
     logger.debug("API root endpoint called")
     return {"message": "Welcome to the Bahamm API"}
+
+@api_app.get("/health")
+async def api_health():
+    return {"status": "healthy", "service": "Bahamm API"}

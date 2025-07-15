@@ -143,10 +143,14 @@ class Order(Base):
     __tablename__ = "orders"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Allow NULL for guest orders
     total_amount = Column(Float, nullable=False)
     status = Column(String(20), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    
+    # Payment tracking fields
+    payment_authority = Column(String(100), nullable=True)  # ZarinPal authority
+    payment_ref_id = Column(String(100), nullable=True)     # ZarinPal reference ID
     
     # Relationships
     user = relationship("User", back_populates="orders")
