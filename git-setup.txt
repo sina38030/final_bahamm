@@ -1,0 +1,71 @@
+STEP-BY-STEP GUIDE TO UPLOAD YOUR PROJECT TO GITHUB
+=================================================
+
+BEFORE YOU START:
+1. Make sure you have a GitHub account (sign up at github.com)
+2. Install Git on your computer (download from git-scm.com)
+
+STEP 1: INITIALIZE GIT IN YOUR PROJECT
+--------------------------------------
+Open PowerShell in your project directory and run:
+
+git init
+git add .
+git commit -m "Initial commit - E-commerce platform with Next.js and FastAPI"
+
+STEP 2: CREATE A NEW REPOSITORY ON GITHUB
+-----------------------------------------
+1. Go to github.com and log in
+2. Click the "+" icon in the top right corner
+3. Select "New repository"
+4. Repository name: "ecommerce-platform" (or any name you prefer)
+5. Description: "Full-stack e-commerce platform with Persian support"
+6. Keep it Public (or Private if you prefer)
+7. DO NOT initialize with README (we already have one)
+8. Click "Create repository"
+
+STEP 3: CONNECT YOUR LOCAL PROJECT TO GITHUB
+--------------------------------------------
+GitHub will show you the commands. Use the "push an existing repository" section:
+
+git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPOSITORY_NAME.git
+git branch -M main
+git push -u origin main
+
+Replace YOUR_USERNAME and YOUR_REPOSITORY_NAME with your actual GitHub username and repository name.
+
+STEP 4: VERIFY UPLOAD
+--------------------
+1. Refresh your GitHub repository page
+2. You should see all your files uploaded
+3. The README.md file will be displayed automatically
+
+EXAMPLE COMMANDS (replace with your details):
+--------------------------------------------
+git remote add origin https://github.com/johndoe/ecommerce-platform.git
+git branch -M main
+git push -u origin main
+
+FUTURE UPDATES:
+--------------
+After making changes to your code, you can update GitHub with:
+
+git add .
+git commit -m "Description of your changes"
+git push
+
+IMPORTANT NOTES:
+---------------
+- The .gitignore file will exclude sensitive files (database, logs, etc.)
+- Make sure not to commit any API keys or sensitive information
+- The project is ready to be shared publicly
+- Other developers can clone and run your project using the README instructions
+
+TROUBLESHOOTING:
+---------------
+If you get authentication errors:
+1. Use GitHub Desktop app (easier for beginners)
+2. Or set up SSH keys (more advanced)
+3. Or use personal access tokens instead of password
+
+If you need help with any step, search for "how to upload project to github" on YouTube for visual guides. 
