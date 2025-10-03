@@ -1,4 +1,4 @@
-// src/app/landingM/page.tsx
+cat > /srv/app/frontend/frontend/src/app/landingM/page.tsx <<'TS'
 import { ProductModalProvider } from '@/hooks/useProductModal';
 import ClientLanding from './ClientLanding';
 
@@ -8,10 +8,13 @@ type LandingSearchParams = {
   invite?: string;
 };
 
-export default async function Page(
-  { searchParams }: { searchParams: Promise<LandingSearchParams> }
-) {
-  const { invite = '' } = await searchParams;
+// نکته: به‌جای PageProps سفارشی، props را any می‌گیریم تا با هر دو مدل سازگار باشد
+export default async function Page(props: any) {
+  // نرمالایز کردن searchParams (ممکن است Promise باشد یا شیء ساده)
+  const raw = props?.searchParams;
+  const sp: LandingSearchParams =
+    raw && typeof raw.then === 'function' ? await raw : (raw ?? {});
+  const invite = sp.invite ?? '';
 
   const backendUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8001').replace(/\/$/, '');
 
@@ -35,8 +38,7 @@ export default async function Page(
     } catch {}
 
     try {
-      // اگر این API روی خود فرانت هست، همین نسبی بمونه؛
-      // اگر بک‌اند هندلش می‌کند، به backendUrl تغییرش بده.
+      // اگر این API روی فرانت است همین /api بماند؛ اگر بک‌اند هندل می‌کند از backendUrl استفاده کن
       const grpRes = await fetch(`/api/groups/${encodeURIComponent(invite)}`, { next: { revalidate: 30 } });
       if (grpRes.ok) {
         initialGroupMeta = await grpRes.json();
@@ -56,3 +58,4 @@ export default async function Page(
     </ProductModalProvider>
   );
 }
+TS
