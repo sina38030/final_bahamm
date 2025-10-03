@@ -1,10 +1,17 @@
+// src/app/landingM/page.tsx
 import { ProductModalProvider } from '@/hooks/useProductModal';
 import ClientLanding from './ClientLanding';
 
 export const revalidate = 60;
 
-export default async function Page({ searchParams }: { searchParams: { invite?: string } }) {
-  const invite = searchParams?.invite ?? '';
+type LandingSearchParams = {
+  invite?: string;
+};
+
+export default async function Page(
+  { searchParams }: { searchParams: Promise<LandingSearchParams> }
+) {
+  const { invite = '' } = await searchParams;
 
   const backendUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8001').replace(/\/$/, '');
 
@@ -18,6 +25,7 @@ export default async function Page({ searchParams }: { searchParams: { invite?: 
 
   let initialGroupOrderData: any | null = null;
   let initialGroupMeta: any | null = null;
+
   if (invite) {
     try {
       const res = await fetch(`${backendUrl}/api/payment/group-invite/${encodeURIComponent(invite)}`, { next: { revalidate: 30 } });
@@ -25,7 +33,10 @@ export default async function Page({ searchParams }: { searchParams: { invite?: 
         initialGroupOrderData = await res.json();
       }
     } catch {}
+
     try {
+      // اگر این API روی خود فرانت هست، همین نسبی بمونه؛
+      // اگر بک‌اند هندلش می‌کند، به backendUrl تغییرش بده.
       const grpRes = await fetch(`/api/groups/${encodeURIComponent(invite)}`, { next: { revalidate: 30 } });
       if (grpRes.ok) {
         initialGroupMeta = await grpRes.json();
@@ -35,9 +46,13 @@ export default async function Page({ searchParams }: { searchParams: { invite?: 
 
   return (
     <ProductModalProvider>
-      <ClientLanding invite={invite} initialProducts={initialProducts} initialGroupOrderData={initialGroupOrderData} initialGroupMeta={initialGroupMeta} initialServerNowMs={typeof Date !== 'undefined' ? Date.now() : undefined} />
+      <ClientLanding
+        invite={invite}
+        initialProducts={initialProducts}
+        initialGroupOrderData={initialGroupOrderData}
+        initialGroupMeta={initialGroupMeta}
+        initialServerNowMs={typeof Date !== 'undefined' ? Date.now() : undefined}
+      />
     </ProductModalProvider>
   );
 }
-
-
