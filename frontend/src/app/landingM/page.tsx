@@ -4,17 +4,12 @@ import ClientLanding from './ClientLanding';
 
 export const revalidate = 60;
 
-type LandingSearchParams = {
-  invite?: string;
-};
+type LandingSearchParams = { invite?: string };
 
-// نکته: به‌جای PageProps سفارشی، props را any می‌گیریم تا با هر دو مدل سازگار باشد
-export default async function Page(props: any) {
-  // نرمالایز کردن searchParams (ممکن است Promise باشد یا شیء ساده)
-  const raw = props?.searchParams;
-  const sp: LandingSearchParams =
-    raw && typeof raw.then === 'function' ? await raw : (raw ?? {});
-  const invite = sp.invite ?? '';
+export default async function Page(
+  { searchParams }: { searchParams: Promise<LandingSearchParams> }
+) {
+  const { invite = '' } = await searchParams;
 
   const backendUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8001').replace(/\/$/, '');
 
@@ -38,7 +33,8 @@ export default async function Page(props: any) {
     } catch {}
 
     try {
-      // اگر این API روی فرانت است همین /api بماند؛ اگر بک‌اند هندل می‌کند از backendUrl استفاده کن
+      // اگر این مسیر در فرانت هندل نمی‌شود، این خط را به backendUrl تغییر بده:
+      // const grpRes = await fetch(`${backendUrl}/api/groups/${encodeURIComponent(invite)}`, { next: { revalidate: 30 } });
       const grpRes = await fetch(`/api/groups/${encodeURIComponent(invite)}`, { next: { revalidate: 30 } });
       if (grpRes.ok) {
         initialGroupMeta = await grpRes.json();
