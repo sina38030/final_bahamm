@@ -59,7 +59,7 @@ export default function FAQPage() {
     };
 
     return (
-        <div className="min-h-screen mx-auto  ">
+        <div className="min-h-screen mx-auto pb-16">
             <PrevPage title="سوالات متداول" />
             <div className="bg-white rounded-lg shadow-sm">
                 {faqData.map((item, index) => (

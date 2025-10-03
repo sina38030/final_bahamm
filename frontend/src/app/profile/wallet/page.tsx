@@ -1,10 +1,12 @@
 'use client';
 
 import PrevPage from '@/components/common/PrevPage';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { FaWallet, FaPlus } from 'react-icons/fa';
 
 export default function WalletPage() {
+    const { user, refreshCoins } = useAuth();
     const [balance, setBalance] = useState(0);
     const [amount, setAmount] = useState('');
     const [displayAmount, setDisplayAmount] = useState('');
@@ -28,6 +30,17 @@ export default function WalletPage() {
         console.log('Adding funds:', amount);
     };
 
+    useEffect(() => {
+        setBalance(typeof user?.coins === 'number' ? user.coins : 0);
+    }, [user?.coins]);
+
+    useEffect(() => {
+        try { refreshCoins(); } catch {}
+        const onFocus = () => { try { refreshCoins(); } catch {} };
+        window.addEventListener('focus', onFocus);
+        return () => window.removeEventListener('focus', onFocus);
+    }, [refreshCoins]);
+
     const predefinedAmounts = [
         { value: 1000000, label: '۱ میلیون' },
         { value: 2000000, label: '۲ میلیون' },
@@ -36,7 +49,7 @@ export default function WalletPage() {
     ];
 
     return (
-        <div className="min-h-screen mx-auto">
+        <div className="min-h-screen mx-auto pb-16">
             <PrevPage title="کیف پول من" />
             
             {/* نمایش موجودی */}
@@ -103,6 +116,8 @@ export default function WalletPage() {
                     <FaPlus size={16} />
                 </button>
             </div>
+            
+            
         </div>
     );
 } 

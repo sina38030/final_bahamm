@@ -2,12 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Override HeroUI primary color to #E31C5F */
+:root {
+  --nextui-primary: 327 100% 55%; /* #E31C5F in HSL */
+  --nextui-primary-50: 327 100% 94%;
+  --nextui-primary-100: 327 100% 89%;
+  --nextui-primary-200: 327 100% 79%;
+  --nextui-primary-300: 327 100% 69%;
+  --nextui-primary-400: 327 100% 59%;
+  --nextui-primary-500: 327 100% 55%; /* Main primary color */
+  --nextui-primary-600: 327 100% 45%;
+  --nextui-primary-700: 327 100% 35%;
+  --nextui-primary-800: 327 100% 25%;
+  --nextui-primary-900: 327 100% 15%;
+}
 
-
+html {
+  font-family: var(--font-iransans), Tahoma, sans-serif;
+}
 
 body {
   direction: rtl;
-  font-family: var(--font-iransans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-iransans), Tahoma, sans-serif;
   -moz-font-feature-settings: "ss02";
   -webkit-font-feature-settings: "ss02";
   font-feature-settings: "ss02";

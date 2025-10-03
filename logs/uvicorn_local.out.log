@@ -1,0 +1,9 @@
+2025-09-06 23:09:38,070 - sms - INFO - Initializing SMS service with provider: melipayamak
+2025-09-06 23:09:38,071 - sms - INFO - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-06 23:09:38,071 - sms - INFO - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-06 23:09:38,210 - app.main - INFO - Database tables created
+2025-09-06 23:09:38,221 - app.main - INFO - Initializing API routes
+2025-09-06 23:09:38,331 - app.main - INFO - API routes initialized successfully
+2025-09-06 23:09:38,332 - app.main - INFO - 🔧 Mounting static files: C:\Users\User\OneDrive\Desktop\final_project\backend\app\uploads
+2025-09-06 23:09:38,332 - app.main - INFO - ✅ Static uploads directory mounted at /static -> C:\Users\User\OneDrive\Desktop\final_project\backend\app\uploads
+Connecting to database with URL: sqlite:///C:/Users/User/OneDrive/Desktop/final_project/bahamm1.db

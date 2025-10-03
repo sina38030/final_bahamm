@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, ChangeEvent, useContext } from 'react';
 import Categories from './Categories';
-import { HomeCtx } from '@/app/page';
+import { HomeCtx } from '@/contexts/HomeContext';
 
 /**
  * هدر جستجو + دسته‌ها با هیسترزیس:

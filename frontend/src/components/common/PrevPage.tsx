@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FaArrowRight } from "react-icons/fa";
+import { FaArrowLeft } from "react-icons/fa";
 
 type PrevPageProps = {
     title: string;
@@ -26,7 +26,7 @@ export default function PrevPage({
                         onClick={() => router.back()}
                         className="ml-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
                     >
-                        <FaArrowRight size={15} />
+                        <FaArrowLeft size={15} />
                     </p>
                     <h1 className="text-sm font-bold text-xs">{title}</h1>
                     <div></div>

@@ -5,14 +5,21 @@ import { toFa } from '@/utils/toFa';
 import { comma } from '@/utils/format';   // ← فقط یک‌بار
 
 export default function CartBar() {
-  const { totalItems, totalPrice } = useCart();
+  const { totalItems, items } = useCart();
   if (totalItems === 0) return null;
+
+  // مجموع برای «با ۱ دوست»
+  const friend1Total = items.reduce((sum, item: any) => {
+    const solo = item?.solo_price ?? item?.market_price ?? (item?.base_price ? item.base_price * 2 : 0);
+    const f1   = item?.friend_1_price ?? Math.round(solo / 2);
+    return sum + f1 * (item?.quantity ?? 1);
+  }, 0);
 
   return (
     <div id="cartBar" className="cart-bar show">
       <span className="summary">
         <span id="cart-count">{toFa(totalItems)}</span> کالا |
-        <span id="cart-total">{toFa(comma(totalPrice))}</span> تومان
+        <span id="cart-total">{toFa(comma(friend1Total))}</span> تومان
       </span>
 
       <Link href="/cart" className="go-cart">

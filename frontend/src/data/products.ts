@@ -1,12 +1,14 @@
 export type Product = {
   id: number;
   cat: 'fruit' | 'veg' | 'basket';
-  img: number;
+  img: number | string; // allow real image URL from admin
   name: string;
-  weight: string;
-  star: string;
-  sales: string;
+  weight: string | number;
+  weight_tolerance?: number; // grams
+  star: string | number;
+  sales: string | number;
   price: number;
+  images?: string[]; // optional list of admin-uploaded images
 };
 
 export const PRODUCTS: Product[] = [

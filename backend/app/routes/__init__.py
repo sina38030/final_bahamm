@@ -13,6 +13,10 @@ from app.routes.auth import router as auth_router
 from app.routes.user_address_routes import user_address_router
 from app.routes.admin_routes import admin_router
 from app.routes.payment import router as payment_router
+from app.routes.group_order_routes import router as group_order_router
+from app.routes.groups_routes import router as groups_router
+from app.routes.pricing_routes import router as pricing_router
+from app.routes.time_routes import router as time_router
 
 def init_routes(app):
     app.include_router(auth_router)
@@ -30,3 +34,7 @@ def init_routes(app):
     app.include_router(user_address_router)
     app.include_router(admin_router)
     app.include_router(payment_router, prefix="/payment", tags=["payment"])
+    app.include_router(group_order_router)
+    app.include_router(groups_router)
+    app.include_router(pricing_router)
+    app.include_router(time_router)

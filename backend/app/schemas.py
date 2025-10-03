@@ -397,6 +397,16 @@ class ChatMessage(BaseModel):
     class Config:
         from_attributes = True
 
+class SupportMessage(BaseModel):
+    id: int
+    sender: str
+    message: str
+    timestamp: datetime
+    delivered: bool | None = None
+    seen: bool | None = None
+    class Config:
+        from_attributes = True
+
 class DailyCheckinStatus(BaseModel):
     current_streak: int
     can_checkin: bool
@@ -417,10 +427,12 @@ class RecommendationResponse(BaseModel):
 class ReviewBase(BaseModel):
     rating: int = Field(ge=1, le=5)
     comment: Optional[str] = None
+    display_name: Optional[str] = None
+    created_at: Optional[datetime] = None
 
 class ReviewCreate(ReviewBase):
-    product_id: int
-    user_id: Optional[int] = None  # Can be set from token in the endpoint
+    user_id: int = 1  # Default to user 1 if not provided
+    # product_id is passed as path parameter, not in body
 
 class ReviewResponse(ReviewBase):
     id: int
@@ -429,6 +441,9 @@ class ReviewResponse(ReviewBase):
     created_at: datetime
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
     class Config:
         from_attributes = True
@@ -517,6 +532,8 @@ class PhoneVerificationRequest(BaseModel):
 class PhoneVerificationResponse(BaseModel):
     message: str
     expires_in: int
+    test_code: Optional[str] = None
+    fallback_mode: Optional[bool] = None
 
 class VerifyCodeRequest(BaseModel):
     phone_number: str = Field(pattern=r'^\+?1?\d{9,15}$')
@@ -561,3 +578,38 @@ class PaymentVerificationResponse(BaseModel):
     ref_id: Optional[Union[str, int]] = None
     status: Optional[str] = None
     error: Optional[str] = None
+    # Group order information for redirect logic
+    group_order_id: Optional[int] = None
+    invite_token: Optional[str] = None
+
+# Transactions schemas
+class TransactionDirection(str, Enum):
+    IN_ = 'IN'   # Money/coins to user
+    OUT = 'OUT'  # Money/coins from user
+
+class TransactionType(str, Enum):
+    PAYMENT = 'PAYMENT'                 # Order payment
+    SETTLEMENT = 'SETTLEMENT'           # Settlement payment by leader
+    REFUND_PAYOUT = 'REFUND_PAYOUT'     # Refund paid to leader's bank
+    COINS_EARNED = 'COINS_EARNED'       # Coins credited (e.g., daily reward)
+
+class TransactionItem(BaseModel):
+    id: str
+    type: TransactionType
+    direction: TransactionDirection
+    amount: int  # Tomans for money, coins count for coins
+    currency: str | None = 'TOMAN'  # 'TOMAN' for money, 'COIN' for coins entries
+    status: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    timestamp: datetime
+    # Optional related entities
+    order_id: Optional[int] = None
+    group_order_id: Optional[int] = None
+    payment_ref_id: Optional[str] = None
+
+class TransactionsResponse(BaseModel):
+    items: List[TransactionItem]
+    total: int
+    page: int
+    page_size: int

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalStorage Test</title>
+</head>
+<body>
+    <h1>LocalStorage Test</h1>
+    <div id="results"></div>
+
+    <script>
+        function displayResults() {
+            const results = document.getElementById('results');
+            const allKeys = Object.keys(localStorage);
+            const phoneKeys = ['userPhone', 'user_phone', 'phone'];
+
+            results.innerHTML = '<h2>All localStorage keys:</h2><ul>';
+            allKeys.forEach(key => {
+                const value = localStorage.getItem(key);
+                const isPhoneKey = phoneKeys.includes(key);
+                results.innerHTML += `<li><strong>${key}</strong>: ${value} ${isPhoneKey ? '<span style="color: red">(PHONE KEY)</span>' : ''}</li>`;
+            });
+            results.innerHTML += '</ul>';
+
+            // Test API call
+            fetch('/api/user/my-groups?phone=09194524525')
+                .then(response => response.json())
+                .then(data => {
+                    results.innerHTML += '<h2>API Test (/api/user/my-groups?phone=09194524525):</h2>';
+                    results.innerHTML += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                })
+                .catch(error => {
+                    results.innerHTML += '<h2>API Test Error:</h2>';
+                    results.innerHTML += '<pre>' + error + '</pre>';
+                });
+        }
+
+        displayResults();
+    </script>
+</body>
+</html>

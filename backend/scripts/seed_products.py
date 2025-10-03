@@ -8,7 +8,10 @@ import sys
 import os
 import random
 import re
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+
+# Tehran timezone: UTC+3:30
+TEHRAN_TZ = timezone(timedelta(hours=3, minutes=30))
 
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

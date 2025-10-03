@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CustomModal from '../common/CustomModal';
 import OrderItem from './OrderItem';
 import PreparingOrderItem from './PreparingOrderItem';
 import {
-    activeGroupOrders,
     preparingOrders,
     sentOrders,
     deliveredOrders,
@@ -19,30 +18,121 @@ type Tab = {
     count: number;
 }
 
-const tabs: Tab[] = [
-    { id: 'activeGroup', label: 'گروه های فعال', count: orderCounts.activeGroup },
-    { id: 'preparing', label: 'در حال آماده سازی', count: orderCounts.preparing },
-    { id: 'sent', label: 'ارسال شده', count: orderCounts.sent },
-    { id: 'delivered', label: 'تحویل داده شده', count: orderCounts.delivered },
-    { id: 'returned', label: 'مرجوع شده', count: orderCounts.returned },
-    { id: 'cancelled', label: 'لغو شده', count: orderCounts.cancelled },
-];
-
 type OrdersModalProps = {
     isOpen: boolean;
     onClose: () => void;
 }
 
+type ActiveGroupOrder = {
+    id: number;
+    imageUrl: string;
+    endTime: Date;
+    leaderName: string;
+};
+
 export default function OrdersModal({ isOpen, onClose }: OrdersModalProps) {
     const [activeTab, setActiveTab] = useState('activeGroup');
+    const [activeGroupOrders, setActiveGroupOrders] = useState<ActiveGroupOrder[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    const tabs = [
+        { id: 'activeGroup', label: 'گروه های فعال', count: activeGroupOrders.length },
+        { id: 'preparing', label: 'در حال آماده سازی', count: orderCounts.preparing },
+        { id: 'sent', label: 'ارسال شده', count: orderCounts.sent },
+        { id: 'delivered', label: 'تحویل داده شده', count: orderCounts.delivered },
+        { id: 'returned', label: 'مرجوع شده', count: orderCounts.returned },
+        { id: 'cancelled', label: 'لغو شده', count: orderCounts.cancelled },
+    ];
 
     const handleTabChange = (tabId: string) => {
         setActiveTab(tabId);
     };
 
+    const fetchActiveGroupOrders = async () => {
+        try {
+            setLoading(true);
+            // Get user phone from localStorage
+            // First try the user object, then fallback to direct keys
+            let userPhone: string | null = null;
+
+            try {
+                const userData = localStorage.getItem('user');
+                if (userData) {
+                    const user = JSON.parse(userData);
+                    userPhone = user.phone_number || user.phone || null;
+                }
+            } catch (e) {
+                console.warn('Error parsing user data from localStorage:', e);
+            }
+
+            // Fallback to direct keys
+            if (!userPhone) {
+                userPhone = localStorage.getItem('userPhone') ||
+                           localStorage.getItem('user_phone') ||
+                           localStorage.getItem('phone');
+            }
+
+            if (!userPhone) {
+                console.warn('No user phone found for fetching groups. Available localStorage keys:', Object.keys(localStorage));
+                console.warn('Available localStorage values:', Object.keys(localStorage).map(key => ({ key, value: localStorage.getItem(key) })));
+                return;
+            }
+
+            // Clean the phone number
+            userPhone = userPhone.replace(/\D/g, '');
+
+            const response = await fetch(`/api/user/my-groups?phone=${encodeURIComponent(userPhone)}`);
+            if (response.ok) {
+                const groupIds: string[] = await response.json();
+
+                // For each group ID, fetch group details
+                const groupPromises = groupIds.map(async (groupId) => {
+                    try {
+                        const groupResponse = await fetch(`/api/groups/${groupId}`);
+                        if (groupResponse.ok) {
+                            const groupData = await groupResponse.json();
+                            // Only include groups where user is leader and status is ongoing
+                            if (groupData.status === 'ongoing') {
+                                return {
+                                    id: groupData.id,
+                                    imageUrl: "https://atticbv.com/media/products/images/None/photo_5765121115679737611_y_1.jpg", // Default image
+                                    endTime: new Date(groupData.expiresAt),
+                                    leaderName: groupData.leader?.phone_number || 'ناشناس'
+                                };
+                            }
+                        }
+                    } catch (error) {
+                        console.error(`Error fetching group ${groupId}:`, error);
+                    }
+                    return null;
+                });
+
+                const groups = (await Promise.all(groupPromises)).filter(Boolean) as ActiveGroupOrder[];
+                setActiveGroupOrders(groups);
+            }
+        } catch (error) {
+            console.error('Error fetching active group orders:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (isOpen) {
+            fetchActiveGroupOrders();
+        }
+    }, [isOpen]);
+
     const renderContent = () => {
         switch (activeTab) {
             case 'activeGroup':
+                if (loading) {
+                    return (
+                        <div className="text-center text-gray-500 py-8">
+                            در حال بارگذاری...
+                        </div>
+                    );
+                }
                 return activeGroupOrders.length > 0 ? (
                     <div className="space-y-4">
                         {activeGroupOrders.map((order) => (
@@ -51,6 +141,7 @@ export default function OrdersModal({ isOpen, onClose }: OrdersModalProps) {
                                 imageUrl={order.imageUrl}
                                 endTime={order.endTime}
                                 leaderName={order.leaderName}
+                                groupId={order.id}
                             />
                         ))}
                     </div>

@@ -2,11 +2,14 @@
 
 import React from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { GroupBuyResultProvider } from "@/components/providers/GroupBuyResultProvider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
-      {children}
+      <GroupBuyResultProvider>
+        {children}
+      </GroupBuyResultProvider>
     </AuthProvider>
   );
 } 

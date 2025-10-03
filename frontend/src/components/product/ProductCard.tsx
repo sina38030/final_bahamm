@@ -5,14 +5,29 @@ import { toFa, comma } from '@/utils/format';
 import { useCart } from '@/contexts/CartContext';
 
 export default function ProductCard({ p }: { p: Product }) {
-  const { add, remove } = useCart();
+  const { addItem, removeItem } = useCart();
   const [qty, setQty] = useState(0);
   const [openPrices, setOpenPrices] = useState(false);
 
-  const inc = () => { setQty(q => q + 1); add(p.price); };
+  const inc = () => { 
+    setQty(q => q + 1); 
+    addItem({
+      id: p.id,
+      name: p.name,
+      base_price: p.price,
+      image: typeof p.img === 'string' ? p.img : '',
+      quantity: 1,
+    });
+  };
   const dec = () => {
-    if (qty === 1) { setQty(0); remove(p.price); }
-    else { setQty(q => q - 1); remove(p.price); }
+    if (qty === 1) { 
+      setQty(0); 
+      removeItem(p.id); 
+    }
+    else { 
+      setQty(q => q - 1); 
+      removeItem(p.id); 
+    }
   };
 
   return (

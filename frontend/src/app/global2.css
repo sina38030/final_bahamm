@@ -4411,7 +4411,7 @@ video {
 }
 
 .font-sans {
-  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  font-family: var(--font-iransans), Tahoma, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
 .\!text-\[13px\] {
@@ -5457,18 +5457,18 @@ video {
   --nextui-default-900: 240 5.88% 10%;
   --nextui-default-foreground: 0 0% 0%;
   --nextui-default: 240 4.88% 83.92%;
-  --nextui-primary-50: 212.5 92.31% 94.9%;
-  --nextui-primary-100: 211.84000000000003 92.45% 89.61%;
-  --nextui-primary-200: 211.84000000000003 92.45% 79.22%;
-  --nextui-primary-300: 212.24 92.45% 68.82%;
-  --nextui-primary-400: 212.14 92.45% 58.43%;
-  --nextui-primary-500: 212.01999999999998 100% 46.67%;
-  --nextui-primary-600: 212.14 100% 38.43%;
-  --nextui-primary-700: 212.24 100% 28.82%;
-  --nextui-primary-800: 211.84000000000003 100% 19.22%;
-  --nextui-primary-900: 211.84000000000003 100% 9.61%;
+  --nextui-primary-50: 327 100% 94%;
+  --nextui-primary-100: 327 100% 89%;
+  --nextui-primary-200: 327 100% 79%;
+  --nextui-primary-300: 327 100% 69%;
+  --nextui-primary-400: 327 100% 59%;
+  --nextui-primary-500: 327 100% 55%;
+  --nextui-primary-600: 327 100% 45%;
+  --nextui-primary-700: 327 100% 35%;
+  --nextui-primary-800: 327 100% 25%;
+  --nextui-primary-900: 327 100% 15%;
   --nextui-primary-foreground: 0 0% 100%;
-  --nextui-primary: 212.01999999999998 100% 46.67%;
+  --nextui-primary: 327 100% 55%; /* #E31C5F */
   --nextui-secondary-50: 270 61.54% 94.9%;
   --nextui-secondary-100: 270 59.26% 89.41%;
   --nextui-secondary-200: 270 59.26% 78.82%;
@@ -5577,18 +5577,18 @@ video {
   --nextui-default-900: 0 0% 98.04%;
   --nextui-default-foreground: 0 0% 100%;
   --nextui-default: 240 5.26% 26.08%;
-  --nextui-primary-50: 211.84000000000003 100% 9.61%;
-  --nextui-primary-100: 211.84000000000003 100% 19.22%;
-  --nextui-primary-200: 212.24 100% 28.82%;
-  --nextui-primary-300: 212.14 100% 38.43%;
-  --nextui-primary-400: 212.01999999999998 100% 46.67%;
-  --nextui-primary-500: 212.14 92.45% 58.43%;
-  --nextui-primary-600: 212.24 92.45% 68.82%;
-  --nextui-primary-700: 211.84000000000003 92.45% 79.22%;
-  --nextui-primary-800: 211.84000000000003 92.45% 89.61%;
-  --nextui-primary-900: 212.5 92.31% 94.9%;
+  --nextui-primary-50: 327 100% 94%;
+  --nextui-primary-100: 327 100% 89%;
+  --nextui-primary-200: 327 100% 25%;
+  --nextui-primary-300: 327 100% 35%;
+  --nextui-primary-400: 327 100% 45%;
+  --nextui-primary-500: 327 100% 55%;
+  --nextui-primary-600: 327 100% 69%;
+  --nextui-primary-700: 327 100% 79%;
+  --nextui-primary-800: 327 100% 89%;
+  --nextui-primary-900: 327 100% 94%;
   --nextui-primary-foreground: 0 0% 100%;
-  --nextui-primary: 212.01999999999998 100% 46.67%;
+  --nextui-primary: 327 100% 55%; /* #E31C5F */
   --nextui-secondary-50: 270 66.67% 9.41%;
   --nextui-secondary-100: 270 66.67% 18.82%;
   --nextui-secondary-200: 270 66.67% 28.24%;
@@ -5818,7 +5818,7 @@ video {
 
 body {
   direction: rtl;
-  font-family: var(--font-iransans), Arial, Helvetica, sans-serif;
+  font-family: inherit;
   font-feature-settings: "ss02";
 }
 
@@ -11612,7 +11612,7 @@ input[type="number"] {
 
 
 .font-iran {
-  font-family: ;
+  font-family: var(--font-iransans), Tahoma, sans-serif;
 }
 
 /* .ring-top-0 {

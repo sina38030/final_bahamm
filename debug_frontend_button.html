@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Button Visibility</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .order-item { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px; }
+        .debug-info { background: #f0f0f0; padding: 10px; border-radius: 4px; font-size: 12px; margin: 10px 0; }
+        .button { background: #3b82f6; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .button:hover { background: #2563eb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 بررسی نمایش دکمه انتخاب زمان</h1>
+        <p>این صفحه برای تست شرایط نمایش دکمه انتخاب زمان تحویل استفاده می‌شود.</p>
+
+        <div id="orders-container">
+            <!-- Orders will be loaded here -->
+        </div>
+
+        <button onclick="testButtonConditions()" style="margin-top: 20px; background: #10b981; padding: 12px 20px;">
+            تست شرایط دکمه
+        </button>
+    </div>
+
+    <script>
+        // Sample order data based on our database analysis
+        const sampleOrders = [
+            {
+                id: 40,
+                user_id: 28,
+                total_amount: 150000,
+                status: "completed",
+                created_at: "2025-09-10T10:00:00Z",
+                is_leader_order: true,
+                group_status: "success",
+                group_order_id: 17,
+                delivery_slot: null,
+                settlement_status: "pending"
+            },
+            {
+                id: 43,
+                user_id: 31,
+                total_amount: 200000,
+                status: "completed",
+                created_at: "2025-09-10T11:00:00Z",
+                is_leader_order: true,
+                group_status: "success",
+                group_order_id: 18,
+                delivery_slot: "فردا ۱۴ تا ۱۶",
+                settlement_status: "pending"
+            },
+            {
+                id: 88,
+                user_id: 54,
+                total_amount: 180000,
+                status: "paid",
+                created_at: "2025-09-10T12:00:00Z",
+                is_leader_order: true,
+                group_status: "success",
+                group_order_id: 34,
+                delivery_slot: null,
+                settlement_status: "pending"
+            }
+        ];
+
+        function renderOrders() {
+            const container = document.getElementById('orders-container');
+
+            sampleOrders.forEach(order => {
+                const orderDiv = document.createElement('div');
+                orderDiv.className = 'order-item';
+
+                // Debug info (same as frontend)
+                const debugInfo = document.createElement('div');
+                debugInfo.className = 'debug-info';
+                debugInfo.innerHTML = `
+                    Leader: ${order.is_leader_order ? '✅' : '❌'} |
+                    Group: ${order.group_status || 'none'} |
+                    Settlement: ${order.settlement_status || 'pending'} |
+                    Delivery: ${order.delivery_slot ? '✅' : '❌'}
+                `;
+
+                // Button logic (same as frontend)
+                const buttonContainer = document.createElement('div');
+                buttonContainer.style.marginTop = '10px';
+
+                if (order.is_leader_order && order.group_status === 'success' && order.group_order_id) {
+                    const button = document.createElement('button');
+                    button.className = 'button';
+                    button.innerHTML = order.delivery_slot ? 'تغییر زمان ارسال' : 'انتخاب زمان ارسال';
+                    button.onclick = () => alert(`انتخاب زمان برای سفارش ${order.id} گروه ${order.group_order_id}`);
+                    buttonContainer.appendChild(button);
+                } else {
+                    buttonContainer.innerHTML = '<span style="color: #666; font-size: 12px;">دکمه نمایش داده نمی‌شود</span>';
+                }
+
+                orderDiv.innerHTML = `
+                    <div><strong>سفارش ${order.id}</strong> - مبلغ: ${order.total_amount} تومان</div>
+                    <div>وضعیت: ${order.status} | گروه: ${order.group_order_id}</div>
+                `;
+
+                orderDiv.appendChild(debugInfo);
+                orderDiv.appendChild(buttonContainer);
+                container.appendChild(orderDiv);
+            });
+        }
+
+        function testButtonConditions() {
+            console.log('Testing button conditions...');
+
+            sampleOrders.forEach(order => {
+                const shouldShow = order.is_leader_order && order.group_status === 'success' && order.group_order_id;
+                console.log(`Order ${order.id}: shouldShow = ${shouldShow}`);
+                console.log(`  - is_leader_order: ${order.is_leader_order}`);
+                console.log(`  - group_status: ${order.group_status}`);
+                console.log(`  - group_order_id: ${order.group_order_id}`);
+                console.log('---');
+            });
+
+            alert('بررسی شرایط در Console انجام شد');
+        }
+
+        // Load orders on page load
+        window.onload = renderOrders;
+    </script>
+</body>
+</html>

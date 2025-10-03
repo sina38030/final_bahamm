@@ -8,17 +8,23 @@ type OrderItemProps = {
     imageUrl: string;
     endTime: Date;
     leaderName: string;
+    groupId?: number;
 }
 
-export default function OrderItem({ imageUrl, endTime, leaderName }: OrderItemProps) {
+export default function OrderItem({ imageUrl, endTime, leaderName, groupId }: OrderItemProps) {
     const router = useRouter(); // Initialize useRouter
     const timeLeft = useCountdown(endTime);
 
     const formatTime = (time: number) => time.toString().padStart(2, '0');
 
     const handleClick = () => {
-        // Navigate to the tracking page
-        router.push('/tracking'); // Adjust the path as necessary
+        // Navigate to the specific group tracking page
+        if (groupId) {
+            router.push(`/track/${groupId}`);
+        } else {
+            // Fallback to general tracking page
+            router.push('/tracking');
+        }
     };
 
     return (
