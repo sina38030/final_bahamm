@@ -91,7 +91,17 @@ async def send_verification_code(db: Session, phone_number: str, user_type: str)
         logger.info(f"Verification code: {code}")
         logger.info(f"Attempting to send verification code to {phone_number}")
         
-        success = await sms_service.send_verification_code(phone_number, code)
+        sms_result = await sms_service.send_verification_code(phone_number, code)
+        logger.debug(f"SMS service returned: {sms_result}")
+        
+        if isinstance(sms_result, tuple):
+            success, fallback_code = sms_result
+        else:
+            # Handle backward compatibility
+            success = sms_result
+            fallback_code = None
+        
+        logger.debug(f"SMS success: {success}, fallback_code: {fallback_code}")
         
         if not success:
             logger.error(f"Failed to send verification code to {phone_number}")
@@ -101,10 +111,21 @@ async def send_verification_code(db: Session, phone_number: str, user_type: str)
             )
         
         logger.info(f"Verification code sent successfully to {phone_number}")
-        return {
+        
+        response_data = {
             "message": "کد تایید با موفقیت ارسال شد",
             "expires_in": 15  # minutes
         }
+        
+        # If we have a fallback code, it means SMS failed and we're in fallback mode
+        if fallback_code:
+            response_data["message"] = "ارسال پیامک با مشکل مواجه شد. کد تایید در زیر نمایش داده شده است:"
+            response_data["test_code"] = fallback_code
+            response_data["fallback_mode"] = True
+            logger.info(f"SMS failed, providing fallback code {fallback_code} for {phone_number}")
+        
+        logger.debug(f"Final response data: {response_data}")
+        return response_data
     except Exception as e:
         if isinstance(e, HTTPException):
             logger.warning(f"HTTP Exception while sending verification code: {str(e)}")
@@ -129,12 +150,43 @@ def verify_code(db: Session, phone_number: str, code: str) -> User:
     
     logger.debug(f"Found user ID: {user.id} for verification")
     
+    # First, try to verify against our database
     verification = db.query(PhoneVerification).filter(
         PhoneVerification.user_id == user.id,
         PhoneVerification.verification_code == code,
         PhoneVerification.is_used == False,
         PhoneVerification.expires_at > datetime.utcnow()
     ).first()
+    
+    # If not found in database, check if it's a Melipayamak code stored in memory
+    if not verification:
+        from app.services.sms import sms_service
+        test_code = sms_service.get_test_code(phone_number)
+        if test_code and test_code == code:
+            logger.info(f"Code verified against Melipayamak stored code for {phone_number}")
+            # Find any recent verification record for this user to mark as used
+            recent_verification = db.query(PhoneVerification).filter(
+                PhoneVerification.user_id == user.id,
+                PhoneVerification.is_used == False,
+                PhoneVerification.expires_at > datetime.utcnow()
+            ).first()
+            
+            if recent_verification:
+                recent_verification.is_used = True
+            else:
+                # Create a verification record for tracking
+                verification = PhoneVerification(
+                    user_id=user.id,
+                    verification_code=code,
+                    expires_at=datetime.utcnow() + timedelta(minutes=15),
+                    is_used=True
+                )
+                db.add(verification)
+            
+            user.is_phone_verified = True
+            db.commit()
+            logger.info(f"Phone verification successful for user ID: {user.id} using Melipayamak code")
+            return user
     
     if not verification:
         logger.warning(f"Invalid or expired verification code for user ID: {user.id}")

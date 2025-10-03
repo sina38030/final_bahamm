@@ -3,7 +3,6 @@
   --gray: #F6F6F6;
   --text: #1D1D1D;
   --text-light: #7A7A7A;
-  font-family: "Vazir", sans-serif;
 }
 
 * {
@@ -17,6 +16,19 @@
   background: #fff;
   color: var(--text);
   direction: rtl;
+  position: relative;
+}
+
+/* Backdrop base (always present, invisible by default) */
+.invite-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 40;
+  pointer-events: none;
 }
 
 /* Header */
@@ -151,24 +163,91 @@ input[type="range"] {
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 22px;
-  height: 22px;
+  width: 32px;
+  height: 32px;
   border: 4px solid #fff;
   border-radius: 50%;
-  background: var(--pink);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  background: #fff;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
   position: relative;
   z-index: 2;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--pink);
+  transform: translate(-50%, -50%);
+  transition: all 0.2s ease;
+  z-index: 1;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+}
+
+input[type="range"]::-webkit-slider-thumb:hover::after {
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+input[type="range"]:active::-webkit-slider-thumb {
+  transform: scale(1.15);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+}
+
+input[type="range"]:active::-webkit-slider-thumb::after {
+  transform: translate(-50%, -50%) scale(1.2);
 }
 
 input[type="range"]::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
+  width: 32px;
+  height: 32px;
   border: 4px solid #fff;
   border-radius: 50%;
-  background: var(--pink);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  background: #fff;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+input[type="range"]::-moz-range-thumb::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--pink);
+  transform: translate(-50%, -50%);
+  transition: all 0.2s ease;
+  z-index: 1;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+}
+
+input[type="range"]::-moz-range-thumb:hover::after {
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+input[type="range"]:active::-moz-range-thumb {
+  transform: scale(1.15);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+}
+
+input[type="range"]:active::-moz-range-thumb::after {
+  transform: translate(-50%, -50%) scale(1.2);
 }
 
 /* Free pill above left edge */
@@ -355,3 +434,9 @@ input[type="range"]::-moz-range-thumb {
   overflow: hidden;
   height: 100vh;
 } 
+
+/* Dimmed backdrop when any sheet is open */
+.invite-page.sheet-open::before {
+  opacity: 1;
+  pointer-events: auto;
+}

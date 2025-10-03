@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FaChevronLeft, FaComment, FaEnvelope, FaHeart, FaList, FaMapMarkerAlt, FaQuestionCircle, FaSignOutAlt, FaUsers, FaWallet } from 'react-icons/fa';
+import { FaChevronLeft, FaComment, FaEnvelope, FaHeart, FaList, FaMapMarkerAlt, FaQuestionCircle, FaSignOutAlt, FaUsers } from 'react-icons/fa';
+import { MdReceiptLong } from 'react-icons/md';
 import CustomModal from '@/components/common/CustomModal';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -45,11 +46,11 @@ export default function ProfileMenu() {
     };
 
     const menuItems: MenuItem[] = [
+        { icon: <FaUsers size={20} />, label: "گروه و سفارش‌های من", path: "/groups-orders" },
         { icon: <FaQuestionCircle size={20} />, label: "پشتیبانی و سوالات متداول", path: "/profile/faq" },
-        { icon: <FaEnvelope size={20} />, label: "پیام های من", path: "/profile/notification" },
-        { icon: <FaWallet size={20} />, label: "کیف پول من", path: "/profile/wallet" },
-        { icon: <FaHeart size={20} />, label: "علاقه مندی های من", path: "/favorites" },
-        { icon: <FaMapMarkerAlt size={20} />, label: "آدرس های من", path: "/profile/addresses" },
+        // { icon: <FaEnvelope size={20} />, label: "پیام های من", path: "/profile/notification" },
+        { icon: <MdReceiptLong size={20} />, label: "تراکنش‌ها", path: "/profile/transactions" },
+        // { icon: <FaMapMarkerAlt size={20} />, label: "آدرس های من", path: "/profile/addresses" },
         { icon: <FaComment size={20} />, label: "نظرات من", path: "/profile/comments" },
         { icon: <FaSignOutAlt size={20} />, label: "خروج", path: "/profile/logout", onClick: () => setIsLogoutModalOpen(true) },
     ];

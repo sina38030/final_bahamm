@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; border: 1px solid #ccc; padding: 15px; }
+        .loading { color: blue; }
+        .success { color: green; }
+        .error { color: red; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Admin API Test Page</h1>
+    <p>This page tests the admin API calls directly from the browser.</p>
+
+    <div class="test-section">
+        <h2>Dashboard API Test</h2>
+        <button onclick="testDashboard()">Test Dashboard</button>
+        <div id="dashboard-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Orders API Test</h2>
+        <button onclick="testOrders()">Test Orders</button>
+        <div id="orders-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Products API Test</h2>
+        <button onclick="testProducts()">Test Products</button>
+        <div id="products-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Categories API Test</h2>
+        <button onclick="testCategories()">Test Categories</button>
+        <div id="categories-result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8001/api';
+
+        async function makeApiCall(endpoint, resultElementId) {
+            const resultElement = document.getElementById(resultElementId);
+            resultElement.innerHTML = '<div class="loading">Loading...</div>';
+
+            try {
+                console.log(`Making request to: ${API_BASE}${endpoint}`);
+                
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'include'
+                });
+
+                console.log(`Response status: ${response.status}`);
+                console.log(`Response headers:`, response.headers);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`${response.status} ${response.statusText}: ${errorText}`);
+                }
+
+                const data = await response.json();
+                console.log(`Response data:`, data);
+
+                resultElement.innerHTML = `
+                    <div class="success">✅ Success (${response.status})</div>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                console.error(`Error:`, error);
+                resultElement.innerHTML = `
+                    <div class="error">❌ Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        function testDashboard() {
+            makeApiCall('/admin/dashboard', 'dashboard-result');
+        }
+
+        function testOrders() {
+            makeApiCall('/admin/orders', 'orders-result');
+        }
+
+        function testProducts() {
+            makeApiCall('/admin/products', 'products-result');
+        }
+
+        function testCategories() {
+            makeApiCall('/admin/categories', 'categories-result');
+        }
+
+        // Auto-test dashboard on page load
+        window.onload = function() {
+            console.log('Page loaded, testing dashboard...');
+            testDashboard();
+        };
+    </script>
+</body>
+</html> 

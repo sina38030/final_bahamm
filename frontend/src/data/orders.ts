@@ -1,13 +1,5 @@
-// Active group orders
-export const activeGroupOrders = Array(3)
-  .fill(null)
-  .map((_, index) => ({
-    id: index + 1,
-    imageUrl:
-      "https://atticbv.com/media/products/images/None/photo_5765121115679737611_y_1.jpg",
-    endTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    leaderName: "arash",
-  }));
+// Active group orders - now empty, will be populated from API
+export const activeGroupOrders = [];
 
 // Preparing orders
 export const preparingOrders = [

@@ -47,6 +47,7 @@ type Review = {
   product_id: number;
   rating: number;
   comment: string;
+  display_name?: string | null;
   created_at: string;
   first_name: string | null;
   last_name: string | null;
@@ -133,15 +134,11 @@ export default function ProductPage() {
 
   // Helper function to get user display name
   const getUserDisplayName = (review: Review): string => {
-    if (review.first_name && review.last_name) {
-      return `${review.first_name} ${review.last_name}`;
-    } else if (review.first_name) {
-      return review.first_name;
-    } else if (review.last_name) {
-      return review.last_name;
-    } else {
-      return "کاربر";
-    }
+    if (review.display_name && review.display_name.trim()) return review.display_name.trim();
+    if (review.first_name && review.last_name) return `${review.first_name} ${review.last_name}`;
+    if (review.first_name) return review.first_name;
+    if (review.last_name) return review.last_name;
+    return "کاربر";
   };
 
   // Display loading state
@@ -327,10 +324,11 @@ export default function ProductPage() {
           <CommentsModal
             isOpen={isCommentsModalOpen}
             onClose={() => setIsCommentsModalOpen(false)}
-            comments={reviews.map(review => ({ 
-              id: review.id, 
-              user: getUserDisplayName(review), 
-              text: review.comment 
+            comments={reviews.map(review => ({
+              id: review.id,
+              user: getUserDisplayName(review),
+              text: review.comment,
+              rating: review.rating,
             }))}
           />
           <div className="flex items-center gap-4">
@@ -373,7 +371,7 @@ export default function ProductPage() {
             <h4 className="font-semibold text-gray-800 text-lg mb-4">
               نظرات ثبت شده
             </h4>
-            {reviews.slice(0, 3).map((review) => (
+            {reviews.map((review) => (
               <div
                 key={review.id}
                 className="p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200"

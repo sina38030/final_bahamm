@@ -1,0 +1,245 @@
+from fastapi import APIRouter, Depends, HTTPException, Header
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from sqlalchemy import and_
+from typing import Optional, List, Dict, Any
+from datetime import datetime, timezone, timedelta
+
+# Tehran timezone: UTC+3:30
+TEHRAN_TZ = timezone(timedelta(hours=3, minutes=30))
+import json
+
+from app.database import get_db
+from app.models import GroupOrder, Order, User, GroupOrderStatus
+from app.utils.security import get_current_user
+
+
+router = APIRouter(prefix="/groups", tags=["groups"])
+
+
+class CreateSecondaryGroupBody(BaseModel):
+    kind: str
+    source_group_id: Optional[int]
+    source_order_id: int
+    leader_user_id: Optional[int] = None
+    expires_at: Optional[str] = None
+
+
+def _parse_snapshot(snapshot: Optional[str]) -> Dict[str, Any]:
+    if not snapshot:
+        return {}
+    try:
+        data = json.loads(snapshot)
+        if isinstance(data, dict):
+            return data
+        return {}
+    except Exception:
+        return {}
+
+
+def _serialize_group(g: GroupOrder, db: Session) -> Dict[str, Any]:
+    # Participants derived from orders table
+    orders = db.query(Order).filter(Order.group_order_id == g.id, Order.is_settlement_payment == False).all()
+    participants = []
+    for o in orders:
+        # Get user info to include phone number for leader detection
+        user_info = db.query(User).filter(User.id == o.user_id).first() if o.user_id else None
+        participants.append({
+            "userId": o.user_id,
+            "isLeader": (o.user_id == g.leader_id),
+            "is_leader": (o.user_id == g.leader_id),  # Alternative field name
+            "phone": user_info.phone_number if user_info else None,
+            "phone_number": user_info.phone_number if user_info else None,  # Alternative field name
+        })
+    
+    # اطمینان از اینکه رهبر همیشه در لیست participants باشد (حتی اگر سفارش نداشته باشد)
+    leader_in_participants = any(p["userId"] == g.leader_id for p in participants)
+    if not leader_in_participants and g.leader_id:
+        leader_info = db.query(User).filter(User.id == g.leader_id).first()
+        participants.append({
+            "userId": g.leader_id,
+            "isLeader": True,
+            "is_leader": True,
+            "phone": leader_info.phone_number if leader_info else None,
+            "phone_number": leader_info.phone_number if leader_info else None,
+        })
+
+    status_map = {
+        GroupOrderStatus.GROUP_FORMING: "ongoing",
+        GroupOrderStatus.GROUP_FINALIZED: "success",
+        GroupOrderStatus.GROUP_FAILED: "failed",
+    }
+    meta = _parse_snapshot(getattr(g, "basket_snapshot", None))
+
+    share_url = f"/landingM?invite={g.invite_token}" if getattr(g, "invite_token", None) else None
+
+    # Get leader info
+    leader_info = db.query(User).filter(User.id == g.leader_id).first() if g.leader_id else None
+    # Determine expected friends intelligently (avoid hardcoded 1)
+    is_secondary = (meta.get("kind") == "secondary")
+    expected_friends = getattr(g, 'expected_friends', None)
+    if (expected_friends is None) and (not is_secondary):
+        try:
+            # Re-evaluate settlement which also infers expected_friends when missing
+            from app.services.group_settlement_service import GroupSettlementService
+            GroupSettlementService(db).check_and_mark_settlement_required(g.id)
+            # Refresh group to get updated expected_friends
+            g = db.query(GroupOrder).filter(GroupOrder.id == g.id).first() or g
+            expected_friends = getattr(g, 'expected_friends', None)
+        except Exception:
+            expected_friends = None
+    # For secondary groups, expected_friends is not applicable
+    if is_secondary:
+        expected_friends = None
+    # Backward-compatible minJoinersForSuccess: use expected_friends when available,
+    # otherwise 0 for secondary groups, else fallback to 1
+    min_joiners = (
+        int(expected_friends) if isinstance(expected_friends, int) else (0 if is_secondary else 1)
+    )
+    
+    return {
+        "id": g.id,
+        "kind": (meta.get("kind") or "primary"),
+        "status": status_map.get(getattr(g, "status", GroupOrderStatus.GROUP_FORMING), "ongoing"),
+        "leaderUserId": g.leader_id,
+        "leader": {
+            "id": g.leader_id,
+            "phone_number": leader_info.phone_number if leader_info else None,
+        } if leader_info else None,
+        "minJoinersForSuccess": min_joiners,
+        "expectedFriends": expected_friends,
+        "participants": participants,
+        "expiresAt": g.expires_at.isoformat() if g.expires_at else None,
+        "sourceGroupId": meta.get("source_group_id"),
+        "sourceOrderId": meta.get("source_order_id"),
+        "joinCode": g.invite_token,
+        "shareUrl": share_url,
+    }
+
+
+@router.get("/{group_id}")
+async def get_group(group_id: int, db: Session = Depends(get_db)):
+    group = db.query(GroupOrder).filter(GroupOrder.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return _serialize_group(group, db)
+
+@router.get("/{group_id}/status")
+async def get_group_status(group_id: int, db: Session = Depends(get_db)):
+    group = db.query(GroupOrder).filter(GroupOrder.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    # Proactively re-evaluate settlement only if it hasn't been paid yet
+    try:
+        if not getattr(group, 'settlement_paid_at', None):
+            from app.services.group_settlement_service import GroupSettlementService
+            GroupSettlementService(db).check_and_mark_settlement_required(group_id)
+    except Exception:
+        pass
+    orders = db.query(Order).filter(Order.group_order_id == group.id, Order.is_settlement_payment == False).all()
+    # Count paid followers STRICTLY by payment evidence (ignore textual statuses)
+    paid_followers = [
+        o for o in orders
+        if o.user_id != group.leader_id and (o.payment_ref_id is not None or o.paid_at is not None)
+    ]
+    now = datetime.now(TEHRAN_TZ)
+    is_expired = group.expires_at is not None and now >= group.expires_at
+    status = "ongoing"
+    if getattr(group, "status", None) == GroupOrderStatus.GROUP_FINALIZED:
+        status = "success"
+    elif getattr(group, "status", None) == GroupOrderStatus.GROUP_FAILED:
+        status = "failed"
+    elif is_expired:
+        status = "success" if len(paid_followers) >= 1 else "failed"
+    return {
+        "id": group.id,
+        "status": status,
+        "participantsCount": len(orders),
+        "paidFollowers": len(paid_followers),
+        "expiresAt": group.expires_at.isoformat() if group.expires_at else None,
+    }
+
+
+@router.post("")
+async def create_group(
+    body: CreateSecondaryGroupBody,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    x_idempotency_key: Optional[str] = Header(default=None, alias="X-Idempotency-Key"),
+):
+    # Enable secondary group creation
+
+    # Validate kind
+    if (body.kind or "").lower() != "secondary":
+        raise HTTPException(status_code=400, detail="Only secondary group creation is supported here")
+
+    # Validate source order is paid
+    order = db.query(Order).filter(Order.id == body.source_order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Source order not found")
+    if not (order.paid_at or str(getattr(order, "status", "")).lower() in ["paid", "completed"] or order.payment_ref_id):
+        raise HTTPException(status_code=400, detail="Source order is not paid")
+
+    # Enforce one active secondary group per (leader, source_order)
+    existing_groups: List[GroupOrder] = db.query(GroupOrder).filter(
+        GroupOrder.leader_id == current_user.id,
+        GroupOrder.status == GroupOrderStatus.GROUP_FORMING,
+    ).all()
+    for g in existing_groups:
+        meta = _parse_snapshot(getattr(g, "basket_snapshot", None))
+        if meta.get("kind") == "secondary" and meta.get("source_order_id") == body.source_order_id:
+            return _serialize_group(g, db)
+
+    # Create new group
+    from .group_order_routes import generate_invite_token  # reuse helper
+    token = generate_invite_token()
+    # Ensure uniqueness
+    while db.query(GroupOrder).filter(GroupOrder.invite_token == token).first():
+        token = generate_invite_token()
+
+    # Determine expiry based on payment time + 24h, fallback to now+24h
+    try:
+        paid_at = order.paid_at or datetime.now(TEHRAN_TZ)
+    except Exception:
+        paid_at = datetime.now(TEHRAN_TZ)
+    # Normalize to Tehran TZ and add 24 hours
+    from datetime import timedelta
+    if paid_at.tzinfo is None:
+        paid_at = paid_at.replace(tzinfo=TEHRAN_TZ)
+    expires_at = paid_at + timedelta(hours=24)
+
+    # Build items list from source order
+    items = []
+    if order and hasattr(order, 'items'):
+        for item in order.items:
+            product = getattr(item, "product", None)
+            items.append({
+                "product_id": item.product_id,
+                "quantity": item.quantity,
+                "unit_price": item.base_price,
+                "product_name": getattr(product, "name", None) if product else f"محصول {item.product_id}",
+            })
+
+    meta = {
+        "kind": "secondary",
+        "source_group_id": body.source_group_id,
+        "source_order_id": body.source_order_id,
+        "idempotency_key": x_idempotency_key,
+        "items": items,  # Add items to snapshot
+    }
+
+    group = GroupOrder(
+        leader_id=current_user.id,
+        invite_token=token,
+        status=GroupOrderStatus.GROUP_FORMING,
+        leader_paid_at=paid_at,
+        expires_at=expires_at,
+        basket_snapshot=json.dumps(meta),
+    )
+    db.add(group)
+    db.commit()
+    db.refresh(group)
+
+    return _serialize_group(group, db)
+
+

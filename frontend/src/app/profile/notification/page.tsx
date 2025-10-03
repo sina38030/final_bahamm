@@ -20,7 +20,7 @@ function Page() {
     const [showNews, setShowNews] = useState(false);
 
     return (
-        <div className='min-h-screen bg-white'>
+        <div className='min-h-screen bg-white pb-16'>
             <PrevPage title='پیام های من' />
 
             {notifications.map((notification, index) => (
@@ -62,7 +62,8 @@ function Page() {
                     </div>
                 )}
             </div>
-
+            
+            
         </div>
     )
 }

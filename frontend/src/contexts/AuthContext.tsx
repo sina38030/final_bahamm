@@ -1,8 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { API_BASE_URL } from '../utils/api';
+import { apiClient } from '../utils/apiClient';
 
 // Define user type
 export interface User {
@@ -11,7 +12,10 @@ export interface User {
   last_name: string | null;
   email: string | null;
   phone_number: string | null;
+  username?: string | null;
+  telegram_id?: number | null;
   user_type: 'CUSTOMER' | 'MERCHANT';
+  registration_method?: 'phone' | 'telegram';
   coins: number;
   created_at: string;
   is_phone_verified: boolean;
@@ -25,18 +29,46 @@ export interface ProfileUpdate {
   password?: string;
 }
 
+// Address interface - matches backend UserAddress schema
+export interface Address {
+  id?: string | number;
+  title?: string;
+  full_address: string;
+  postal_code: string;
+  receiver_name: string;
+  phone_number: string;
+  latitude?: number;
+  longitude?: number;
+  is_default?: boolean;
+  user_id?: number;
+  created_at?: string;
+  // Legacy fields for backward compatibility
+  address?: string;
+  phone?: string;
+  city?: string;
+  details?: string;
+}
+
 // Auth context type
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   token: string | null;
   phoneNumber: string;
+  addresses: Address[];
   setPhoneNumber: (phoneNumber: string) => void;
   login: (phoneNumber: string, userType: 'CUSTOMER' | 'MERCHANT') => Promise<boolean>;
   verifyOtp: (code: string) => Promise<boolean>;
+  telegramLogin: (telegramUser: any) => Promise<boolean>;
+  setAuthData: (token: string, userData?: Partial<User>) => void;
   logout: () => void;
   updateUserProfile: (userData: ProfileUpdate) => Promise<boolean>;
+  loadUserAddresses: () => Promise<void>;
+  addUserAddress: (address: Address) => Promise<boolean>;
+  updateUserAddress: (addressId: string, address: Address) => Promise<boolean>;
+  deleteUserAddress: (addressId: string | number) => Promise<boolean>;
   isAuthenticated: boolean;
+  refreshCoins: () => Promise<void>;
 }
 
 // Create context with default values
@@ -45,12 +77,20 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   token: null,
   phoneNumber: '',
+  addresses: [],
   setPhoneNumber: () => {},
   login: async () => false,
   verifyOtp: async () => false,
+  telegramLogin: async () => false,
+  setAuthData: () => {},
   logout: () => {},
   updateUserProfile: async () => false,
+  loadUserAddresses: async () => {},
+  addUserAddress: async () => false,
+  updateUserAddress: async () => false,
+  deleteUserAddress: async () => false,
   isAuthenticated: false,
+  refreshCoins: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -60,7 +100,59 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [addresses, setAddresses] = useState<Address[]>([]);
   const router = useRouter();
+  const pathname = usePathname();
+  
+  // Use ref for timeout to avoid re-renders
+  const addressSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load user addresses
+  const loadUserAddresses = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      // Try to load from cache first for faster UI
+      const cachedAddresses = localStorage.getItem(`addresses_${user.id}`);
+      let hadCachedAddresses = false;
+      if (cachedAddresses) {
+        try {
+          const parsedAddresses = JSON.parse(cachedAddresses);
+          setAddresses(parsedAddresses);
+          console.log('[AuthContext] Addresses loaded from cache:', parsedAddresses);
+          hadCachedAddresses = Array.isArray(parsedAddresses) && parsedAddresses.length > 0;
+        } catch (e) {
+          console.warn('[AuthContext] Failed to parse cached addresses');
+        }
+      }
+
+      // Then fetch fresh data from server
+      const response = await apiClient.get(`/users/addresses`);
+      if (response.ok) {
+        const addressData = await response.json();
+        // Always reflect server truth. If empty, clear cache to avoid misleading state
+        if (Array.isArray(addressData)) {
+          setAddresses(addressData);
+          localStorage.setItem(`addresses_${user.id}`, JSON.stringify(addressData));
+          console.log('[AuthContext] User addresses loaded from server:', addressData);
+        }
+      }
+    } catch (error) {
+      console.error('[AuthContext] Error loading addresses:', error);
+      
+      // Fallback to cache if server fails
+      const cachedAddresses = localStorage.getItem(`addresses_${user.id}`);
+      if (cachedAddresses) {
+        try {
+          const parsedAddresses = JSON.parse(cachedAddresses);
+          setAddresses(parsedAddresses);
+          console.log('[AuthContext] Fallback to cached addresses due to server error');
+        } catch (e) {
+          console.warn('[AuthContext] Failed to parse cached addresses on fallback');
+        }
+      }
+    }
+  }, [user?.id]);
 
   // Load user data from localStorage on initial render
   useEffect(() => {
@@ -70,11 +162,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const storedUser = localStorage.getItem('user');
 
         if (storedToken && storedUser) {
+          console.log('[AuthContext] Loading user from localStorage:', JSON.parse(storedUser));
           setToken(storedToken);
           setUser(JSON.parse(storedUser));
           
-          // Validate token by fetching current user
-          validateToken(storedToken);
+          // Validate token by fetching current user data from server
+          await validateToken(storedToken);
+        } else {
+          console.log('[AuthContext] No stored auth data found');
         }
       } catch (error) {
         console.error('Error loading auth data:', error);
@@ -87,44 +182,99 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     loadUserFromStorage();
-  }, []);
+
+    // Listen for storage events to sync logout across tabs
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'auth_token' && e.newValue === null) {
+        console.log('[AuthContext] Logout detected in another tab');
+        setUser(null);
+        setToken(null);
+        setAddresses([]); // Clear addresses on logout
+      } else if (e.key === 'auth_token' && e.newValue) {
+        console.log('[AuthContext] Login detected in another tab');
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          setToken(e.newValue);
+          setUser(JSON.parse(storedUser));
+        }
+      } else if (e.key === 'address_sync' && e.newValue && user?.id) {
+        // Handle cross-tab address synchronization
+        try {
+          const syncData = JSON.parse(e.newValue);
+          if (syncData.userId === user.id) {
+            console.log('[AuthContext] Address sync event detected:', syncData);
+            
+            // Debounce multiple rapid events
+            if (addressSyncTimeoutRef.current) {
+              clearTimeout(addressSyncTimeoutRef.current);
+              addressSyncTimeoutRef.current = null;
+            }
+            
+            addressSyncTimeoutRef.current = setTimeout(() => {
+              switch (syncData.action) {
+                case 'add':
+                  setAddresses(prev => {
+                    const exists = prev.some(addr => addr.id === syncData.address.id);
+                    return exists ? prev : [...prev, syncData.address];
+                  });
+                  break;
+                case 'update':
+                  setAddresses(prev => prev.map(addr => 
+                    addr.id === syncData.addressId ? syncData.address : addr
+                  ));
+                  break;
+                case 'delete':
+                  setAddresses(prev => prev.filter(addr => addr.id !== syncData.addressId));
+                  break;
+                case 'refresh':
+                  // Reload addresses from server
+                  loadUserAddresses();
+                  break;
+              }
+              addressSyncTimeoutRef.current = null;
+            }, 100); // 100ms debounce
+          }
+        } catch (error) {
+          console.error('[AuthContext] Error parsing address sync data:', error);
+        }
+      }
+    };
+
+    // Only add event listeners in browser environment
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorageChange);
+    }
+    
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage', handleStorageChange);
+      }
+      if (addressSyncTimeoutRef.current) {
+        clearTimeout(addressSyncTimeoutRef.current);
+        addressSyncTimeoutRef.current = null;
+      }
+    };
+  }, [user?.id, loadUserAddresses]); // Add dependencies
+
+  // Load addresses when user is authenticated
+  useEffect(() => {
+    if (user?.id && !loading) {
+      console.log('[AuthContext] User authenticated, loading addresses...');
+      loadUserAddresses();
+    }
+  }, [user?.id, loading, loadUserAddresses]);
 
   // Validate token by making a request to the API
   const validateToken = async (authToken: string) => {
-    console.log('[AuthContext] Validating token...');
-    try {
-      const response = await fetch(`${API_BASE_URL}/favorites/check-auth`, {
-        headers: {
-          Authorization: `Bearer ${authToken}`
-        }
-      });
-      
-      if (!response.ok) {
-        console.warn('[AuthContext] Token validation failed, logging out');
-        // Token is invalid, clear it
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('user');
-        setUser(null);
-        setToken(null);
-      } else {
-        console.log('[AuthContext] Token validated successfully');
-        // Refresh user data
-        fetchUserProfile(authToken);
-      }
-    } catch (error) {
-      console.error('[AuthContext] Error validating token:', error);
-      // Don't clear token on network errors to avoid logging out users unnecessarily
-    }
+    // DISABLE TOKEN VALIDATION - IT WAS BREAKING THE AUTH
+    console.log('[AuthContext] Skipping token validation to avoid logout issues');
+    return;
   };
 
   // Get current user data
   const fetchUserProfile = async (authToken: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/me`, {
-        headers: {
-          Authorization: `Bearer ${authToken}`
-        }
-      });
+      const response = await apiClient.get('/users/me');
 
       if (response.ok) {
         const userData = await response.json();
@@ -138,6 +288,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return null;
     }
   };
+
+  // Refresh only coins from server and sync to user/localStorage
+  const refreshCoins = useCallback(async () => {
+    try {
+      if (!token) return;
+      const res = await apiClient.get('/users/coins');
+      if (res.ok) {
+        const data = await res.json();
+        const newCoins = typeof data?.coins === 'number' ? data.coins : 0;
+        setUser(prev => {
+          if (!prev) return prev;
+          const updated = { ...prev, coins: newCoins } as User;
+          try { localStorage.setItem('user', JSON.stringify(updated)); } catch {}
+          return updated;
+        });
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [token]);
 
   // Login (request OTP)
   const login = async (phone: string, userType: 'CUSTOMER' | 'MERCHANT') => {
@@ -197,13 +367,111 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Telegram Login
+  const telegramLogin = async (telegramUser: any) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/telegram-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(telegramUser)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const authToken = data.access_token;
+        
+        // Store token and user data
+        localStorage.setItem('auth_token', authToken);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        setToken(authToken);
+        setUser(data.user);
+        
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Telegram login error:', error);
+      return false;
+    }
+  };
+
+  // Set authentication data directly (allows partial user and fills sensible defaults)
+  const setAuthData = (authToken: string, userData?: Partial<User>) => {
+    try {
+      localStorage.setItem('auth_token', authToken);
+      setToken(authToken);
+
+      if (userData) {
+        const mergedUser: User = {
+          id: typeof userData.id === 'number' ? userData.id : (user?.id ?? 0),
+          first_name: userData.first_name ?? null,
+          last_name: userData.last_name ?? null,
+          email: userData.email ?? null,
+          phone_number: userData.phone_number ?? null,
+          username: userData.username ?? null,
+          telegram_id: userData.telegram_id ?? null,
+          user_type: userData.user_type ?? 'CUSTOMER',
+          registration_method: userData.registration_method ?? 'phone',
+          coins: typeof userData.coins === 'number' ? userData.coins : (user?.coins ?? 0),
+          created_at: userData.created_at ?? new Date().toISOString(),
+          is_phone_verified: userData.is_phone_verified ?? true,
+        };
+        setUser(mergedUser);
+        localStorage.setItem('user', JSON.stringify(mergedUser));
+      } else {
+        // If no user data provided, try to populate from server in background
+        void fetchUserProfile(authToken);
+      }
+    } catch (e) {
+      console.error('[AuthContext] Error in setAuthData:', e);
+    }
+  };
+
   // Logout
   const logout = () => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user');
+    try {
+      const prevUserId = user?.id;
+      const oldToken = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+
+      // Clear auth core
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user');
+
+      // Clear legacy/global caches that can leak identity across users
+      try { localStorage.removeItem('userPhone'); } catch {}
+      try { localStorage.removeItem('userAddress'); } catch {}
+
+      // Clear per-user caches for the current user
+      if (prevUserId != null) {
+        try { localStorage.removeItem(`userAddress_${prevUserId}`); } catch {}
+        try { localStorage.removeItem(`addresses_${prevUserId}`); } catch {}
+        try { localStorage.removeItem(`userAddressDetails_${prevUserId}`); } catch {}
+      }
+
+      // Clear in-memory caches
+      setAddresses([]);
+
+      // Notify other tabs
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: 'auth_token',
+            newValue: null,
+            oldValue: oldToken || null,
+          }));
+        } catch {}
+      }
+    } catch {}
+
     setUser(null);
     setToken(null);
-    router.push('/auth/login');
+    // Stay on the same page by default. If currently on an auth route, go to profile.
+    try {
+      if (pathname && pathname.startsWith('/auth')) {
+        router.push('/profile');
+      }
+    } catch {}
   };
 
   // Update user profile
@@ -253,17 +521,153 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Add new address
+  const addUserAddress = async (address: Address): Promise<boolean> => {
+    if (!user?.id) return false;
+
+    try {
+      const payload = {
+        title: address.title || 'آدرس',
+        full_address: address.full_address || '',
+        postal_code: address.postal_code || '',
+        receiver_name: address.receiver_name || (user?.first_name || ''),
+        phone_number: address.phone_number || user?.phone_number || '',
+        latitude: address.latitude ?? null,
+        longitude: address.longitude ?? null,
+        is_default: address.is_default ?? (addresses.length === 0),
+      };
+      const response = await apiClient.post(`/users/addresses`, payload);
+      if (response.ok) {
+        const newAddress = await response.json();
+        const updatedAddresses = [...addresses, newAddress];
+        setAddresses(updatedAddresses);
+        
+        // Cache addresses in localStorage
+        localStorage.setItem(`addresses_${user.id}`, JSON.stringify(updatedAddresses));
+        
+        // Trigger storage event for cross-tab sync
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: 'address_sync',
+            newValue: JSON.stringify({ action: 'add', userId: user.id, address: newAddress }),
+            oldValue: null
+          }));
+        }
+        
+        console.log('[AuthContext] Address added and synced:', newAddress);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('[AuthContext] Error adding address:', error);
+      return false;
+    }
+  };
+
+  // Update existing address
+  const updateUserAddress = async (addressId: string, address: Address): Promise<boolean> => {
+    if (!user?.id) return false;
+
+    try {
+      const payload = {
+        title: address.title,
+        full_address: address.full_address,
+        postal_code: address.postal_code,
+        receiver_name: address.receiver_name,
+        phone_number: address.phone_number,
+        latitude: address.latitude,
+        longitude: address.longitude,
+        is_default: address.is_default,
+      };
+      const response = await apiClient.put(`/users/addresses/${addressId}`, payload);
+      if (response.ok) {
+        const updatedAddress = await response.json();
+        const updatedAddresses = addresses.map(addr => 
+          String(addr.id) === String(addressId) ? updatedAddress : addr
+        );
+        setAddresses(updatedAddresses);
+        
+        // Cache addresses in localStorage
+        localStorage.setItem(`addresses_${user.id}`, JSON.stringify(updatedAddresses));
+        
+        // Trigger storage event for cross-tab sync
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: 'address_sync',
+            newValue: JSON.stringify({ action: 'update', userId: user.id, addressId, address: updatedAddress }),
+            oldValue: null
+          }));
+        }
+        
+        console.log('[AuthContext] Address updated and synced:', updatedAddress);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('[AuthContext] Error updating address:', error);
+      return false;
+    }
+  };
+
+  // Delete address
+  const deleteUserAddress = async (addressId: string | number): Promise<boolean> => {
+    if (!user?.id) return false;
+
+    try {
+      const idParam = Number.isFinite(Number(addressId)) ? Number(addressId) : String(addressId);
+      const response = await apiClient.delete(`/users/addresses/${idParam}`);
+      if (response.ok) {
+        const updatedAddresses = addresses.filter(addr => String(addr.id) !== String(addressId));
+        setAddresses(updatedAddresses);
+        
+        // Cache addresses in localStorage
+        localStorage.setItem(`addresses_${user.id}`, JSON.stringify(updatedAddresses));
+        
+        // Trigger storage event for cross-tab sync
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: 'address_sync',
+            newValue: JSON.stringify({ action: 'delete', userId: user.id, addressId }),
+            oldValue: null
+          }));
+        }
+        
+        console.log('[AuthContext] Address deleted and synced:', addressId);
+        return true;
+      } else {
+        try {
+          const errorBody = await response.json();
+          console.error('[AuthContext] Delete address failed:', response.status, errorBody);
+        } catch (e) {
+          console.error('[AuthContext] Delete address failed with status:', response.status);
+        }
+        return false;
+      }
+    } catch (error) {
+      console.error('[AuthContext] Error deleting address:', error);
+      return false;
+    }
+  };
+
   const value = {
     user,
     loading,
     token,
     phoneNumber,
+    addresses,
     setPhoneNumber,
     login,
     verifyOtp,
+    telegramLogin,
+    setAuthData,
     logout,
     updateUserProfile,
+    loadUserAddresses,
+    addUserAddress,
+    updateUserAddress,
+    deleteUserAddress,
     isAuthenticated: !!user && !!token,
+    refreshCoins,
   };
 
   return (

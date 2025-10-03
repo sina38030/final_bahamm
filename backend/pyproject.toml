@@ -20,6 +20,7 @@ python-multipart = "^0.0.20"
 python-dotenv = "^1.1.0"
 requests = "^2.32.3"
 psycopg2-binary = "^2.9.9"
+openai = "^1.54.3"
 
 
 [build-system]

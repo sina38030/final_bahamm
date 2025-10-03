@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import PrevPage from "@/components/common/PrevPage";
-import ProductCard from "@/components/product/ProductCard";
+import ProductCard from "@/components/ProductCard";
+import { Product as ProductCardType } from "@/data/products";
 import { FaSearch } from "react-icons/fa";
 import { API_BASE_URL } from "@/utils/api";
 
@@ -20,7 +21,7 @@ type Product = {
   free_shipping?: boolean;
 };
 
-export default function SearchPage() {
+function SearchContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get("q") || "";
   
@@ -102,9 +103,20 @@ export default function SearchPage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
+              {products.map((product) => {
+                // Convert search result to ProductCard format
+                const productCardData: ProductCardType = {
+                  id: product.id,
+                  cat: 'fruit', // default category
+                  img: product.image || product.imageUrl || '',
+                  name: product.name,
+                  weight: '1 کیلوگرم', // default weight
+                  star: '4.0', // default rating
+                  sales: '0', // default sales
+                  price: product.price,
+                };
+                return <ProductCard key={product.id} p={productCardData} />;
+              })}
             </div>
           )}
         </div>
@@ -112,3 +124,11 @@ export default function SearchPage() {
     </div>
   );
 } 
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<div className="p-4">در حال بارگذاری…</div>}>
+      <SearchContent />
+    </Suspense>
+  );
+}

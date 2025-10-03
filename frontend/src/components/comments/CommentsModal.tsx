@@ -2,11 +2,13 @@
 
 import React from 'react';
 import CustomModal from '../common/CustomModal';
+import { toTehranDate } from '@/utils/dateUtils';
 
 interface Comment {
     id: number;
     user: string;
     text: string;
+    rating?: number;
 }
 
 interface CommentsModalProps {
@@ -49,7 +51,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ isOpen, onClose, comments
                                             {[...Array(5)].map((_, index) => (
                                                 <svg
                                                     key={index}
-                                                    className={`w-4 h-4 ${index < 4 ? "text-yellow-400" : "text-gray-300"}`}
+                                                    className={`w-4 h-4 ${index < (comment.rating ?? 0) ? "text-yellow-400" : "text-gray-300"}`}
                                                     fill="currentColor"
                                                     viewBox="0 0 20 20"
                                                 >
@@ -60,7 +62,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ isOpen, onClose, comments
                                     </div>
                                 </div>
                                 <span className="text-xs text-gray-500">
-                                    {new Date().toLocaleDateString("fa-IR")}
+                                    {toTehranDate(new Date())}
                                 </span>
                             </div>
                             <p className="text-gray-600 leading-relaxed">{comment.text}</p>

@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 from sqlalchemy import or_
 
@@ -10,16 +10,26 @@ from app.schemas import ProductResponse
 search_router = APIRouter(prefix="/search", tags=["search"])
 
 @search_router.get("", response_model=List[ProductResponse])
-def search_products(q: str = "", db: Session = Depends(get_db)):
+def search_products(q: str = Query("", min_length=1), page: int = 1, limit: int = 20, db: Session = Depends(get_db)):
     if not q:
         return []
+    page = max(1, min(page, 100))
+    limit = max(1, min(limit, 50))
+    offset = (page - 1) * limit
 
-    products = db.query(Product).filter(
-        or_(
-            Product.name.ilike(f'%{q}%'),
-            Product.description.ilike(f'%{q}%')
+    products = (
+        db.query(Product)
+        .options(joinedload(Product.category), joinedload(Product.subcategory), joinedload(Product.images))
+        .filter(
+            or_(
+                Product.name.ilike(f'%{q}%'),
+                Product.description.ilike(f'%{q}%')
+            )
         )
-    ).all()
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
 
     # Convert products to response model objects with computed fields
     response_products = []

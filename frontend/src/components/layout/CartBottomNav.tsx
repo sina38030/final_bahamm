@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { FaShoppingCart } from 'react-icons/fa';
-import { useCart } from '../store/CartContext';
+import { useCart } from '@/contexts/CartContext';
 import { usePathname } from 'next/navigation';
 
 export default function CartBottomNav() {

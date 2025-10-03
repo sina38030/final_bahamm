@@ -1,0 +1,126 @@
+2025-08-03 04:02:27,345 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-03 04:02:27,346 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-03 04:02:28,230 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:12 - Database tables created
+2025-08-03 04:02:28,231 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:32 - Initializing API routes
+2025-08-03 04:02:28,277 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:34 - API routes initialized successfully
+2025-08-03 22:32:52,504 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-03 22:32:52,505 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-03 22:32:53,137 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:12 - Database tables created
+2025-08-03 22:32:53,138 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:32 - Initializing API routes
+2025-08-03 22:32:53,201 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:34 - API routes initialized successfully
+2025-08-03 22:37:33,252 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-03 22:37:33,263 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-03 22:37:33,431 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:12 - Database tables created
+2025-08-03 22:37:33,432 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:32 - Initializing API routes
+2025-08-03 22:37:33,481 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:34 - API routes initialized successfully
+2025-08-03 22:54:57,122 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-03 22:54:57,122 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-03 22:54:57,744 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:12 - Database tables created
+2025-08-03 22:54:57,744 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:32 - Initializing API routes
+2025-08-03 22:54:57,801 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:34 - API routes initialized successfully
+2025-08-03 23:01:44,773 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-03 23:01:44,774 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-03 23:01:44,938 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:12 - Database tables created
+2025-08-03 23:01:44,938 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:32 - Initializing API routes
+2025-08-03 23:01:44,991 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:34 - API routes initialized successfully
+2025-08-04 01:31:25,340 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-04 01:31:25,341 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-04 01:31:26,044 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:12 - Database tables created
+2025-08-04 01:31:26,045 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:32 - Initializing API routes
+2025-08-04 01:31:26,110 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:34 - API routes initialized successfully
+2025-08-04 01:37:14,443 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-04 01:37:14,444 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-04 01:37:15,073 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:12 - Database tables created
+2025-08-04 01:37:15,075 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:32 - Initializing API routes
+2025-08-04 01:37:15,182 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:34 - API routes initialized successfully
+2025-08-05 08:08:23,941 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-05 08:08:23,949 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-05 08:08:24,885 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:12 - Database tables created
+2025-08-05 08:08:24,885 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:32 - Initializing API routes
+2025-08-05 08:08:24,939 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:34 - API routes initialized successfully
+2025-08-05 08:23:49,283 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-05 08:23:49,284 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-05 08:23:49,533 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:12 - Database tables created
+2025-08-05 08:23:49,534 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:32 - Initializing API routes
+2025-08-05 08:23:49,602 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:34 - API routes initialized successfully
+2025-08-05 11:32:00,345 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-05 11:32:00,346 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-05 11:32:00,983 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:12 - Database tables created
+2025-08-05 11:32:00,984 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:32 - Initializing API routes
+2025-08-05 11:32:01,054 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:34 - API routes initialized successfully
+2025-08-05 11:47:30,757 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-05 11:47:30,757 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-05 11:55:56,425 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-05 11:55:56,426 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-05 11:55:56,528 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:12 - Database tables created
+2025-08-05 11:55:56,529 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:32 - Initializing API routes
+2025-08-05 11:55:56,613 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:34 - API routes initialized successfully
+2025-08-05 12:03:37,493 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-05 12:03:37,494 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-05 12:03:37,598 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:12 - Database tables created
+2025-08-05 12:03:37,598 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:32 - Initializing API routes
+2025-08-05 12:03:37,682 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:34 - API routes initialized successfully
+2025-08-05 12:23:21,243 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-05 12:23:21,243 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-05 12:23:21,345 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:12 - Database tables created
+2025-08-05 12:23:21,346 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:32 - Initializing API routes
+2025-08-05 12:23:21,438 - __main__ - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\main.py:34 - API routes initialized successfully
+2025-09-05 01:12:40,502 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-05 01:12:40,503 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-05 01:12:40,503 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-05 01:12:40,610 - app.main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\main.py:14 - Database tables created
+2025-09-05 01:12:40,611 - app.main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\main.py:34 - Initializing API routes
+2025-09-05 01:12:40,697 - app.main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\main.py:36 - API routes initialized successfully
+2025-09-05 01:12:40,697 - app.main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\main.py:43 - 🔧 Mounting static files: C:\Users\User\OneDrive\Desktop\final_project\backend\app\uploads
+2025-09-05 01:12:40,698 - app.main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\main.py:46 - ✅ Static uploads directory mounted at /static -> C:\Users\User\OneDrive\Desktop\final_project\backend\app\uploads
+2025-09-05 01:12:40,969 - httpx - INFO - C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py:1025 - HTTP Request: GET http://testserver/api/admin/orders "HTTP/1.1 200 OK"
+2025-09-05 01:13:09,419 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-05 01:13:09,419 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-05 01:13:09,420 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-05 01:13:09,523 - app.main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\main.py:14 - Database tables created
+2025-09-05 01:13:09,523 - app.main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\main.py:34 - Initializing API routes
+2025-09-05 01:13:09,604 - app.main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\main.py:36 - API routes initialized successfully
+2025-09-05 01:13:09,604 - app.main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\main.py:43 - 🔧 Mounting static files: C:\Users\User\OneDrive\Desktop\final_project\backend\app\uploads
+2025-09-05 01:13:09,605 - app.main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\main.py:46 - ✅ Static uploads directory mounted at /static -> C:\Users\User\OneDrive\Desktop\final_project\backend\app\uploads
+2025-09-05 01:13:09,852 - httpx - INFO - C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py:1025 - HTTP Request: GET http://testserver/api/admin/orders "HTTP/1.1 200 OK"
+2025-09-05 01:13:40,615 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-05 01:13:40,615 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-05 01:13:40,616 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-05 01:13:40,718 - app.main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\main.py:14 - Database tables created
+2025-09-05 01:13:40,718 - app.main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\main.py:34 - Initializing API routes
+2025-09-05 01:13:40,798 - app.main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\main.py:36 - API routes initialized successfully
+2025-09-05 01:13:40,799 - app.main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\main.py:43 - 🔧 Mounting static files: C:\Users\User\OneDrive\Desktop\final_project\backend\app\uploads
+2025-09-05 01:13:40,799 - app.main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\main.py:46 - ✅ Static uploads directory mounted at /static -> C:\Users\User\OneDrive\Desktop\final_project\backend\app\uploads
+2025-09-05 01:13:41,009 - httpx - INFO - C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py:1025 - HTTP Request: GET http://testserver/api/admin/orders "HTTP/1.1 200 OK"
+2025-09-11 22:06:59,850 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-11 22:06:59,856 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-11 22:06:59,856 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-11 22:06:59,978 - main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\main.py:18 - Database tables created
+2025-09-11 22:06:59,981 - main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\main.py:93 - Initializing API routes
+2025-09-11 22:07:00,087 - main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\main.py:95 - API routes initialized successfully
+2025-09-11 22:07:00,088 - main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\main.py:102 - Mounting static files: C:\Users\User\OneDrive\Desktop\final_project\backend\app\uploads
+2025-09-11 22:07:00,089 - main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\main.py:105 - Static uploads directory mounted at /static -> C:\Users\User\OneDrive\Desktop\final_project\backend\app\uploads
+2025-09-11 22:07:00,091 - main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\main.py:61 - Starting up application...
+2025-09-11 22:07:00,091 - main - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\main.py:65 - Group expiry service started
+2025-09-11 22:07:00,091 - app.services.group_expiry - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\group_expiry.py:171 - Starting group expiry service (checking every 10 minutes)
+2025-09-15 18:57:48,351 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-15 18:57:48,353 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-15 18:57:48,353 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-16 19:13:02,131 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-16 19:13:02,137 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-16 19:13:02,137 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-16 19:13:12,158 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-16 19:13:12,160 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-16 19:13:12,160 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-16 19:13:21,916 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-16 19:13:21,917 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-16 19:13:21,917 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-17 23:29:05,347 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-17 23:29:05,353 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-17 23:29:05,354 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-18 00:19:59,001 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-18 00:19:59,004 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-18 00:19:59,004 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-18 00:20:57,239 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-18 00:20:57,240 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-18 00:20:57,240 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9

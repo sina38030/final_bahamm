@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { FaSearch, FaTimes } from 'react-icons/fa';
-import BottomNavigation from '@/components/layout/BottomNavigation';
 import { API_BASE_URL } from '@/utils/api';
 
 // Define types for backend data
@@ -312,10 +311,7 @@ export default function CategoriesPage() {
                 </div>
             </div>
             
-            {/* Bottom Navigation - Fixed at the bottom of the screen */}
-            <div className="fixed bottom-0 left-0 right-0 z-20">
-                <BottomNavigation />
-            </div>
+            
         </div>
     );
 } 

@@ -1,10 +1,15 @@
 'use client';
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useMemo } from 'react';
 import { toFa } from '@/utils/format';
 import { useLightbox } from './Lightbox';
 import styles from './styles.module.css';
 
-export default function ImageSlider({ seeds }: { seeds: number[] }) {
+type Props = {
+  seeds: number[];
+  productImages?: string[]; // admin-uploaded images
+};
+
+export default function ImageSlider({ seeds, productImages = [] }: Props) {
   const rail     = useRef<HTMLDivElement>(null);
   const [idx, sI] = useState(0);
   const { open } = useLightbox();
@@ -60,15 +65,24 @@ export default function ImageSlider({ seeds }: { seeds: number[] }) {
     return () => el?.removeEventListener('dblclick', dbl);
   }, []);
 
-  const bigImgs = seeds.map(s => `https://picsum.photos/seed/${s}/1200/900`);
+  // Use admin images if available; otherwise use legacy picsum seeds
+  const galleryImages = useMemo<string[]>(() => {
+    if (Array.isArray(productImages) && productImages.length > 0) {
+      return productImages.filter(Boolean);
+    }
+    // No admin images; show nothing
+    return [];
+  }, [productImages]);
+
+  const bigImgs = useMemo<string[]>(() => galleryImages, [galleryImages]);
 
   return (
     <div className={styles.galleryWrap}>
       <div ref={rail} className={styles.slider}>
-        {seeds.map((s, i) => (
-          <div key={s} className={styles.slide}>
+        {galleryImages.map((src, i) => (
+          <div key={`${src}-${i}`} className={styles.slide}>
             <img
-              src={`https://picsum.photos/seed/${s}/800/600`}
+              src={src}
               draggable={false}
               onClick={() => open(bigImgs, i)}
             />
@@ -77,7 +91,7 @@ export default function ImageSlider({ seeds }: { seeds: number[] }) {
       </div>
 
       <div className={styles.slideIdx}>
-        {toFa(idx + 1)}/{toFa(seeds.length)}
+        {galleryImages.length > 0 ? `${toFa(idx + 1)}/${toFa(galleryImages.length)}` : ''}
       </div>
     </div>
   );

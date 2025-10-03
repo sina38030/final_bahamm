@@ -1,6 +1,9 @@
 import type {NextConfig} from "next";
 
 const nextConfig: NextConfig = {
+    // Enable React strict mode for better debugging
+    reactStrictMode: true,
+    
     images: {
         remotePatterns: [
             {
@@ -12,14 +15,61 @@ const nextConfig: NextConfig = {
                 hostname: "avaneed.com",
             },
             {
+                protocol: "https",
+                hostname: "cdn.avaneed.com",
+            },
+            {
                 protocol: "http",
                 hostname: "localhost",
+            },
+            {
+                protocol: "http",
+                hostname: "127.0.0.1",
             },
             {
                 protocol: "https",
                 hostname: "images.pexels.com",
             },
+            {
+                protocol: "https",
+                hostname: "picsum.photos",
+            },
+            {
+                protocol: "https",
+                hostname: "*.picsum.photos",
+            },
         ],
+        // Performance optimizations
+        deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+        imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+        formats: ['image/avif','image/webp'],
+        minimumCacheTTL: 60,
+    },
+    
+    
+    // Performance optimizations
+    poweredByHeader: false,
+    compress: true,
+    
+    // Keep experimental features minimal in dev to avoid chunking issues
+    experimental: {},
+    
+    // Webpack optimizations
+    webpack: (config, { dev, isServer }) => {
+        if (!dev) {
+            config.optimization.splitChunks = {
+                chunks: 'all',
+                cacheGroups: {
+                    vendor: {
+                        test: /[\\/]node_modules[\\/]/,
+                        name: 'vendors',
+                        chunks: 'all',
+                        priority: 10
+                    }
+                }
+            };
+        }
+        return config;
     }
 };
 

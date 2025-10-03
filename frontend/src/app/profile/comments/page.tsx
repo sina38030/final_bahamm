@@ -149,7 +149,7 @@ export default function CommentsPage() {
     );
 
     return (
-        <div className="min-h-screen mx-auto">
+        <div className="min-h-screen mx-auto pb-16">
             <PrevPage title="نظرات من" />
             <div className="p-4">
                 {reviews.length === 0 ? (
@@ -209,6 +209,8 @@ export default function CommentsPage() {
                     </div>
                 )}
             </CustomModal>
+            
+            
         </div>
     );
 } 

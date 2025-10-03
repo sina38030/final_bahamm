@@ -1,16 +1,17 @@
 "use client";
 
 import PrevPage from "@/components/common/PrevPage";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { FaGift } from "react-icons/fa"; // آیکون‌ها
 import { IoIosStar } from "react-icons/io"; // آیکون ستاره
 import CustomModal from '@/components/common/CustomModal'; // Import CustomModal
 import { useSearchParams } from 'next/navigation'; // Import useSearchParams
 
-const Page = () => {
+function SuccessBuyContent() {
     const searchParams = useSearchParams();
     // TODO: Get the actual groupBuyInviteCode, perhaps from router query params or state after group buy creation
     const groupBuyInviteCode = searchParams.get('inviteCode') || "DEFAULT_INVITE_CODE";
+    
 
     const [time, setTime] = useState({
         hours: 23,
@@ -59,6 +60,7 @@ const Page = () => {
 
         return () => clearInterval(timer);
     }, []);
+
 
     // Convert numbers to Persian digits
     const toPersianNumber = (num: number) => {
@@ -194,6 +196,12 @@ const Page = () => {
             </CustomModal>
         </div>
     );
-};
+}
 
-export default Page;
+export default function Page() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><p className="text-gray-500">در حال بارگذاری…</p></div>}>
+            <SuccessBuyContent />
+        </Suspense>
+    );
+}

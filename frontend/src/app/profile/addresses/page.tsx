@@ -19,7 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { API_BASE_URL } from "@/utils/api";
 
-const MapWithNoSSR = dynamic(() => import("@/components/common/Map"), {
+const ModalMap = dynamic(() => import("@/components/common/ModalMap"), {
   ssr: false,
   loading: () => <div className="h-96 w-full bg-gray-100 animate-pulse" />,
 });
@@ -79,6 +79,9 @@ export default function AddressesPage() {
   const [editingAddressId, setEditingAddressId] = useState<number | null>(null);
   const [activeAddressId, setActiveAddressId] = useState<number | null>(null);
 
+  // Use a per-user storage key to avoid cross-user/global browser-only storage
+  const storageKey = user?.id ? `addresses_${user.id}` : 'guest_addresses';
+
   // Fetch addresses from the API or fallback to localStorage
   const fetchAddresses = async () => {
     setIsLoading(true);
@@ -95,8 +98,57 @@ export default function AddressesPage() {
         if (response.ok) {
           const data = await response.json();
           setAddresses(data);
-          // Also update localStorage for offline use
-          localStorage.setItem("bahaam-user-addresses", JSON.stringify(data));
+          // Also update localStorage for offline use (per-user cache)
+          localStorage.setItem(storageKey, JSON.stringify(data));
+
+          // If server has no addresses but legacy localStorage exists (from old implementation), migrate them to server
+          if (Array.isArray(data) && data.length === 0 && user?.id) {
+            try {
+              const migratedFlag = localStorage.getItem(`addresses_migrated_${user.id}`);
+              const legacyRaw = localStorage.getItem('bahaam-user-addresses');
+              if (!migratedFlag && legacyRaw) {
+                const legacyList = JSON.parse(legacyRaw);
+                if (Array.isArray(legacyList) && legacyList.length > 0) {
+                  // POST each legacy address to backend
+                  for (const legacy of legacyList) {
+                    const payload = {
+                      title: legacy.title || 'آدرس',
+                      full_address: legacy.full_address || legacy.fullAddress || '',
+                      postal_code: legacy.postal_code || legacy.postalCode || '0000000000',
+                      receiver_name: legacy.receiver_name || legacy.receiverName || '',
+                      phone_number: legacy.phone_number || legacy.phone || '',
+                      latitude: legacy.latitude ?? null,
+                      longitude: legacy.longitude ?? null,
+                      is_default: !!legacy.is_default,
+                    };
+                    try {
+                      const res = await fetch(`${API_BASE_URL}/users/addresses`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify(payload),
+                      });
+                      // Ignore individual failures and continue
+                    } catch {}
+                  }
+                  // Mark migrated and refresh from server
+                  localStorage.setItem(`addresses_migrated_${user.id}`, '1');
+                  try {
+                    const re = await fetch(`${API_BASE_URL}/users/addresses`, {
+                      headers: { Authorization: `Bearer ${token}` },
+                    });
+                    if (re.ok) {
+                      const migrated = await re.json();
+                      setAddresses(migrated);
+                      localStorage.setItem(storageKey, JSON.stringify(migrated));
+                    }
+                  } catch {}
+                }
+              }
+            } catch {}
+          }
           
           // Set the active address if there's a default one
           const defaultAddress = data.find((addr: Address) => addr.is_default);
@@ -104,7 +156,7 @@ export default function AddressesPage() {
             setActiveAddressId(defaultAddress.id);
           }
         } else {
-          // If API call fails, fallback to localStorage
+          // If API call fails, fallback to localStorage (per-user)
           loadAddressesFromLocalStorage();
         }
       } catch (error) {
@@ -116,7 +168,7 @@ export default function AddressesPage() {
         setIsLoading(false);
       }
     } else {
-      // Not authenticated, use localStorage
+      // Not authenticated, use localStorage (guest scope)
       loadAddressesFromLocalStorage();
       setIsLoading(false);
     }
@@ -125,7 +177,7 @@ export default function AddressesPage() {
   // Load addresses from localStorage
   const loadAddressesFromLocalStorage = () => {
     try {
-      const savedAddresses = localStorage.getItem("bahaam-user-addresses");
+      const savedAddresses = localStorage.getItem(storageKey);
       if (savedAddresses) {
         const parsedAddresses = JSON.parse(savedAddresses);
         if (Array.isArray(parsedAddresses) && parsedAddresses.length > 0) {
@@ -180,9 +232,9 @@ export default function AddressesPage() {
             setAddresses(prev => [...prev, savedAddress]);
           }
           
-          // Update localStorage
+          // Update localStorage (per-user cache)
           localStorage.setItem(
-            "bahaam-user-addresses",
+            storageKey,
             JSON.stringify(editingAddressId 
               ? addresses.map(addr => addr.id === editingAddressId ? savedAddress : addr)
               : [...addresses, savedAddress]
@@ -219,9 +271,9 @@ export default function AddressesPage() {
         if (response.ok) {
           setAddresses(prev => prev.filter(addr => addr.id !== id));
           
-          // Update localStorage
+          // Update localStorage (per-user cache)
           localStorage.setItem(
-            "bahaam-user-addresses",
+            storageKey,
             JSON.stringify(addresses.filter(addr => addr.id !== id))
           );
           
@@ -246,7 +298,7 @@ export default function AddressesPage() {
       
       // Update localStorage
       localStorage.setItem(
-        "bahaam-user-addresses",
+        storageKey,
         JSON.stringify(addresses.filter(address => address.id !== id))
       );
       
@@ -274,9 +326,9 @@ export default function AddressesPage() {
             }))
           );
           
-          // Update localStorage
+          // Update localStorage (per-user cache)
           localStorage.setItem(
-            "bahaam-user-addresses",
+            storageKey,
             JSON.stringify(addresses.map(addr => ({
               ...addr,
               is_default: addr.id === id
@@ -305,7 +357,7 @@ export default function AddressesPage() {
       
       // Update localStorage
       localStorage.setItem(
-        "bahaam-user-addresses",
+        storageKey,
         JSON.stringify(addresses.map(addr => ({
           ...addr,
           is_default: addr.id === id
@@ -360,25 +412,19 @@ export default function AddressesPage() {
     }
   };
 
-  const handleLocationSelect = async (lat: number, lng: number) => {
+  const handleLocationSelect = (lat: number, lng: number) => {
     setSelectedLocation({ lat, lng });
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=fa`
-      );
-      const data = await response.json();
-      if (data.display_name) {
-        setMapSelectedAddress(data.display_name);
-        // Update form data with the selected address
-        setFormData(prev => ({
-          ...prev,
-          full_address: data.display_name
-        }));
-      }
-    } catch (error) {
-      console.error("Error fetching address:", error);
-    }
+    
+    // Set coordinates as the selected address
+    const selectedAddress = `موقعیت انتخاب شده: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    setMapSelectedAddress(selectedAddress);
+    setFormData(prev => ({
+      ...prev,
+      full_address: selectedAddress
+    }));
+    // After picking a location, close the map and ensure the edit modal is open for saving
     setIsMapModalOpen(false);
+    setIsModalOpen(true);
   };
 
   const openMapModal = () => {
@@ -398,6 +444,11 @@ export default function AddressesPage() {
       setSelectedLocation({ lat: address.latitude, lng: address.longitude });
     }
     setEditingAddressId(address.id);
+    // If only one address exists, open the map directly for quick location edit
+    if (addresses.length === 1) {
+      setIsMapModalOpen(true);
+      return;
+    }
     setIsModalOpen(true);
   };
 
@@ -506,7 +557,7 @@ export default function AddressesPage() {
   );
 
   return (
-    <div className="min-h-screen mx-auto">
+    <div className="min-h-screen mx-auto pb-16">
       <PrevPage title="آدرس‌های من" />
       
       {/* Error message */}
@@ -733,9 +784,14 @@ export default function AddressesPage() {
         hideFooter
       >
         <div className="h-[500px]">
-          <MapWithNoSSR onLocationSelect={handleLocationSelect} />
+          <ModalMap 
+            onLocationSelect={handleLocationSelect} 
+            isOpen={isMapModalOpen}
+          />
         </div>
       </CustomModal>
+      
+      
     </div>
   );
 }

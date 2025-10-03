@@ -5,7 +5,7 @@ import re
 
 from app.database import get_db
 from app.models import Product, ProductOption, ProductImage, Review, User
-from app.schemas import ProductDetailResponse, ProductOptionsResponse, ProductCreate, ProductUpdate, ReviewResponse, ReviewCreate
+from app.schemas import ProductDetailResponse, ProductOptionsResponse, ProductCreate, ProductUpdate, ReviewResponse, ReviewCreate, ReviewBase
 
 product_router = APIRouter(prefix="/product", tags=["product"])
 
@@ -163,24 +163,31 @@ def get_product_reviews(product_id: int, db: Session = Depends(get_db)):
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     
-    # Get all reviews for the product
-    reviews = db.query(Review).filter(Review.product_id == product_id).all()
-    
+    # Get all reviews for the product (newest first)
+    reviews = (
+        db.query(Review)
+        .filter(Review.product_id == product_id)
+        .order_by(Review.created_at.desc(), Review.id.desc())
+        .all()
+    )
+
     # Prepare response with first_name and last_name
     response_reviews = []
     for review in reviews:
+        user = db.query(User).filter(User.id == review.user_id).first()
         review_dict = {
             "id": review.id,
             "rating": review.rating,
             "comment": review.comment,
+            "display_name": review.display_name,
             "product_id": review.product_id,
             "user_id": review.user_id,
             "created_at": review.created_at,
-            "first_name": review.user.first_name if review.user else None,
-            "last_name": review.user.last_name if review.user else None
+            "first_name": user.first_name if user else None,
+            "last_name": user.last_name if user else None
         }
         response_reviews.append(ReviewResponse(**review_dict))
-    
+
     return response_reviews
 
 # Create a review for a product
@@ -195,34 +202,175 @@ def create_product_review(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     
-    # Ensure user exists if user_id is provided
-    if review_data.user_id:
+    # Ensure user exists if user_id is provided (skip validation for user_id 1 which is used for fake reviews)
+    user = None
+    if review_data.user_id and review_data.user_id != 1:
         user = db.query(User).filter(User.id == review_data.user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
     
     # Create review
+    # Derive a display name if not provided
+    computed_display_name = None
+    try:
+        if review_data.display_name and str(review_data.display_name).strip():
+            computed_display_name = str(review_data.display_name).strip()
+        elif user and (user.first_name or user.last_name):
+            parts = [p for p in [user.first_name, user.last_name] if p]
+            computed_display_name = " ".join(parts)
+    except Exception:
+        computed_display_name = None
+
     review = Review(
         product_id=product_id,
         user_id=review_data.user_id,
         rating=review_data.rating,
-        comment=review_data.comment
+        comment=review_data.comment,
+        display_name=computed_display_name
     )
-    
+
+    # Allow overriding created_at if provided (admin/manual entry)
+    if review_data.created_at:
+        try:
+            review.created_at = review_data.created_at
+        except Exception:
+            pass
+
     db.add(review)
     db.commit()
     db.refresh(review)
-    
+
+    # Get user info for response
+    user = db.query(User).filter(User.id == review.user_id).first()
+
     # Prepare response
     review_dict = {
         "id": review.id,
         "rating": review.rating,
         "comment": review.comment,
+        "display_name": review.display_name,
         "product_id": review.product_id,
         "user_id": review.user_id,
         "created_at": review.created_at,
-        "first_name": review.user.first_name if review.user else None,
-        "last_name": review.user.last_name if review.user else None
+        "first_name": user.first_name if user else None,
+        "last_name": user.last_name if user else None
     }
-    
+
+    return ReviewResponse(**review_dict)
+
+# Get all reviews for a product
+@product_router.get("/{product_id}/reviews", response_model=List[ReviewResponse])
+def get_product_reviews(
+    product_id: int,
+    db: Session = Depends(get_db)
+):
+    # Check if product exists
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    # Get all reviews for the product (newest first)
+    reviews = (
+        db.query(Review)
+        .filter(Review.product_id == product_id)
+        .order_by(Review.created_at.desc(), Review.id.desc())
+        .all()
+    )
+
+    # Prepare response
+    reviews_list = []
+    for review in reviews:
+        user = db.query(User).filter(User.id == review.user_id).first()
+        review_dict = {
+            "id": review.id,
+            "rating": review.rating,
+            "comment": review.comment,
+            "display_name": review.display_name,
+            "product_id": review.product_id,
+            "user_id": review.user_id,
+            "created_at": review.created_at,
+            "first_name": user.first_name if user else None,
+            "last_name": user.last_name if user else None
+        }
+        reviews_list.append(ReviewResponse(**review_dict))
+
+    return reviews_list
+
+# Delete a review
+@product_router.delete("/{product_id}/reviews/{review_id}")
+def delete_product_review(
+    product_id: int,
+    review_id: int,
+    db: Session = Depends(get_db)
+):
+    # Check if product exists
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    # Check if review exists and belongs to the product
+    review = db.query(Review).filter(
+        Review.id == review_id,
+        Review.product_id == product_id
+    ).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    # Delete the review
+    db.delete(review)
+    db.commit()
+
+    return {"message": "Review deleted successfully"}
+
+# Update a review
+@product_router.put("/{product_id}/reviews/{review_id}", response_model=ReviewResponse)
+def update_product_review(
+    product_id: int,
+    review_id: int,
+    review_update: ReviewBase,
+    db: Session = Depends(get_db)
+):
+    # Check if product exists
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    # Check if review exists and belongs to the product
+    review = db.query(Review).filter(
+        Review.id == review_id,
+        Review.product_id == product_id
+    ).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    # Update the review
+    review.rating = review_update.rating
+    review.comment = review_update.comment
+    review.display_name = review_update.display_name
+    # Allow admin to override created_at when provided
+    if review_update.created_at:
+        try:
+            review.created_at = review_update.created_at
+        except Exception:
+            pass
+
+    db.commit()
+    db.refresh(review)
+
+    # Get user info for response
+    user = db.query(User).filter(User.id == review.user_id).first()
+
+    # Prepare response
+    review_dict = {
+        "id": review.id,
+        "rating": review.rating,
+        "comment": review.comment,
+        "display_name": review.display_name,
+        "product_id": review.product_id,
+        "user_id": review.user_id,
+        "created_at": review.created_at,
+        "first_name": user.first_name if user else None,
+        "last_name": user.last_name if user else None
+    }
+
     return ReviewResponse(**review_dict) 

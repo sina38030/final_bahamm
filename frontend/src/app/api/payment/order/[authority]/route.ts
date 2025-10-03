@@ -14,16 +14,31 @@ export async function GET(
       );
     }
 
-    // Forward request to backend
+    // Try FastAPI first (port 8001)
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8001';
-    const response = await fetch(`${backendUrl}/api/payment/order/${authority}`, {
+    let response = await fetch(`${backendUrl}/api/payment/order/${authority}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
     });
 
-    const data = await response.json();
+    let data = await response.json();
+
+    // If FastAPI fails, try quick_server (port 8000)
+    if (!response.ok) {
+      try {
+        const quickServerUrl = backendUrl.replace('8001', '8000');
+        const fallback = await fetch(`${quickServerUrl}/api/payment/order/${authority}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (fallback.ok) {
+          data = await fallback.json();
+          response = fallback;
+        }
+      } catch {}
+    }
 
     if (!response.ok) {
       return NextResponse.json(
@@ -32,7 +47,8 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(data);
+    // Normalize response to the shape the frontend expects
+    return NextResponse.json({ success: true, order: data });
 
   } catch (error) {
     console.error('Error fetching order:', error);

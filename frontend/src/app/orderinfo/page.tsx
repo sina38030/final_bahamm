@@ -6,7 +6,7 @@ import { Button } from "@heroui/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation"; // Import useRouter for navigation in Next.js
 import { useState } from "react";
-import { Wheel } from "react-custom-roulette";
+import dynamic from "next/dynamic";
 import { BiPlus } from "react-icons/bi";
 import { IoCheckboxSharp } from "react-icons/io5";
 
@@ -236,6 +236,8 @@ export default function OrderInfoPage() {
         </div>
     );
 }
+// Avoid SSR for roulette which references window under the hood
+const Wheel = dynamic(() => import("react-custom-roulette").then(m => m.Wheel), { ssr: false });
 const data = [
     { option: "6", style: { backgroundColor: "pink", textColor: "darkblue" } },
     { option: "7", style: { backgroundColor: "purple", textColor: "gold" } },

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پاک کردن کش آدرس‌ها</title>
+    <style>
+        body {
+            font-family: 'IRANSansX', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+        .btn {
+            background: linear-gradient(45deg, #ff006a, #ff4081);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255, 0, 106, 0.3);
+        }
+        .success {
+            color: #4CAF50;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .cache-info {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: right;
+        }
+        .cache-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #ff006a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 پاک کردن کش آدرس‌ها</h1>
+        
+        <div class="cache-info" id="cacheInfo">
+            <h3>کش‌های موجود:</h3>
+            <div id="cacheList"></div>
+        </div>
+        
+        <button class="btn" onclick="clearAddressCache()">پاک کردن کش آدرس‌ها</button>
+        <button class="btn" onclick="clearAllCache()">پاک کردن تمام کش‌ها</button>
+        <button class="btn" onclick="refreshCache()">بروزرسانی نمایش</button>
+        
+        <div id="result"></div>
+        
+        <div style="margin-top: 30px; font-size: 14px; color: #666;">
+            <p>⚠️ بعد از پاک کردن کش، صفحه checkout را رفرش کنید</p>
+            <p>🔄 آدرس جدید باید از سرور بارگذاری شود</p>
+        </div>
+    </div>
+
+    <script>
+        function showCacheInfo() {
+            const cacheList = document.getElementById('cacheList');
+            const addressRelatedKeys = [];
+            
+            // Find all localStorage keys related to addresses
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('address') || key.includes('user') || key.includes('auth'))) {
+                    const value = localStorage.getItem(key);
+                    addressRelatedKeys.push({key, value: value ? value.substring(0, 100) + '...' : 'null'});
+                }
+            }
+            
+            if (addressRelatedKeys.length === 0) {
+                cacheList.innerHTML = '<div class="cache-item">هیچ کش آدرسی یافت نشد</div>';
+            } else {
+                cacheList.innerHTML = addressRelatedKeys.map(item => 
+                    `<div class="cache-item">
+                        <strong>${item.key}</strong><br>
+                        <small style="color: #666;">${item.value}</small>
+                    </div>`
+                ).join('');
+            }
+        }
+        
+        function clearAddressCache() {
+            const keysToRemove = [];
+            
+            // Find address-related keys
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.includes('address')) {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            // Remove them
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            
+            document.getElementById('result').innerHTML = 
+                `<div class="success">✅ ${keysToRemove.length} کش آدرس پاک شد:<br>${keysToRemove.join('<br>')}</div>`;
+            
+            showCacheInfo();
+        }
+        
+        function clearAllCache() {
+            const allKeys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                allKeys.push(localStorage.key(i));
+            }
+            
+            localStorage.clear();
+            
+            document.getElementById('result').innerHTML = 
+                `<div class="success">✅ تمام کش‌ها پاک شدند (${allKeys.length} آیتم)</div>`;
+            
+            showCacheInfo();
+        }
+        
+        function refreshCache() {
+            showCacheInfo();
+            document.getElementById('result').innerHTML = 
+                '<div class="success">🔄 نمایش کش‌ها بروزرسانی شد</div>';
+        }
+        
+        // Show cache info on load
+        showCacheInfo();
+    </script>
+</body>
+</html>
+

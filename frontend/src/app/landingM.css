@@ -1,0 +1,143 @@
+:root{font-size:14px}
+*{box-sizing:border-box}
+body{margin:0;direction:rtl;background:#fff;padding-bottom:100px}
+
+/* ===== HEADER ===== */
+header{display:flex;justify-content:center;align-items:center;padding:16px 0;background:#fff;position:sticky;top:0;z-index:5;box-shadow:0 2px 4px rgba(0,0,0,.1)}
+.share-icon{position:absolute;left:12px;font-size:1.4rem;color:#888;background:none;border:none;cursor:pointer;padding:0}
+.share-icon svg{width:1.4rem;height:1.4rem}
+#rotatingText{transition:.5s;color:#2e8b57;font-weight:700;cursor:pointer}
+.fade-up{opacity:0;transform:translateY(-100%)}
+
+/* ===== لینک مشاهده سبد گروهی ===== */
+.basket-head{margin:20px 12px;text-align:right}
+.view-full{font-weight:400;color:#2;text-decoration:none;font-size:.9rem;background:transparent;border:none;cursor:pointer;padding:0}
+
+/* ===== اسلایدر ===== */
+.basket-carousel{display:flex;overflow-x:auto;padding:0 32px 20px 16px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;will-change:transform;contain:content}
+.basket-carousel::-webkit-scrollbar{display:none}
+.basket-item{min-width:90px;height:90px;margin-left:12px;position:relative;border-radius:6px;background:#ddd;scroll-snap-align:start}
+.basket-item:first-child{margin-right:12px}
+.basket-item img{width:100%;height:100%;object-fit:cover}
+.basket-item img{ border-radius:12px }
+.qty{position:absolute;font-size:.7rem;font-weight:700;background:#fff;padding:2px 6px;border-radius:6px;top:-5px;right:2px;transform:translateX(50%)}
+.discount-badge{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);font-size:.6rem;font-weight:700;background:#e6005c;color:#fff;padding:2px 4px;border-radius:4px;white-space:nowrap;text-align:center}
+.off{bottom:3px;left:3px;color:#e6005c}
+.off::before{content:"-";margin-left:2px}
+
+/* ===== قیمت ثابت و تایمر ===== */
+.discount-text{margin:24px 12px;text-align:center;font-size:16px;color:#333}
+.discount-text b{color:#e6005c;font-weight:900}
+.currency{font-size:7px;vertical-align:middle;color:#555}
+
+/* ===== لیدر ===== */
+.leader-circles{display:flex;justify-content:center;gap:12px;margin:20px 0;direction:ltr}
+.circle{direction:rtl;width:40px;height:40px;border-radius:50%;display:flex;justify-content:center;align-items:center;font-weight:700}
+.circle.question{border:2px dashed #888;color:#888}
+.circle.leader{background:#e6d6f5;color:#333}
+
+/* ===== تایمر ===== */
+.countdown-wrapper{display:flex;align-items:center;justify-content:center;gap:6px;font-size:14px;color:#333;margin:24px 0;white-space:nowrap;text-align:center;flex-wrap:nowrap;width:100%;max-width:100%}
+#countdown{color:#e6005c;font-weight:900;margin:0;display:inline-grid;grid-auto-flow:column;direction:ltr;font-variant-numeric:tabular-nums;font-feature-settings:'tnum' 1;width:11ch;text-align:center;font-family:'Vazir', var(--font-iransans), Tahoma, ui-sans-serif, system-ui, sans-serif;letter-spacing:0;line-height:1.2;contain:layout paint;flex:0 0 auto}
+.countdown-label{display:inline-block;white-space:nowrap;flex:0 1 auto;min-width:0;max-width:70vw;overflow:hidden;text-overflow:ellipsis}
+#countdown .d{display:inline-block;min-width:1.25ch;text-align:center}
+#countdown .sep{display:inline-block;min-width:.6ch;text-align:center}
+
+/* ===== CTA بالای صفحه ===== */
+.cta-btn{display:block;width:calc(100% - 24px);margin:24px auto;background: linear-gradient(270deg, #EB2854 0%, #E73862 50%, #E52155 100%) !important;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;padding:14px 0;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+
+/* ===== خط جداکننده ===== */
+.divider{border:0;height:10px;background:#e0e0e0;margin:0 0 20px}
+
+/* ===== بنر سبز ===== */
+.green-box{background:#d4f4d1;margin:0 12px 20px;border-radius:8px;padding:12px;text-align:center;font-size:14px;color:#2e8b57;font-weight:700;cursor:pointer}
+.green-box::before{content:"⬇";margin-left:5px;color:#2e8b57}
+
+/* ===== تب‌ها ===== */
+.tabs{display:flex;justify-content:space-around;margin:12px 0;font-size:.9rem;background:#fff;position:sticky;z-index:4;padding:8px 0;box-shadow:0 2px 4px rgba(0,0,0,.1)}
+.tab{cursor:pointer;padding:4px 8px;font-weight:700;color:#555}
+.tab.active{color:#e6005c;text-decoration:underline;text-decoration-color:#e6005c;text-decoration-thickness:2px;text-underline-offset:6px}
+
+/* استفاده از استایل‌های خانه برای گرید و کارت‌ها → هیچ استایلِ محلی برای add/qty */
+
+/* پیشوندهای قیمت (در همهٔ بخش‌ها) */
+.old-price::before,
+.sheet-item .price-old::before,
+.sheet-item-group .price-old::before,
+.price-alone::before{content:"تنها: ";font-size:.85rem;color:#888;text-decoration:none}
+.new-price::before,
+.sheet-item .price-new::before,
+.sheet-item-group .price-new::before,
+.price-with-friend::before{content:"با ۱ دوست: ";font-size:.85rem;color:#c42121}
+        
+/* استایل قیمت‌های جدید */
+.price-alone{text-decoration:line-through;color:#888;font-size:.9rem}
+.price-with-friend{color:#e6005c;font-weight:900;margin-top:4px;font-size:.9rem}
+.value{color:#e6005c;font-weight:700}
+.value.strike{color:#888;text-decoration:line-through}
+
+/* ===== نوار پیشرفت پایین (ظاهر جدید، رفتار بدون تغییر) ===== */
+.progress-bar{
+  position:fixed;left:0;right:0;bottom:0;background:#fff;
+  padding:12px;border-top:1px solid #ddd;border-radius:16px 16px 0 0;z-index:20;
+  box-shadow:0 -4px 10px rgba(0,0,0,.06);display:none;direction:rtl
+}
+.progress-header{display:flex;justify-content:space-between;align-items:center;font-size:.9rem;font-weight:700;margin-bottom:8px}
+.item-count{color:#c42121}
+.view-cart{
+  background:transparent;color:#2e8b57;border:none;border-radius:0;padding:0;
+  font-size:.9rem;font-weight:700;text-decoration:none
+}
+.progress-info{display:flex;justify-content:space-between;gap:8px;font-size:.8rem;margin-bottom:8px;color:#555}
+.progress-container{height:10px;background:#f0f0f0;border-radius:8px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#e6005c,#ff7aa7);border-radius:8px;width:0;transition:width .3s}
+.progress-bar.ready .progress-info,.progress-bar.ready .progress-container{display:none}
+.ready-footer{display:none;justify-content:space-between;align-items:center;margin-top:4px}
+.progress-bar.ready .ready-footer{display:flex}
+.basket-total .label{display:block;font-size:.75rem;color:#777}
+.basket-total .price{font-size:1.05rem;color:#e6005c;font-weight:900}
+.cta-ready{background:#e6005c;color:#fff;border:none;border-radius:28px;padding:10px 18px;font-size:.95rem;font-weight:900;cursor:pointer}
+
+/* ===== Bottom-Sheet ===== */
+.sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .3s;z-index:30}
+.sheet-overlay.visible{opacity:1;pointer-events:auto}
+.bottom-sheet{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top-left-radius:16px;border-top-right-radius:16px;max-height:80vh;overflow-y:auto;transform:translateY(100%);transition:transform .3s;z-index:35}
+.bottom-sheet.open{transform:translateY(0)}
+.sheet-handle{width:40px;height:4px;background:#ccc;border-radius:3px;margin:8px auto}
+.sheet-content{padding:0 16px 32px}
+.sheet-header{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #eee;font-weight:700}
+.sheet-header .close-btn{background:none;border:none;font-size:1.6rem;color:#888;font-weight:900;cursor:pointer}
+
+/* ===== آیتم‌های سبد گروهی ===== */
+.sheet-item-group{display:flex;justify-content:space-between;align-items:flex-start;padding:18px 0;border-bottom:1px solid #eee;font-size:.9rem}
+.sheet-item-group:last-child{border-bottom:none}
+.sheet-item-group .right{display:flex;gap:8px;align-items:flex-start}
+.sheet-item-group img{width:64px;height:64px;object-fit:cover;border-radius:8px;background:#ddd}
+.sheet-item-group .title{font-weight:700;margin-bottom:2px}
+.sheet-item-group .qty-inc{display:flex;align-items:center;gap:4px;margin-top:4px;font-weight:700;color:#c42121}
+.sheet-item-group .qty-inc button{width:24px;height:24px;border:1px solid #c42121;border-radius:6px;background:#fff;font-size:18px;line-height:20px;color:#c42121;cursor:pointer;padding:0}
+.sheet-item-group .prices{display:flex;flex-direction:column;align-items:flex-end}
+.sheet-item-group .price-old{text-decoration:line-through;color:#888}
+.sheet-item-group .price-new{color:#e6005c;font-weight:900;margin-top:4px}
+
+/* ===== آیتم‌های سبد شخصی ===== */
+.sheet-item{display:flex;justify-content:space-between;align-items:flex-start;padding:18px 0;border-bottom:1px solid #eee;font-size:.9rem}
+.sheet-item:last-child{border-bottom:none}
+.sheet-item .thumb{width:64px;height:64px;object-fit:cover;border-radius:8px;background:#ddd}
+.sheet-item .info{flex:1;margin-right:12px}
+.sheet-item .info .title{font-weight:700}
+.weight{font-size:12px;color:#888;margin-bottom:4px;padding:2px 6px;border-radius:4px;display:inline-block}
+.sheet-item .info .weight{color:#999;font-size:.75rem;margin:4px 0}
+.sheet-item .qty-controller{display:inline-flex;align-items:center;height:auto;margin-top:6px;border:none;background:transparent}
+.sheet-item .qty-controller .plus,.sheet-item .qty-controller .minus{width:24px;height:24px;border:1px solid #c42121;border-radius:6px;background:#fff;font-size:18px;line-height:20px;color:#c42121;cursor:pointer;padding:0;margin:0 4px}
+.sheet-item .qty-controller .qty-num{padding:0 2px;min-width:unset;color:#e6005c;font-weight:900;font-size:.95rem;text-align:center}
+.sheet-item .prices{text-align:left}
+.sheet-item .price-old{text-decoration:line-through;color:#888}
+.sheet-item .price-new{color:#e6005c;font-weight:900;margin-top:4px}
+
+/* ===== لینک‌های اشتراک‌گذاری ===== */
+.share-grid{display:flex;justify-content:space-around;margin:24px 0}
+.share-grid a{width:56px;height:56px;border-radius:50%;display:flex;justify-content:center;align-items:center;background:#f5f5f5;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.share-grid img{width:34px;height:34px}
+.share-grid .copy-link{height:56px;border-radius:28px;border:none;background:#e6005c;color:#fff;padding:0 16px;font-weight:800;cursor:pointer}
+

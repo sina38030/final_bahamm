@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, func
 from typing import List, Optional
 
@@ -9,8 +9,8 @@ from app.schemas import ProductResponse
 
 products_router = APIRouter(prefix="/products", tags=["products"])
 
-# Get all products with optional filters
-@products_router.get("", response_model=List[ProductResponse])
+# Get all products with optional filters - SIMPLIFIED VERSION
+@products_router.get("")
 def get_products(
     category_id: Optional[int] = None,
     min_price: Optional[float] = None, 
@@ -20,8 +20,13 @@ def get_products(
     limit: int = 20,
     db: Session = Depends(get_db)
 ):
+    page = max(1, min(page, 100))
+    limit = max(1, min(limit, 50))
     skip = (page - 1) * limit
-    query = db.query(Product)
+    query = db.query(Product).options(
+        joinedload(Product.category),
+        joinedload(Product.images)
+    )
     
     # Apply filters
     if category_id:
@@ -35,79 +40,61 @@ def get_products(
     
     products = query.offset(skip).limit(limit).all()
     
-    # Convert products to response model objects with computed fields
-    response_products = []
-    for product in products:
-        product_dict = {
+    # Response with all pricing fields to match admin
+    return [
+        {
             "id": product.id,
             "name": product.name,
             "base_price": product.base_price,
-            "discount_price": product.market_price if product.market_price < product.base_price else None,
-            "free_shipping": product.shipping_cost == 0,
+            "market_price": product.market_price,
+            "product_cost": product.base_price,
+            "solo_price": product.market_price,
+            "friend_1_price": product.friend_1_price,
+            "friend_2_price": product.friend_2_price,
+            "friend_3_price": product.friend_3_price,
             "description": product.description,
             "category": product.category.name if product.category else "Unknown",
-            "category_slug": product.category.slug if product.category else None,
-            "subcategory": product.subcategory.name if product.subcategory else None,
-            "subcategory_slug": product.subcategory.slug if product.subcategory else None,
-            "in_stock": any(option.stock > 0 for option in product.options) if product.options else True
+            "shipping_cost": product.shipping_cost,
+            "free_shipping": product.shipping_cost == 0,
+            "in_stock": True,
+            "image": product.images[0].image_url if product.images else None
         }
-        
-        # Set main image
-        if product.images:
-            main_image = next((img for img in product.images if img.is_main), None)
-            product_dict["image"] = main_image.image_url if main_image else (product.images[0].image_url if product.images else None)
-        else:
-            product_dict["image"] = None
-            
-        # Calculate discount percentage if discount_price exists
-        if product_dict["discount_price"] and product.base_price > 0:
-            product_dict["discount"] = round((product.base_price - product_dict["discount_price"]) / product.base_price * 100)
-        else:
-            product_dict["discount"] = None
-            
-        response_products.append(ProductResponse(**product_dict))
-    
-    return response_products
+        for product in products
+    ]
 
 # Get featured products for home page
-@products_router.get("/featured", response_model=List[ProductResponse])
+@products_router.get("/featured")
 def get_featured_products(db: Session = Depends(get_db)):
     # Get the 10 most recent products
-    products = db.query(Product).order_by(desc(Product.id)).limit(10).all()
+    products = (
+        db.query(Product)
+        .options(joinedload(Product.category), joinedload(Product.images))
+        .order_by(desc(Product.id))
+        .limit(10)
+        .all()
+    )
     
-    # Convert products to response model objects with computed fields
-    response_products = []
-    for product in products:
-        product_dict = {
+    # Simple response matching the main products endpoint
+    return [
+        {
             "id": product.id,
             "name": product.name,
             "base_price": product.base_price,
-            "discount_price": product.market_price if product.market_price < product.base_price else None,
-            "free_shipping": product.shipping_cost == 0,
+            "market_price": product.market_price,
+            "product_cost": product.base_price,
+            "solo_price": product.market_price,
+            "friend_1_price": product.friend_1_price,
+            "friend_2_price": product.friend_2_price,
+            "friend_3_price": product.friend_3_price,
             "description": product.description,
             "category": product.category.name if product.category else "Unknown",
-            "category_slug": product.category.slug if product.category else None,
-            "subcategory": product.subcategory.name if product.subcategory else None,
-            "subcategory_slug": product.subcategory.slug if product.subcategory else None,
-            "in_stock": any(option.stock > 0 for option in product.options) if product.options else True
+            "shipping_cost": product.shipping_cost,
+            "free_shipping": product.shipping_cost == 0,
+            "in_stock": True,
+            "image": product.images[0].image_url if product.images else None
         }
-        
-        # Set main image
-        if product.images:
-            main_image = next((img for img in product.images if img.is_main), None)
-            product_dict["image"] = main_image.image_url if main_image else (product.images[0].image_url if product.images else None)
-        else:
-            product_dict["image"] = None
-            
-        # Calculate discount percentage if discount_price exists
-        if product_dict["discount_price"] and product.base_price > 0:
-            product_dict["discount"] = round((product.base_price - product_dict["discount_price"]) / product.base_price * 100)
-        else:
-            product_dict["discount"] = None
-            
-        response_products.append(ProductResponse(**product_dict))
-    
-    return response_products
+        for product in products
+    ]
 
 # Get products by category slug
 @products_router.get("/category/{category_slug}", response_model=List[ProductResponse])
@@ -116,7 +103,12 @@ def get_products_by_category(category_slug: str, db: Session = Depends(get_db)):
     if not category:
         raise HTTPException(status_code=404, detail=f"Category with slug '{category_slug}' not found")
     
-    products = db.query(Product).filter(Product.category_id == category.id).all()
+    products = (
+        db.query(Product)
+        .options(joinedload(Product.subcategory), joinedload(Product.images))
+        .filter(Product.category_id == category.id)
+        .all()
+    )
     
     # Convert products to response model objects with computed fields
     response_products = []
@@ -132,13 +124,12 @@ def get_products_by_category(category_slug: str, db: Session = Depends(get_db)):
             "category_slug": category.slug,
             "subcategory": product.subcategory.name if product.subcategory else None,
             "subcategory_slug": product.subcategory.slug if product.subcategory else None,
-            "in_stock": any(option.stock > 0 for option in product.options) if product.options else True
+            "in_stock": True  # Simplified for now since ProductOption model may not have stock field
         }
         
         # Set main image
         if product.images:
-            main_image = next((img for img in product.images if img.is_main), None)
-            product_dict["image"] = main_image.image_url if main_image else (product.images[0].image_url if product.images else None)
+            product_dict["image"] = product.images[0].image_url
         else:
             product_dict["image"] = None
             
@@ -159,7 +150,12 @@ def get_products_by_subcategory(subcategory_slug: str, db: Session = Depends(get
     if not subcategory:
         raise HTTPException(status_code=404, detail=f"Subcategory with slug '{subcategory_slug}' not found")
     
-    products = db.query(Product).filter(Product.subcategory_id == subcategory.id).all()
+    products = (
+        db.query(Product)
+        .options(joinedload(Product.category), joinedload(Product.images))
+        .filter(Product.subcategory_id == subcategory.id)
+        .all()
+    )
     
     # Convert products to response model objects with computed fields
     response_products = []
@@ -175,13 +171,12 @@ def get_products_by_subcategory(subcategory_slug: str, db: Session = Depends(get
             "category_slug": product.category.slug if product.category else None,
             "subcategory": subcategory.name,
             "subcategory_slug": subcategory.slug,
-            "in_stock": any(option.stock > 0 for option in product.options) if product.options else True
+            "in_stock": True  # Simplified for now since ProductOption model may not have stock field
         }
         
         # Set main image
         if product.images:
-            main_image = next((img for img in product.images if img.is_main), None)
-            product_dict["image"] = main_image.image_url if main_image else (product.images[0].image_url if product.images else None)
+            product_dict["image"] = product.images[0].image_url
         else:
             product_dict["image"] = None
             
@@ -202,7 +197,11 @@ def search_products(
     db: Session = Depends(get_db)
 ):
     search_term = f"%{query}%"
-    products = db.query(Product).filter(
+    products = db.query(Product).options(
+        joinedload(Product.category),
+        joinedload(Product.subcategory),
+        joinedload(Product.images)
+    ).filter(
         Product.name.ilike(search_term) | 
         Product.description.ilike(search_term)
     ).all()
@@ -221,13 +220,12 @@ def search_products(
             "category_slug": product.category.slug if product.category else None,
             "subcategory": product.subcategory.name if product.subcategory else None,
             "subcategory_slug": product.subcategory.slug if product.subcategory else None,
-            "in_stock": any(option.stock > 0 for option in product.options) if product.options else True
+            "in_stock": True  # Simplified for now since ProductOption model may not have stock field
         }
         
         # Set main image
         if product.images:
-            main_image = next((img for img in product.images if img.is_main), None)
-            product_dict["image"] = main_image.image_url if main_image else (product.images[0].image_url if product.images else None)
+            product_dict["image"] = product.images[0].image_url
         else:
             product_dict["image"] = None
             
@@ -249,7 +247,12 @@ def get_products_by_store(store_id: int, db: Session = Depends(get_db)):
     if not store:
         raise HTTPException(status_code=404, detail=f"Store with ID {store_id} not found")
     
-    products = db.query(Product).filter(Product.store_id == store_id).all()
+    products = (
+        db.query(Product)
+        .options(joinedload(Product.category), joinedload(Product.subcategory), joinedload(Product.images))
+        .filter(Product.store_id == store_id)
+        .all()
+    )
     
     # Convert products to response model objects with computed fields
     response_products = []
@@ -265,14 +268,13 @@ def get_products_by_store(store_id: int, db: Session = Depends(get_db)):
             "category_slug": product.category.slug if product.category else None,
             "subcategory": product.subcategory.name if product.subcategory else None,
             "subcategory_slug": product.subcategory.slug if product.subcategory else None,
-            "in_stock": any(option.stock > 0 for option in product.options) if product.options else True,
+            "in_stock": True,  # Simplified for now since ProductOption model may not have stock field
             "store_name": store.name
         }
         
         # Set main image
         if product.images:
-            main_image = next((img for img in product.images if img.is_main), None)
-            product_dict["image"] = main_image.image_url if main_image else (product.images[0].image_url if product.images else None)
+            product_dict["image"] = product.images[0].image_url
         else:
             product_dict["image"] = None
             

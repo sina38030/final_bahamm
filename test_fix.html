@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست API جدید</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .disabled { background: #6c757d !important; cursor: not-allowed; }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 400px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 تست API جدید تشخیص رهبر</h1>
+        
+        <div class="status info">
+            <strong>مراحل تست:</strong>
+            <ol>
+                <li>توکن معتبر خود را در فیلد زیر وارد کنید</li>
+                <li>دکمه "تست API جدید" را کلیک کنید</li>
+                <li>نتایج را بررسی کنید</li>
+            </ol>
+        </div>
+
+        <div>
+            <label for="token">🔑 توکن احراز هویت:</label>
+            <input type="password" id="token" placeholder="Bearer token را اینجا وارد کنید..." />
+            <small>💡 این توکن را از localStorage مرورگر (F12 → Application → Local Storage → auth_token) کپی کنید</small>
+        </div>
+
+        <div>
+            <button onclick="testNewAPI()" id="testBtn">🚀 تست API جدید</button>
+            <button onclick="testOldAPIs()" id="testOldBtn">📊 مقایسه با API قدیمی</button>
+            <button onclick="clearResults()" id="clearBtn">🗑️ پاک کردن نتایج</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8001/api';
+        
+        function getToken() {
+            const token = document.getElementById('token').value.trim();
+            if (!token) {
+                showError('لطفاً توکن را وارد کنید');
+                return null;
+            }
+            return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+        }
+        
+        function showStatus(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            document.getElementById('results').appendChild(div);
+        }
+        
+        function showError(message) {
+            showStatus(`❌ ${message}`, 'error');
+        }
+        
+        function showSuccess(message) {
+            showStatus(`✅ ${message}`, 'success');
+        }
+        
+        function showJSON(data, title) {
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <h3>${title}</h3>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            document.getElementById('results').appendChild(div);
+        }
+        
+        async function testNewAPI() {
+            const token = getToken();
+            if (!token) return;
+            
+            showStatus('🔍 در حال تست API جدید...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/group-orders/my-groups-and-orders`, {
+                    headers: {
+                        'Authorization': token,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showSuccess(`API جدید کار می‌کند! Status: ${response.status}`);
+                    
+                    const groups = data.groups || [];
+                    const orders = data.orders || [];
+                    const hasLeaderGroups = data.has_leader_groups;
+                    
+                    showStatus(`📊 خلاصه نتایج:
+                        <br>• گروه‌ها: ${groups.length}
+                        <br>• سفارش‌ها: ${orders.length}  
+                        <br>• رهبر گروه: ${hasLeaderGroups ? 'بله ✅' : 'خیر ❌'}
+                    `, 'success');
+                    
+                    // بررسی سفارشات رهبر
+                    const leaderOrders = orders.filter(o => o.is_leader_order);
+                    if (leaderOrders.length > 0) {
+                        showSuccess(`🎯 ${leaderOrders.length} سفارش رهبر پیدا شد`);
+                        leaderOrders.forEach(order => {
+                            showStatus(`📦 سفارش ${order.id}: گروه ${order.group_order_id} - وضعیت: ${order.group_status}`, 'info');
+                        });
+                    }
+                    
+                    showJSON(data, '📄 پاسخ کامل API');
+                } else {
+                    showError(`API خطا داد: ${response.status} - ${data.detail || data.message || 'خطای نامشخص'}`);
+                    showJSON(data, '❌ جزئیات خطا');
+                }
+            } catch (error) {
+                showError(`خطا در اتصال: ${error.message}`);
+                console.error('API Error:', error);
+            }
+        }
+        
+        async function testOldAPIs() {
+            const token = getToken();
+            if (!token) return;
+            
+            showStatus('🔄 در حال تست API‌های قدیمی برای مقایسه...', 'info');
+            
+            try {
+                // تست API گروه‌ها
+                const groupsResponse = await fetch(`${API_BASE}/group-orders/my-groups`, {
+                    headers: { 'Authorization': token, 'Content-Type': 'application/json' }
+                });
+                
+                if (groupsResponse.ok) {
+                    const groupsData = await groupsResponse.json();
+                    showSuccess(`API گروه‌های قدیمی: ${groupsData.length} گروه`);
+                } else {
+                    showError(`API گروه‌های قدیمی خطا داد: ${groupsResponse.status}`);
+                }
+                
+                // تست API سفارشات
+                const ordersResponse = await fetch(`${API_BASE}/payment/orders`, {
+                    headers: { 'Authorization': token, 'Content-Type': 'application/json' }
+                });
+                
+                if (ordersResponse.ok) {
+                    const ordersData = await ordersResponse.json();
+                    const orders = ordersData.orders || [];
+                    showSuccess(`API سفارشات قدیمی: ${orders.length} سفارش`);
+                    
+                    // بررسی فیلدهای جدید
+                    const hasNewFields = orders.some(o => 'is_leader_order' in o);
+                    showStatus(`فیلدهای جدید در API قدیمی: ${hasNewFields ? 'موجود ✅' : 'موجود نیست ❌'}`, 
+                              hasNewFields ? 'success' : 'error');
+                } else {
+                    showError(`API سفارشات قدیمی خطا داد: ${ordersResponse.status}`);
+                }
+                
+            } catch (error) {
+                showError(`خطا در تست API‌های قدیمی: ${error.message}`);
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        // اتوفیل توکن از localStorage اگر موجود باشد
+        window.addEventListener('load', () => {
+            try {
+                const savedToken = localStorage.getItem('auth_token');
+                if (savedToken) {
+                    document.getElementById('token').value = savedToken;
+                    showStatus('💡 توکن از localStorage بارگذاری شد', 'info');
+                }
+            } catch (e) {
+                // ignore
+            }
+        });
+    </script>
+</body>
+</html>

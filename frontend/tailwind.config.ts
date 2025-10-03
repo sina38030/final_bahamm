@@ -11,9 +11,13 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
+        sans: ["Vazir", "Tahoma", "ui-sans-serif", "system-ui", "sans-serif"],
+        vazir: ["Vazir", "Tahoma", "sans-serif"],
         irans: ["var(--font-iransans)", "sans-serif"],
       },
-      
+      colors: {
+        'custom-pink': '#E31C5F',
+      }
     },
   },
   plugins: [heroui()],

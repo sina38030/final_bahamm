@@ -57,6 +57,7 @@
 /*  ============ بدنه ============ */
 .body{padding:16px 16px 120px}
 .title{font-size:18px;font-weight:700;margin-bottom:8px}
+.weight{font-size:13px;color:#666;margin-top:-4px;margin-bottom:8px}
 .meta{
   display:flex;flex-wrap:wrap;gap:12px;
   font-size:14px;color:#666;margin-bottom:16px

@@ -4,7 +4,7 @@ from typing import List
 import re
 
 from app.database import get_db
-from app.models import Category, SubCategory
+from app.models import Category, SubCategory, Product
 from app.schemas import Category as CategorySchema, SubCategory as SubCategorySchema, SubCategoryCreate, SubCategoryUpdate, CategoryCreate, CategoryUpdate
 
 category_router = APIRouter(prefix="/categories", tags=["categories"])
@@ -95,6 +95,22 @@ def delete_category(slug: str, db: Session = Depends(get_db)):
     if not category:
         raise HTTPException(status_code=404, detail=f"Category with slug '{slug}' not found")
     
+    # Prevent deleting default bucket
+    if getattr(category, 'slug', None) == 'uncategorized':
+        raise HTTPException(status_code=400, detail="Cannot delete the default 'Uncategorized' category")
+
+    # Reassign products to 'Uncategorized' and clear subcategory
+    products_in_cat = db.query(Product).filter(Product.category_id == category.id)
+    products_count = products_in_cat.count()
+    if products_count > 0:
+        default_cat = db.query(Category).filter(Category.slug == 'uncategorized').first()
+        if not default_cat:
+            default_cat = Category(name='Uncategorized', slug='uncategorized')
+            db.add(default_cat)
+            db.commit()
+            db.refresh(default_cat)
+        products_in_cat.update({Product.category_id: default_cat.id, Product.subcategory_id: None})
+
     db.delete(category)
     db.commit()
     

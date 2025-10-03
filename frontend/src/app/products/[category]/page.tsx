@@ -7,7 +7,7 @@ import {
   FaSearch,
   FaTimes,
   FaHeart,
-  FaArrowRight,
+  FaArrowLeft,
   FaCheck,
   FaFilter,
 } from "react-icons/fa";
@@ -512,7 +512,7 @@ export default function ProductCategoryPage() {
       {/* Back Button and Title */}
       <div className="bg-white p-4 flex items-center sticky top-0 z-10 shadow-sm">
         <Link href="/categories" className="ml-3">
-          <FaArrowRight className="text-gray-600" />
+          <FaArrowLeft className="text-gray-600" />
         </Link>
         <h1 className="text-lg font-bold">{categoryName}</h1>
       </div>

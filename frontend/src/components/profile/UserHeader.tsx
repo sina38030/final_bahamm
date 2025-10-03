@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@heroui/react';
 import { FaHeadphones } from "react-icons/fa6";
 import EditProfileModal from './EditProfileModal';
@@ -8,13 +9,16 @@ import Link from 'next/link';
 import CustomModal from '../common/CustomModal';
 import { FaComments, FaPhone, FaQuestionCircle } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
+import PhoneAuthModal from '@/components/auth/PhoneAuthModal';
 
 export default function UserHeader() {
     // Use standard useState instead of useDisclosure to avoid type issues
     const [editIsOpen, setEditIsOpen] = useState(false);
     const [linksIsOpen, setLinksIsOpen] = useState(false);
+    const [showPhoneAuth, setShowPhoneAuth] = useState(false);
     
-    const { user, isAuthenticated } = useAuth();
+    const { user, isAuthenticated, refreshCoins } = useAuth();
+    const router = useRouter();
 
     // Helper function to get the display name
     const getDisplayName = () => {
@@ -26,14 +30,36 @@ export default function UserHeader() {
             return user.first_name;
         } else if (user.last_name) {
             return user.last_name;
+        } else if (user.username) {
+            return user.username;
         } else {
             return user.phone_number || '';
         }
     };
 
+    // Helper function to get the user identifier (phone or username)
+    const getUserIdentifier = () => {
+        if (!user) return '';
+        
+        if (user.phone_number) {
+            return user.phone_number;
+        } else if (user.username) {
+            return `@${user.username}`;
+        } else if (user.telegram_id) {
+            return `Telegram ID: ${user.telegram_id}`;
+        }
+        return '';
+    };
+
     return (
         <>
             <div className='bg-white p-4'>
+                <div className="relative flex items-center justify-between mb-4">
+                    <h1 className="absolute left-1/2 -translate-x-1/2 text-sm font-bold">پروفایل</h1>
+                    <button onClick={() => router.back()} className="ml-auto p-2 hover:bg-gray-100 rounded-full" aria-label="بازگشت">
+                        <span className="inline-block">❮</span>
+                    </button>
+                </div>
                 <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-2 cursor-pointer" onClick={() => setEditIsOpen(true)}>
                         <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
@@ -43,12 +69,15 @@ export default function UserHeader() {
                             {isAuthenticated ? (
                                 <>
                                     <p className="text-sm font-bold">{getDisplayName()}</p>
-                                    <p className="text-xs text-gray-500">{user?.phone_number}</p>
+                                    <p className="text-xs text-gray-500">{getUserIdentifier()}</p>
                                 </>
                             ) : (
-                                <Link href="/auth/login" className="text-blue-600 font-medium">
+                                <button
+                                    className="text-blue-600 font-medium"
+                                    onClick={(e) => { e.stopPropagation(); setShowPhoneAuth(true); }}
+                                >
                                     ورود / ثبت نام
-                                </Link>
+                                </button>
                             )}
                         </div>
                     </div>
@@ -70,6 +99,11 @@ export default function UserHeader() {
                     </div>
                 )}
             </div>
+            {isAuthenticated && (
+                <script suppressHydrationWarning>
+                    {''}
+                </script>
+            )}
             
             {isAuthenticated && (
                 <EditProfileModal 
@@ -107,6 +141,17 @@ export default function UserHeader() {
                     </button>
                 </div>
             </CustomModal>
+
+            {/* Bottom-sheet phone authentication for unauthenticated users */}
+            <PhoneAuthModal
+                isOpen={showPhoneAuth}
+                onClose={() => setShowPhoneAuth(false)}
+                onSuccess={() => {
+                    setShowPhoneAuth(false);
+                    // After successful login, UI will re-render due to auth state change
+                    // Optionally, force a refresh if needed: router.refresh();
+                }}
+            />
         </>
     );
 }

@@ -4,8 +4,11 @@ import { Button } from '@heroui/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Wheel } from 'react-custom-roulette';
+import dynamic from 'next/dynamic';
 import { CiGift } from 'react-icons/ci';
+
+// Avoid SSR for roulette component which references window at module scope
+const Wheel = dynamic(() => import('react-custom-roulette').then(m => m.Wheel), { ssr: false });
 
 const data = [
     { option: "6", style: { backgroundColor: "pink", textColor: "darkblue" } },

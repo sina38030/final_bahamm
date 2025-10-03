@@ -29,15 +29,17 @@ export default function GroupBuySection({
     { value: 0, label: <>خرید با <span className={currentOption === 0 ? "text-red-500" : ""}>3</span><br />دوست</> },
   ];
 
-  // Calculate prices based on group buy options or default
-  const twoPersonPrice = groupBuyOptions?.twoPersonPrice || Math.floor(basePrice * 0.9);
-  const fourPersonPrice = groupBuyOptions?.fourPersonPrice || 0; // Free for 4 people
+  // Calculate prices according to requested rule:
+  // 1 friend => half price, 2 friends => quarter price, 3 friends => free
+  const oneFriendPrice = Math.floor(basePrice / 2);
+  const twoFriendsPrice = Math.floor(basePrice / 4);
+  const fourPersonPrice = 0; // Free for 4 people
   
   // Price values for each option
   const prices = [
     { price: "رایگان", color: currentOption === 0 ? "text-[#008000]" : "text-[#D62B1A]" },
-    { price: twoPersonPrice.toLocaleString('fa-IR'), color: currentOption === 1 ? "text-[#008000]" : "text-gray-400" },
-    { price: twoPersonPrice.toLocaleString('fa-IR'), color: currentOption === 2 ? "text-[#008000]" : "text-gray-400" },
+    { price: oneFriendPrice.toLocaleString('fa-IR'), color: currentOption === 1 ? "text-[#008000]" : "text-gray-400" },
+    { price: twoFriendsPrice.toLocaleString('fa-IR'), color: currentOption === 2 ? "text-[#008000]" : "text-gray-400" },
     { price: basePrice.toLocaleString('fa-IR'), color: currentOption === 3 ? "text-[#008000]" : "text-gray-400" },
   ];
 
@@ -117,7 +119,8 @@ export default function GroupBuySection({
 
           <p className="text-xs text-right text-black mt-5">
             قیمت برای دوستانت:{" "}
-            <span className="text-[#008000] pr-3">{twoPersonPrice.toLocaleString('fa-IR')} </span>تومان
+            <span className="text-[#008000] pr-3">{oneFriendPrice.toLocaleString('fa-IR')}</span> تومان با ۱ دوست، {" "}
+            <span className="text-[#008000] pr-3">{twoFriendsPrice.toLocaleString('fa-IR')}</span> تومان با ۲ دوست
           </p>
         </div>
       </div>

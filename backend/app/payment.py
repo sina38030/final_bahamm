@@ -196,5 +196,5 @@ class ZarinPalPayment:
 zarinpal = ZarinPalPayment(
     merchant_id=settings.ZARINPAL_MERCHANT_ID,
     sandbox=settings.ZARINPAL_SANDBOX,
-    test_mode=False  # Disable test mode to use real ZarinPal v4 API
+    test_mode=False  # Disable test mode - use real ZarinPal
 ) 

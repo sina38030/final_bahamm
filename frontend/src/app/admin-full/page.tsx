@@ -1,37 +1,62 @@
 /* --------------------------------------------------------------------------
-   AdminPage.tsx  –  fully refactored (high‑impact fixes)
+   AdminPage.tsx – robust version with category creation + reliable product add
    -------------------------------------------------------------------------- */
 
    "use client";
 
-   import { useState, useEffect } from "react";
+   import React from "react";
+   import { useEffect, useState, useCallback } from "react";
+   import { toTehranTime, toTehranDate, toTehranDateTime } from "@/utils/dateUtils";
    import {
-     FaTachometerAlt,
-     FaBoxes,
-     FaTags,
-     FaShoppingCart,
-     FaUsers,
-     FaBars,
-     FaTimes,
-     FaEye,
-     FaUserFriends,
+    FaTachometerAlt,
+    FaBoxes,
+    FaTags,
+    FaShoppingCart,
+    FaUsers,
+    FaBars,
+    FaTimes,
+    FaEye,
+    FaUserFriends,
+    FaExclamationTriangle,
+    FaComments,
+    FaClock,
    } from "react-icons/fa";
-   import { toFa } from "@/utils/toFa";
+import { toFa } from "@/utils/toFa";
+import SettlementsContent from "@/components/SettlementsContent";
+import Image from "next/image";
+import { API_BASE_URL } from "@/utils/api";
    
    /* --------------------------------------------------------------------------
-      Configuration
+      Config
       -------------------------------------------------------------------------- */
    
-   const ADMIN_API_BASE_URL =
-     process.env.NEXT_PUBLIC_ADMIN_API_URL ?? "http://localhost:8001/api";
+   const RAW_ADMIN_BASE =
+     process.env.NEXT_PUBLIC_ADMIN_API_URL ?? "http://127.0.0.1:8001";
+   const ADMIN_API_BASE_URL = RAW_ADMIN_BASE.endsWith("/api") ? RAW_ADMIN_BASE : `${RAW_ADMIN_BASE}/api`;
    
-   type Section =
-     | "dashboard"
-     | "products"
-     | "categories"
-     | "orders"
-     | "users"
-     | "group-buys";
+   /** If your API uses cookie-based auth, keep credentials:"include".
+    * If you use Bearer tokens instead, remove `credentials` and add Authorization headers where needed.
+    */
+   const API_INIT: RequestInit = {
+     headers: {
+       Accept: "application/json",
+     },
+   };
+   
+  type Section =
+    | "dashboard"
+    | "products"
+    | "categories"
+    | "settings"
+    | "banners"
+    | "orders"
+    | "users"
+    | "group-buys"
+    | "secondary-group-buys"
+    | "settlements"
+    | "messages"
+    | "delivery-slots"
+    | "reviews";
    
    /* --------------------------------------------------------------------------
       Shared types
@@ -55,6 +80,15 @@
      total_price: number;
    }
    
+   interface ParticipantOrder {
+     order_id: number;
+     user_id: number | null;
+     user_name: string;
+     user_phone: string;
+     items: OrderItem[];
+     total_amount: number;
+   }
+   
    interface OrderDetail {
      id: number;
      user_id: number;
@@ -66,21 +100,104 @@
      created_at: string;
      items: OrderItem[];
      shipping_address?: string;
+     delivery_slot?: string;
      payment_method?: string;
+     group_order_id?: number;
+     consolidated?: boolean;
+     participants?: ParticipantOrder[];
    }
    
    /* --------------------------------------------------------------------------
-      Helper – fetch with abort
+      Helpers
       -------------------------------------------------------------------------- */
+   
+   function isAbort(err: unknown): boolean {
+     return (
+       (err instanceof DOMException && err.name === "AbortError") ||
+       (!!err &&
+         typeof err === "object" &&
+         "name" in (err as any) &&
+         (err as any).name === "AbortError")
+     );
+   }
    
    async function fetchJSON<T>(
      url: string,
      init?: RequestInit,
      signal?: AbortSignal
    ): Promise<T> {
-     const res = await fetch(url, { ...init, signal });
-     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-     return res.json();
+     console.log('fetchJSON called with URL:', url);
+     // Always enforce a 5s timeout while respecting an external AbortSignal
+     const localController = new AbortController();
+     const timeoutId = setTimeout(() => localController.abort(), 5000);
+    if (signal) {
+      if (signal.aborted) {
+        localController.abort();
+      } else {
+        const abortHandler = () => localController.abort();
+        signal.addEventListener('abort', abortHandler, { once: true });
+
+        // Cleanup when local controller is aborted
+        localController.signal.addEventListener('abort', () => {
+          signal.removeEventListener('abort', abortHandler);
+        }, { once: true });
+      }
+    }
+     // Attach Bearer token if present (admin chat endpoints require auth)
+     const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+     const mergedHeaders: HeadersInit = {
+       ...(API_INIT.headers as any),
+       ...(init?.headers as any),
+       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+     };
+     const mergedInit = { ...API_INIT, ...init, headers: mergedHeaders, signal: localController.signal } as RequestInit;
+     console.log('fetchJSON config:', { hasSignal: true, timeoutMs: 5000 });
+     const res = await fetch(url, mergedInit);
+     clearTimeout(timeoutId);
+     console.log('fetchJSON response:', res.status, res.statusText);
+   
+     // Read body once for reuse in error or JSON parse
+     let raw = "";
+     try {
+       raw = await res.clone().text();
+     } catch {
+       /* ignore */
+     }
+   
+     if (!res.ok) {
+       let detail: any = raw;
+       try {
+         detail = JSON.parse(raw);
+       } catch {
+         /* not JSON */
+       }
+       const msg =
+         typeof detail === "string"
+           ? detail
+           : detail?.message || detail?.error || detail?.detail || "";
+       const err = new Error(
+         `${res.status} ${res.statusText}${msg ? ` – ${msg}` : ""}`
+       );
+       (err as any).status = res.status;
+       (err as any).url = url;
+       (err as any).body = detail || raw;
+       throw err;
+     }
+   
+     try {
+       return (await res.json()) as T;
+     } catch {
+       return JSON.parse(raw) as T;
+     }
+   }
+   
+   function qs(params: Record<string, string | number | undefined>): string {
+     const search = new URLSearchParams();
+     Object.entries(params).forEach(([k, v]) => {
+       if (v !== undefined && v !== "") search.append(k, String(v));
+     });
+     const s = search.toString();
+     return s ? `?${s}` : "";
    }
    
    /* --------------------------------------------------------------------------
@@ -94,67 +211,106 @@
      const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(
        null
      );
+     const [dashError, setDashError] = useState<string | null>(null);
    
-     /* -------------------------------------------------- Dashboard stats */
+     /* ---------------- Dashboard load */
      useEffect(() => {
        if (activeSection !== "dashboard") return;
-       const controller = new AbortController();
+       const ctrl = new AbortController();
+       let alive = true;
+   
        (async () => {
          try {
            setLoading(true);
+           setDashError(null);
+           console.log('Fetching dashboard from:', `${ADMIN_API_BASE_URL}/admin/dashboard`);
            const data = await fetchJSON<DashboardStats>(
              `${ADMIN_API_BASE_URL}/admin/dashboard`,
              undefined,
-             controller.signal
+             ctrl.signal
            );
+           console.log('Dashboard data received:', data);
+           if (!alive) return;
            setDashboardStats(data);
-         } catch (err) {
-           console.error("[Admin] Dashboard fetch failed", err);
-           setDashboardStats({
-             total_users: 0,
-             total_products: 0,
-             total_orders: 0,
-             total_categories: 0,
-             recent_orders: 0,
-             total_revenue: 0,
-           });
+         } catch (err: any) {
+           if (!isAbort(err)) {
+             console.error("Dashboard error:", err);
+             if (alive) {
+               setDashError(err?.message ?? "خطای ناشناخته");
+               setDashboardStats({
+                 total_users: 0,
+                 total_products: 0,
+                 total_orders: 0,
+                 total_categories: 0,
+                 recent_orders: 0,
+                 total_revenue: 0,
+               });
+             }
+           }
          } finally {
-           setLoading(false);
+           if (alive) setLoading(false);
          }
        })();
-       return () => controller.abort();
+   
+       return () => {
+         alive = false;
+         ctrl.abort();
+       };
      }, [activeSection]);
    
-     /* -------------------------------------------------- Layout helpers */
-     const menuItems = [
-       { id: "dashboard" as Section, label: "داشبورد", icon: FaTachometerAlt },
-       { id: "products" as Section, label: "محصولات", icon: FaBoxes },
-       { id: "categories" as Section, label: "دسته‌بندی‌ها", icon: FaTags },
-       { id: "orders" as Section, label: "سفارشات", icon: FaShoppingCart },
-       { id: "users" as Section, label: "کاربران", icon: FaUsers },
-       { id: "group-buys" as Section, label: "خرید گروهی", icon: FaUserFriends },
-     ];
+     /* ---------------- Nav items */
+  const menuItems = [
+      { id: "dashboard" as Section, label: "داشبورد", icon: FaTachometerAlt },
+      { id: "products" as Section, label: "محصولات", icon: FaBoxes },
+      { id: "categories" as Section, label: "دسته‌بندی‌ها", icon: FaTags },
+      { id: "delivery-slots" as Section, label: "بازه‌های تحویل", icon: FaClock },
+      { id: "settings" as Section, label: "تنظیمات", icon: FaBars },
+       { id: "banners" as Section, label: "بنرها", icon: FaTags },
+      { id: "orders" as Section, label: "سفارشات", icon: FaShoppingCart },
+      { id: "users" as Section, label: "کاربران", icon: FaUsers },
+      { id: "group-buys" as Section, label: "خرید گروهی", icon: FaUserFriends },
+      { id: "secondary-group-buys" as Section, label: "خرید گروهی ثانویه", icon: FaUserFriends },
+      { id: "settlements" as Section, label: "تسویه‌های گروهی", icon: FaExclamationTriangle },
+      { id: "messages" as Section, label: "پیام‌ها", icon: FaComments },
+      { id: "reviews" as Section, label: "نظرات فیک", icon: FaComments },
+    ];
    
      const renderContent = () => {
        switch (activeSection) {
          case "dashboard":
-           return <DashboardContent stats={dashboardStats} loading={loading} />;
+           return (
+             <DashboardContent stats={dashboardStats} loading={loading} error={dashError} />
+           );
          case "products":
            return <ProductsContent />;
          case "categories":
            return <CategoriesContent />;
+        case "settings":
+          return <SettingsContent />;
+        case "banners":
+          return <BannersContent />;
          case "orders":
            return <OrdersContent />;
          case "users":
            return <UsersContent />;
-         case "group-buys":
-           return <GroupBuysContent />;
-         default:
-           return null;
+         case "messages":
+           return <MessagesContent />;
+                 case "group-buys":
+          return <GroupBuysContent />;
+        case "secondary-group-buys":
+          return <SecondaryGroupBuysContent />;
+        case "settlements":
+          return <SettlementsContent />;
+        case "delivery-slots":
+          return <DeliverySlotsContent />;
+        case "reviews":
+          return <ReviewsContent />;
+        default:
+          return null;
        }
      };
    
-     /* -------------------------------------------------- JSX */
+     /* ---------------- Layout */
      return (
        <div className="flex h-screen bg-gray-100" style={{ direction: "rtl" }}>
          {/* Sidebar */}
@@ -173,7 +329,9 @@
                      key={item.id}
                      onClick={() => setActiveSection(item.id)}
                      className={`w-full flex items-center gap-3 p-3 rounded-lg mb-2 transition-colors ${
-                       activeSection === item.id ? "bg-blue-700" : "hover:bg-blue-500"
+                       activeSection === item.id
+                         ? "bg-blue-700"
+                         : "hover:bg-blue-500"
                      }`}
                    >
                      <Icon className="text-xl" />
@@ -185,9 +343,8 @@
            </div>
          </div>
    
-         {/* Main Content */}
+         {/* Main */}
          <div className="flex-1 overflow-auto">
-           {/* Header */}
            <div className="bg-white shadow-sm p-4 flex items-center justify-between">
              <button
                onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -199,7 +356,7 @@
                {menuItems.find((i) => i.id === activeSection)?.label}
              </h1>
            </div>
-           {/* Content */}
+   
            <div className="p-6">{renderContent()}</div>
          </div>
        </div>
@@ -207,34 +364,214 @@
    }
    
    /* --------------------------------------------------------------------------
-      Dashboard
+      Messages (Support Chat)
+      -------------------------------------------------------------------------- */
+
+   function MessagesContent() {
+     const [conversations, setConversations] = useState<any[]>([]);
+     const [loading, setLoading] = useState(true);
+     const [error, setError] = useState<string | null>(null);
+     const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+     const [selectedUserInfo, setSelectedUserInfo] = useState<{name?: string; phone?: string} | null>(null);
+     const [messages, setMessages] = useState<{ id: number; sender: 'user' | 'admin'; message: string; timestamp: string }[]>([]);
+     const [input, setInput] = useState('');
+     const [sending, setSending] = useState(false);
+     const [polling, setPolling] = useState<ReturnType<typeof setInterval> | null>(null);
+
+     // Load conversations
+     useEffect(() => {
+       const ctrl = new AbortController();
+       let alive = true;
+       (async () => {
+         try {
+           setLoading(true);
+           setError(null);
+           const data = await fetchJSON<any[]>(`${ADMIN_API_BASE_URL}/chat/admin/conversations`, undefined, ctrl.signal);
+           if (!alive) return;
+           setConversations(Array.isArray(data) ? data : []);
+         } catch (err: any) {
+           if (!isAbort(err)) {
+             console.error('Conversations error:', err);
+             if (alive) setError(err?.message ?? 'خطای ناشناخته');
+           }
+         } finally {
+           if (alive) setLoading(false);
+         }
+       })();
+       return () => {
+         alive = false;
+         ctrl.abort();
+       };
+     }, []);
+
+     // Load messages for selected conversation with polling
+     useEffect(() => {
+       if (!selectedUserId) return;
+       let alive = true;
+       const load = async () => {
+         try {
+           const data = await fetchJSON<any[]>(`${ADMIN_API_BASE_URL}/chat/admin/conversations/${selectedUserId}`);
+           if (!alive) return;
+           setMessages(Array.isArray(data) ? data : []);
+           // Mark user messages as seen by admin
+           try {
+             await fetchJSON(`${ADMIN_API_BASE_URL}/chat/admin/conversations/${selectedUserId}/seen`, { method: 'POST' });
+           } catch {}
+         } catch (err) {
+           if (!isAbort(err)) console.error('Conversation load error:', err);
+         }
+       };
+       load();
+       const id = setInterval(load, 2000);
+       setPolling(id);
+       return () => {
+         alive = false;
+         if (id) clearInterval(id);
+         setPolling(null);
+       };
+     }, [selectedUserId]);
+
+     const handleSelect = (c: any) => {
+       setSelectedUserId(c.user_id);
+       setSelectedUserInfo({ name: c.name, phone: c.phone });
+     };
+
+     const handleSend = async () => {
+       if (!selectedUserId) return;
+       const text = input.trim();
+       if (!text || sending) return;
+       setSending(true);
+       try {
+         await fetchJSON(`${ADMIN_API_BASE_URL}/chat/admin/conversations/${selectedUserId}/send`, {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ message: text })
+         });
+         setInput('');
+         // Refresh messages immediately
+         const data = await fetchJSON<any[]>(`${ADMIN_API_BASE_URL}/chat/admin/conversations/${selectedUserId}`);
+         setMessages(Array.isArray(data) ? data : []);
+       } catch (err) {
+         console.error('Send message error:', err);
+         alert('ارسال پیام ناموفق بود');
+       } finally {
+         setSending(false);
+       }
+     };
+
+     return (
+       <div className="bg-white rounded-lg shadow-md h-[calc(100vh-160px)] flex">
+         {/* Conversations list */}
+         <div className="w-80 border-l overflow-y-auto">
+           <div className="p-4 border-b font-semibold">گفتگوها</div>
+           {loading ? (
+             <div className="p-4 text-sm text-gray-500">در حال بارگذاری...</div>
+           ) : error ? (
+             <div className="p-4 text-sm text-red-600">{error}</div>
+           ) : conversations.length === 0 ? (
+             <div className="p-4 text-sm text-gray-500">گفتگویی وجود ندارد</div>
+           ) : (
+             <ul>
+               {conversations.map((c) => (
+                 <li key={c.user_id}>
+                   <button
+                     onClick={() => handleSelect(c)}
+                     className={`w-full text-right px-4 py-3 border-b hover:bg-gray-50 ${selectedUserId === c.user_id ? 'bg-gray-50' : ''}`}
+                   >
+                     <div className="font-medium">{c.name || c.phone || `کاربر #${c.user_id}`}</div>
+                     <div className="text-xs text-gray-500 truncate">{c.last_message}</div>
+                   </button>
+                 </li>
+               ))}
+             </ul>
+           )}
+         </div>
+
+         {/* Conversation thread */}
+         <div className="flex-1 flex flex-col">
+           <div className="p-4 border-b">
+             {selectedUserId ? (
+               <div className="font-semibold">
+                 گفتگو با {selectedUserInfo?.name || selectedUserInfo?.phone || `کاربر #${selectedUserId}`}
+               </div>
+             ) : (
+               <div className="text-gray-500">یک گفتگو را انتخاب کنید</div>
+             )}
+           </div>
+           <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50">
+             {selectedUserId ? (
+               messages.map((m) => (
+                 <div key={m.id} className={`flex ${m.sender === 'admin' ? 'justify-end' : 'justify-start'}`}>
+                   <div className={`${m.sender === 'admin' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'} px-3 py-2 rounded-xl max-w-[75%] shadow`}>
+                     <div className="whitespace-pre-wrap break-words text-sm">{m.message}</div>
+                     <div className="text-[10px] mt-1 opacity-70 text-right">{toTehranTime(m.timestamp)}</div>
+                   </div>
+                 </div>
+               ))
+             ) : null}
+           </div>
+           <div className="p-3 border-t flex items-end gap-2 bg-white">
+             <textarea
+               disabled={!selectedUserId}
+               className="flex-1 border rounded-md p-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 max-h-40 min-h-[42px] disabled:bg-gray-100"
+               rows={1}
+               placeholder={selectedUserId ? 'نوشتن پیام...' : 'یک گفتگو را انتخاب کنید'}
+               value={input}
+               onChange={(e) => setInput(e.target.value)}
+               onKeyDown={(e) => {
+                 if (e.key === 'Enter' && !e.shiftKey) {
+                   e.preventDefault();
+                   handleSend();
+                 }
+               }}
+             />
+             <button
+               disabled={!selectedUserId || sending || !input.trim()}
+               className={`px-4 py-2 rounded-md text-white ${!selectedUserId || sending || !input.trim() ? 'bg-gray-300' : 'bg-blue-600'}`}
+               onClick={handleSend}
+             >
+               ارسال
+             </button>
+           </div>
+         </div>
+       </div>
+     );
+   }
+
+   /* --------------------------------------------------------------------------
+      Dashboard content
       -------------------------------------------------------------------------- */
    
    function DashboardContent({
      stats,
      loading,
+     error,
    }: {
      stats: DashboardStats | null;
      loading: boolean;
+     error: string | null;
    }) {
      if (loading) return <div className="text-center py-8">در حال بارگذاری...</div>;
-     if (!stats) return <div className="text-center py-8">خطا در دریافت اطلاعات</div>;
+     if (error)
+       return (
+         <div className="text-center py-8 text-red-600">
+           خطا در دریافت داشبورد: {error}
+         </div>
+       );
+     if (!stats)
+       return (
+         <div className="text-center py-8 text-red-600">
+           اطلاعات داشبورد موجود نیست
+         </div>
+       );
    
-     const cards = [
+     const cards: { title: string; value: number; color: string }[] = [
        { title: "کل کاربران", value: stats.total_users, color: "bg-blue-500" },
        { title: "کل محصولات", value: stats.total_products, color: "bg-green-500" },
        { title: "کل سفارشات", value: stats.total_orders, color: "bg-yellow-500" },
-       {
-         title: "کل دسته‌بندی‌ها",
-         value: stats.total_categories,
-         color: "bg-purple-500",
-       },
-       {
-         title: "سفارشات اخیر (7 روز)",
-         value: stats.recent_orders,
-         color: "bg-red-500",
-       },
-       { title: "درآمد کل", value: toFa(stats.total_revenue), color: "bg-indigo-500" },
+       { title: "کل دسته‌بندی‌ها", value: stats.total_categories, color: "bg-purple-500" },
+       { title: "سفارشات اخیر (7 روز)", value: stats.recent_orders, color: "bg-red-500" },
+       { title: "درآمد کل", value: stats.total_revenue, color: "bg-indigo-500" },
      ];
    
      return (
@@ -257,112 +594,379 @@
    function ProductsContent() {
      const [products, setProducts] = useState<any[]>([]);
      const [loading, setLoading] = useState(true);
+     const [error, setError] = useState<string | null>(null);
      const [search, setSearch] = useState("");
-     const [showAddModal, setShowAddModal] = useState(false);
-     const [categories, setCategories] = useState<any[]>([]);
-     const [adding, setAdding] = useState(false);
-     const [newProduct, setNewProduct] = useState({
-       name: "",
-       description: "",
-       base_price: "",
-       market_price: "",
-       shipping_cost: "",
-       category_id: "",
-     });
-     const [mainImage, setMainImage] = useState<File | null>(null);
-     const [images, setImages] = useState<FileList | null>(null);
+         const [showAddModal, setShowAddModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingProduct, setEditingProduct] = useState<any>(null);
+    const [categories, setCategories] = useState<any[]>([]);
+    const [adding, setAdding] = useState(false);
+    const [editing, setEditing] = useState(false);
+    const [newProduct, setNewProduct] = useState({
+      name: "",
+      category_id: "",
+      original_price: "",
+      product_cost: "",
+      solo_price: "",
+      friend_1_price: "",
+      friend_2_price: "",
+      friend_3_price: "0",
+      weight_grams: "",
+      weight_tolerance_grams: "",
+      sales_seed_offset: "",
+      rating_seed_sum: "",
+      rating_seed_avg: "",
+    });
+    const [editProduct, setEditProduct] = useState({
+      name: "",
+      category_id: "",
+      original_price: "",
+      product_cost: "",
+      solo_price: "",
+      friend_1_price: "",
+      friend_2_price: "",
+      friend_3_price: "0",
+      weight_grams: "",
+      weight_tolerance_grams: "",
+      sales_seed_offset: "",
+      rating_seed_sum: "",
+      rating_seed_avg: "",
+    });
+    const [mainImage, setMainImage] = useState<File | null>(null);
+    const [images, setImages] = useState<FileList | null>(null);
+    const [reload, setReload] = useState(0);
+    const [editMainImage, setEditMainImage] = useState<File | null>(null);
+    const [editImages, setEditImages] = useState<FileList | null>(null);
    
-     /* -------------------------------------------------- Fetch products */
+     const loadProducts = useCallback(
+       (signal?: AbortSignal) => {
+         const query = qs({ search });
+         return fetchJSON<any[]>(
+           `${ADMIN_API_BASE_URL}/admin/products${query}`,
+           undefined,
+           signal
+         ).then((data) => setProducts(data));
+       },
+       [search]
+     );
+   
+     /* --- list */
      useEffect(() => {
-       const controller = new AbortController();
-       const qs = new URLSearchParams({ search }).toString();
+       const ctrl = new AbortController();
+       let alive = true;
+   
        (async () => {
          try {
            setLoading(true);
-           const data = await fetchJSON<any[]>(
-             `${ADMIN_API_BASE_URL}/admin/products?${qs}`,
-             undefined,
-             controller.signal
-           );
-           setProducts(data);
-         } catch (err) {
-           console.error("Error fetching products:", err);
+           setError(null);
+           await loadProducts(ctrl.signal);
+         } catch (err: any) {
+           if (!isAbort(err)) {
+             console.error("Products error:", err);
+             if (alive) setError(err?.message ?? "خطای ناشناخته");
+           }
          } finally {
-           setLoading(false);
+           if (alive) setLoading(false);
          }
        })();
-       return () => controller.abort();
-     }, [search]);
    
-     /* -------------------------------------------------- Categories when modal open */
+       return () => {
+         alive = false;
+         ctrl.abort();
+       };
+     }, [search, reload, loadProducts]);
+   
+     /* --- categories when modal open (for select box) */
      useEffect(() => {
        if (!showAddModal) return;
-       const controller = new AbortController();
+       const ctrl = new AbortController();
+       let alive = true;
+   
        (async () => {
          try {
            const data = await fetchJSON<any[]>(
              `${ADMIN_API_BASE_URL}/admin/categories`,
              undefined,
-             controller.signal
+             ctrl.signal
            );
+           if (!alive) return;
            setCategories(data);
          } catch (err) {
-           console.error("Error fetching categories:", err);
+           if (!isAbort(err)) console.error("Categories error:", err);
          }
        })();
-       return () => controller.abort();
-     }, [showAddModal]);
    
-     /* -------------------------------------------------- Delete */
+       return () => {
+         alive = false;
+         ctrl.abort();
+       };
+     }, [showAddModal]);
+
+  // Load categories when edit modal opens as well
+  useEffect(() => {
+    if (!showEditModal) return;
+    const ctrl = new AbortController();
+    let alive = true;
+    (async () => {
+      try {
+        const data = await fetchJSON<any[]>(
+          `${ADMIN_API_BASE_URL}/admin/categories`,
+          undefined,
+          ctrl.signal
+        );
+        if (!alive) return;
+        setCategories(data);
+      } catch (err) {
+        if (!isAbort(err)) console.error("Categories error:", err);
+      }
+    })();
+    return () => {
+      alive = false;
+      ctrl.abort();
+    };
+    }, [showEditModal]);
+
+    /* --- delete */
      const handleDelete = async (id: number) => {
        if (!confirm("آیا از حذف این محصول اطمینان دارید؟")) return;
        try {
-         await fetch(`${ADMIN_API_BASE_URL}/admin/products/${id}`, { method: "DELETE" });
+         const res = await fetch(`${ADMIN_API_BASE_URL}/admin/products/${id}`, {
+           method: "DELETE",
+           ...API_INIT,
+         });
+         if (!res.ok) {
+           const text = await res.text().catch(() => "");
+           throw new Error(`${res.status} ${res.statusText}${text ? ` – ${text}` : ""}`);
+         }
          setProducts((p) => p.filter((x) => x.id !== id));
        } catch (err) {
-         console.error("Error deleting product:", err);
+         console.error("Delete error:", err);
+         alert("خطا در حذف محصول");
        }
-     };
-   
-     /* -------------------------------------------------- Add */
+         };
+
+    /* --- edit product */
+    const handleEditProduct = (product: any) => {
+      setEditingProduct(product);
+      setEditProduct({
+        name: product.name || "",
+        category_id: product.category_id?.toString() || "",
+        original_price: product.market_price?.toString() || "0",
+        product_cost: product.product_cost?.toString() || "0",
+        solo_price: product.solo_price?.toString() || "0",
+        friend_1_price: product.friend_1_price?.toString() || "0",
+        friend_2_price: product.friend_2_price?.toString() || "0",
+        friend_3_price: "0",  // Always zero for 3 friends
+        weight_grams: (product.weight_grams ?? "").toString(),
+        weight_tolerance_grams: (product.weight_tolerance_grams ?? "").toString(),
+        sales_seed_offset: (product.sales_seed_offset ?? "").toString(),
+        rating_seed_sum: (product.rating_seed_sum ?? "").toString(),
+
+        rating_seed_avg: (product.display_rating ?? "").toString(),
+      });
+      setEditMainImage(null);
+      setEditImages(null);
+      setShowEditModal(true);
+    };
+
+    const handleUpdateProduct = async () => {
+      if (!editProduct.name.trim()) {
+        alert("نام محصول را وارد کنید.");
+        return;
+      }
+      if (!editProduct.category_id) {
+        alert("دسته‌بندی محصول را انتخاب کنید.");
+        return;
+      }
+
+      try {
+        setEditing(true);
+        const formData = new FormData();
+        formData.append("name", editProduct.name);
+        formData.append("category_id", editProduct.category_id);
+        // Explicit original price field mapped to market_price
+        formData.append("market_price", editProduct.original_price);
+        formData.append("product_cost", editProduct.product_cost);
+        formData.append("solo_price", editProduct.solo_price);
+        formData.append("friend_1_price", editProduct.friend_1_price);
+        formData.append("friend_2_price", editProduct.friend_2_price);
+        formData.append("friend_3_price", "0");  // Always zero for 3 friends
+        if (editMainImage) formData.append("main_image", editMainImage);
+        if (editImages) Array.from(editImages).forEach((f) => formData.append("images", f));
+        // optional fields
+        if (editProduct.weight_grams) formData.append("weight_grams", editProduct.weight_grams);
+        if (editProduct.weight_tolerance_grams) formData.append("weight_tolerance_grams", editProduct.weight_tolerance_grams);
+        if (editProduct.sales_seed_offset) formData.append("sales_seed_offset", editProduct.sales_seed_offset);
+        // Rating seed: if average provided, compute sum = avg * count
+        let seedSum = editProduct.rating_seed_sum;
+        if (editProduct.rating_seed_avg) {
+          const avg = parseFloat(editProduct.rating_seed_avg || '0');
+          const cnt = 1; // Default count
+          if (!isNaN(avg)) {
+            seedSum = String(avg * cnt);
+          }
+        }
+        if (seedSum) formData.append("rating_seed_sum", seedSum);
+
+        // Debug: log what we're sending
+        console.log("Sending product update:", {
+          weight_grams: editProduct.weight_grams,
+          weight_tolerance_grams: editProduct.weight_tolerance_grams,
+          sales_seed_offset: editProduct.sales_seed_offset,
+          rating_seed_sum: seedSum,
+          rating_seed_avg: editProduct.rating_seed_avg
+        });
+
+        const res = await fetch(`${ADMIN_API_BASE_URL}/admin/products/${editingProduct.id}`, {
+          method: "PUT",
+          body: formData,
+          credentials: API_INIT.credentials,
+        });
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(`${res.status} ${res.statusText}${text ? ` – ${text}` : ""}`);
+        }
+
+        setShowEditModal(false);
+        setEditingProduct(null);
+                 setEditProduct({
+           name: "",
+           category_id: "",
+           original_price: "",
+           product_cost: "",
+           solo_price: "",
+           friend_1_price: "",
+           friend_2_price: "",
+           friend_3_price: "0",
+           weight_grams: "",
+           weight_tolerance_grams: "",
+           sales_seed_offset: "",
+           rating_seed_sum: "",
+           rating_seed_avg: "",
+         });
+        setEditMainImage(null);
+        setEditImages(null);
+        setReload(r => r + 1);
+        alert("محصول با موفقیت ویرایش شد.");
+      } catch (err) {
+        console.error("Edit error:", err);
+        alert("خطا در ویرایش محصول: " + (err as Error).message);
+      } finally {
+        setEditing(false);
+      }
+    };
+  
+    /* --- add product */
      const handleAddProduct = async () => {
+       // basic validation to avoid silent 4xx/5xx
+       if (!newProduct.name.trim()) {
+         alert("نام محصول را وارد کنید.");
+         return;
+       }
+       if (!newProduct.category_id) {
+         alert("دسته‌بندی را انتخاب کنید.");
+         return;
+       }
+   
        try {
          setAdding(true);
          const fd = new FormData();
-         fd.append("name", newProduct.name);
-         fd.append("description", newProduct.description);
-         fd.append("base_price", String(Number(newProduct.base_price)));
-         fd.append("market_price", String(Number(newProduct.market_price)));
-         fd.append("shipping_cost", String(Number(newProduct.shipping_cost)));
+         fd.append("name", newProduct.name.trim());
+   
+         // Add new price fields
+          // Original price maps to market_price
+          fd.append("market_price", String(Number(newProduct.original_price || 0)));
+         fd.append("product_cost", String(Number(newProduct.product_cost || 0)));
+         fd.append("solo_price", String(Number(newProduct.solo_price || 0)));
+         fd.append("friend_1_price", String(Number(newProduct.friend_1_price || 0)));
+         fd.append("friend_2_price", String(Number(newProduct.friend_2_price || 0)));
+         fd.append("friend_3_price", "0");  // Always zero for 3 friends
+          if (newProduct.weight_grams) fd.append("weight_grams", newProduct.weight_grams);
+          if (newProduct.weight_tolerance_grams) fd.append("weight_tolerance_grams", newProduct.weight_tolerance_grams);
+          if (newProduct.sales_seed_offset) fd.append("sales_seed_offset", newProduct.sales_seed_offset);
+          // Rating seed: if average provided, compute sum = avg * count
+          let nSeedSum = newProduct.rating_seed_sum;
+          if (newProduct.rating_seed_avg) {
+            const avg = parseFloat(newProduct.rating_seed_avg || '0');
+            const cnt = 1; // Default count
+            if (!isNaN(avg)) {
+              nSeedSum = String(avg * cnt);
+            }
+          }
+          if (nSeedSum) fd.append("rating_seed_sum", nSeedSum);
+   
+         // Debug: log what we're sending
+         console.log("Sending new product:", {
+           weight_grams: newProduct.weight_grams,
+           weight_tolerance_grams: newProduct.weight_tolerance_grams,
+           sales_seed_offset: newProduct.sales_seed_offset,
+           rating_seed_sum: nSeedSum,
+           rating_seed_avg: newProduct.rating_seed_avg
+         });
+   
          fd.append("category_id", newProduct.category_id);
          if (mainImage) fd.append("main_image", mainImage);
          if (images) Array.from(images).forEach((f) => fd.append("images", f));
    
-         await fetch(`${ADMIN_API_BASE_URL}/admin/products`, { method: "POST", body: fd });
+         const res = await fetch(`${ADMIN_API_BASE_URL}/admin/products`, {
+           method: "POST",
+           body: fd,
+           credentials: API_INIT.credentials, // keep cookie behavior
+         });
+         if (!res.ok) {
+           const text = await res.text().catch(() => "");
+           throw new Error(`${res.status} ${res.statusText}${text ? ` – ${text}` : ""}`);
+         }
+   
+         // Try to use returned object to update list immediately
+         let created: any | null = null;
+         try {
+           created = await res.json();
+         } catch {
+           /* server may return empty body */
+         }
+   
+         // reset form
          setShowAddModal(false);
          setNewProduct({
            name: "",
-           description: "",
-           base_price: "",
-           market_price: "",
-           shipping_cost: "",
            category_id: "",
+            original_price: "",
+           product_cost: "",
+           solo_price: "",
+           friend_1_price: "",
+           friend_2_price: "",
+           friend_3_price: "0",
+            weight_grams: "",
+            weight_tolerance_grams: "",
+            sales_seed_offset: "",
+            rating_seed_sum: "",
+            rating_seed_avg: "",
          });
          setMainImage(null);
          setImages(null);
-         /* refresh */
-         setSearch((s) => s); // trigger useEffect
+   
+         // If search was filtering out the new item, clear it so you can see the new product.
+         if (search) setSearch("");
+   
+         if (created && typeof created === "object") {
+           setProducts((prev) => [created, ...prev]);
+         } else {
+           setReload((n) => n + 1); // fallback reload
+         }
        } catch (err) {
-         console.error("Error adding product:", err);
+         console.error("Add product error:", err);
+         alert("خطا در افزودن محصول");
        } finally {
          setAdding(false);
        }
      };
    
-     /* -------------------------------------------------- JSX */
+     /* --- JSX */
      return (
        <div className="bg-white rounded-lg shadow-md p-6">
-         {/* Search & add */}
+         {/* search / add */}
          <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
            <input
              className="w-full md:w-1/3 px-4 py-2 border rounded-lg"
@@ -378,9 +982,13 @@
            </button>
          </div>
    
-         {/* Table */}
+         {/* table / error */}
          {loading ? (
            <div className="text-center py-8">در حال بارگذاری...</div>
+         ) : error ? (
+           <div className="text-center py-8 text-red-600">
+             خطا در دریافت محصولات: {error}
+           </div>
          ) : (
            <div className="overflow-x-auto">
              <table className="min-w-full">
@@ -389,48 +997,76 @@
                    <th className="px-6 py-3">تصویر</th>
                    <th className="px-6 py-3">نام</th>
                    <th className="px-6 py-3">دسته‌بندی</th>
-                   <th className="px-6 py-3">قیمت پایه</th>
-                   <th className="px-6 py-3">قیمت بازار</th>
+                    <th className="px-6 py-3">قیمت اصلی</th>
+                   <th className="px-6 py-3">هزینه محصول</th>
+                   <th className="px-6 py-3">خرید به تنهایی</th>
+                   <th className="px-6 py-3">خرید با 1 دوست</th>
                    <th className="px-6 py-3">عملیات</th>
                  </tr>
                </thead>
-               <tbody className="bg-white divide-y divide-gray-200">
-                 {products.map((p) => (
-                   <tr key={p.id}>
-                     <td className="px-6 py-4">
-                       {p.main_image && (
-                         // use next/image in real project
-                         <img
-                           src={p.main_image}
-                           alt={p.name}
-                           className="w-12 h-12 object-cover rounded"
-                         />
-                       )}
-                     </td>
-                     <td className="px-6 py-4">{p.name}</td>
-                     <td className="px-6 py-4">{p.category_name}</td>
-                     <td className="px-6 py-4">{toFa(p.base_price)} تومان</td>
-                     <td className="px-6 py-4">{toFa(p.market_price)} تومان</td>
-                     <td className="px-6 py-4">
-                       <button
-                         onClick={() => handleDelete(p.id)}
-                         className="text-red-600 hover:text-red-900"
-                       >
-                         حذف
-                       </button>
-                     </td>
-                   </tr>
-                 ))}
-               </tbody>
+                 <tbody className="bg-white divide-y divide-gray-200">
+                  {products.filter(p => p.id).map((p) => (
+                  <React.Fragment key={`product-${p.id}`}>
+                  <tr key={`row-${p.id}`}>
+                    <td className="px-6 py-4">
+                      {p.images && p.images[0] && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={p.images[0]}
+                          alt={p.name}
+                          className="w-12 h-12 object-cover rounded"
+                        />
+                      )}
+                    </td>
+                    <td className="px-6 py-4">{p.name}</td>
+                    <td className="px-6 py-4">{p.category}</td>
+                    <td className="px-6 py-4">{toFa(p.market_price || p.solo_price || 0)} تومان</td>
+                    <td className="px-6 py-4">{toFa(p.product_cost || 0)} تومان</td>
+                    <td className="px-6 py-4">{toFa(p.solo_price || 0)} تومان</td>
+                      <td className="px-6 py-4">{toFa(p.friend_1_price || 0)} تومان</td>
+                  </tr>
+                  <tr key={`meta-${p.id}`}>
+                    <td className="px-6 py-2 text-xs text-gray-500" colSpan={8}>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <span className="font-medium">وزن:</span> {p.weight_grams ? `${Math.round((Number(p.weight_grams)||0)/1000)} کیلوگرم` : '—'} 
+                          {p.weight_tolerance_grams ? (<span> ± {Number(p.weight_tolerance_grams)} گرم</span>) : null}
+                        </div>
+                        <div>
+                          <span className="font-medium">تعداد فروش:</span> {toFa(p.display_sales ?? 0)}
+                        </div>
+                        <div>
+                          <span className="font-medium">امتیاز:</span> {p.display_rating ?? 0}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 space-x-2">
+                      <button
+                        onClick={() => handleEditProduct(p)}
+                        className="text-blue-600 hover:text-blue-900 ml-2"
+                      >
+                        ویرایش
+                      </button>
+                      <button
+                        onClick={() => handleDelete(p.id)}
+                        className="text-red-600 hover:text-red-900"
+                        disabled={!p.id}
+                      >
+                        حذف
+                      </button>
+                    </td>
+                  </tr>
+                  </React.Fragment>
+                ))}
+                </tbody>
              </table>
            </div>
          )}
    
-         {/* Modal */}
+         {/* Add Product modal */}
          {showAddModal && (
            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
              <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
-               {/* Header */}
                <div className="flex justify-between items-center mb-4">
                  <h2 className="text-xl font-bold">افزودن محصول جدید</h2>
                  <button
@@ -440,8 +1076,8 @@
                    <FaTimes size={24} />
                  </button>
                </div>
-               {/* Form */}
-               <div className="grid grid-cols-1 gap-4">
+   
+               <div className="grid gap-4">
                  <input
                    placeholder="نام محصول"
                    className="border rounded p-2"
@@ -450,41 +1086,62 @@
                      setNewProduct({ ...newProduct, name: e.target.value })
                    }
                  />
-                 <textarea
-                   placeholder="توضیحات"
+                  <input
+                    type="number"
+                    placeholder="قیمت اصلی"
+                    className="border rounded p-2"
+                    value={newProduct.original_price}
+                    onChange={(e) =>
+                      setNewProduct({ ...newProduct, original_price: e.target.value })
+                    }
+                  />
+                 
+                 {/* Price fields */}
+                 <input
+                   type="number"
+                   placeholder="هزینه محصول"
                    className="border rounded p-2"
-                   value={newProduct.description}
+                   value={newProduct.product_cost}
                    onChange={(e) =>
-                     setNewProduct({ ...newProduct, description: e.target.value })
+                     setNewProduct({ ...newProduct, product_cost: e.target.value })
                    }
                  />
                  <input
                    type="number"
-                   placeholder="قیمت پایه"
+                   placeholder="خرید به تنهایی"
                    className="border rounded p-2"
-                   value={newProduct.base_price}
+                   value={newProduct.solo_price}
                    onChange={(e) =>
-                     setNewProduct({ ...newProduct, base_price: e.target.value })
+                     setNewProduct({ ...newProduct, solo_price: e.target.value })
                    }
                  />
                  <input
                    type="number"
-                   placeholder="قیمت بازار"
+                   placeholder="خرید با 1 دوست"
                    className="border rounded p-2"
-                   value={newProduct.market_price}
+                   value={newProduct.friend_1_price}
                    onChange={(e) =>
-                     setNewProduct({ ...newProduct, market_price: e.target.value })
+                     setNewProduct({ ...newProduct, friend_1_price: e.target.value })
                    }
                  />
                  <input
                    type="number"
-                   placeholder="هزینه ارسال"
+                   placeholder="خرید با 2 دوست"
                    className="border rounded p-2"
-                   value={newProduct.shipping_cost}
+                   value={newProduct.friend_2_price}
                    onChange={(e) =>
-                     setNewProduct({ ...newProduct, shipping_cost: e.target.value })
+                     setNewProduct({ ...newProduct, friend_2_price: e.target.value })
                    }
                  />
+                 <input
+                   type="number"
+                   placeholder="خرید با 3 دوست (همیشه رایگان)"
+                   className="border rounded p-2 bg-gray-100"
+                   value="0"
+                   readOnly
+                   disabled
+                 />
+                 
                  <select
                    className="border rounded p-2"
                    value={newProduct.category_id}
@@ -512,8 +1169,58 @@
                    accept="image/*"
                    onChange={(e) => setImages(e.target.files)}
                  />
+                  {/* Weight with tolerance */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">وزن (گرم)</label>
+                      <input 
+                        type="number" 
+                        placeholder="وزن (گرم)" 
+                        className="border rounded p-2 w-full" 
+                        value={newProduct.weight_grams} 
+                        onChange={(e)=>setNewProduct({...newProduct, weight_grams: e.target.value})} 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">تلورانس وزن (گرم)</label>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2">±</span>
+                        <input 
+                          type="number" 
+                          placeholder="تلورانس (گرم)" 
+                          className="border rounded p-2 w-full" 
+                          value={newProduct.weight_tolerance_grams} 
+                          onChange={(e)=>setNewProduct({...newProduct, weight_tolerance_grams: e.target.value})} 
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {/* Seeds */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">تعداد فروش اولیه</label>
+                      <input 
+                        type="number" 
+                        placeholder="تعداد فروش اولیه" 
+                        className="border rounded p-2" 
+                        value={newProduct.sales_seed_offset} 
+                        onChange={(e)=>setNewProduct({...newProduct, sales_seed_offset: e.target.value})} 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">میانگین امتیاز اولیه</label>
+                      <input 
+                        type="number" 
+                        step="0.1"
+                        placeholder="مثلاً 4.1" 
+                        className="border rounded p-2" 
+                        value={newProduct.rating_seed_avg} 
+                        onChange={(e)=>setNewProduct({...newProduct, rating_seed_avg: e.target.value})} 
+                      />
+                    </div>
+                  </div>
                </div>
-               {/* Actions */}
+   
                <div className="mt-6 flex justify-end">
                  <button
                    onClick={() => setShowAddModal(false)}
@@ -526,208 +1233,1088 @@
                    onClick={handleAddProduct}
                    className="bg-blue-600 text-white px-4 py-2 rounded"
                  >
-                   {adding ? "در حال افزودن..." : "افزودن"}
-                 </button>
-               </div>
-             </div>
-           </div>
-         )}
-       </div>
-     );
-   }
-   
-   /* --------------------------------------------------------------------------
-      Categories
+                                     {adding ? "در حال افزودن..." : "افزودن"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Product modal */}
+        {showEditModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">ویرایش محصول</h2>
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <FaTimes size={24} />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">نام محصول</label>
+                  <input
+                    type="text"
+                    value={editProduct.name}
+                    onChange={(e) => setEditProduct({...editProduct, name: e.target.value})}
+                    className="w-full border rounded px-3 py-2"
+                    placeholder="نام محصول را وارد کنید"
+                  />
+                </div>
+                {/* Weight and seeds */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">وزن (گرم)</label>
+                    <input 
+                      type="number" 
+                      placeholder="وزن (گرم)" 
+                      className="border rounded p-2 w-full" 
+                      value={editProduct.weight_grams} 
+                      onChange={(e)=>setEditProduct({...editProduct, weight_grams: e.target.value})} 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">تلورانس وزن (گرم)</label>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2">±</span>
+                      <input 
+                        type="number" 
+                        placeholder="تلورانس (گرم)" 
+                        className="border rounded p-2 w-full" 
+                        value={editProduct.weight_tolerance_grams} 
+                        onChange={(e)=>setEditProduct({...editProduct, weight_tolerance_grams: e.target.value})} 
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">تعداد فروش اولیه</label>
+                    <input 
+                      type="number" 
+                      placeholder="تعداد فروش اولیه" 
+                      className="border rounded p-2" 
+                      value={editProduct.sales_seed_offset} 
+                      onChange={(e)=>setEditProduct({...editProduct, sales_seed_offset: e.target.value})} 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">میانگین امتیاز اولیه</label>
+                    <input 
+                      type="number" 
+                      step="0.1"
+                      placeholder="مثلاً 4.1" 
+                      className="border rounded p-2" 
+                      value={editProduct.rating_seed_avg} 
+                      onChange={(e)=>setEditProduct({...editProduct, rating_seed_avg: e.target.value})} 
+                    />
+                  </div>
+                </div>
+                 <div>
+                   <label className="block text-sm font-medium mb-1">قیمت اصلی</label>
+                   <input
+                     type="number"
+                     value={editProduct.original_price}
+                     onChange={(e) => setEditProduct({...editProduct, original_price: e.target.value})}
+                     className="w-full border rounded px-3 py-2"
+                     placeholder="قیمت اصلی"
+                   />
+                 </div>
+                {/* Price fields */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">هزینه محصول</label>
+                    <input
+                      type="number"
+                      value={editProduct.product_cost}
+                      onChange={(e) => setEditProduct({...editProduct, product_cost: e.target.value})}
+                      className="w-full border rounded px-3 py-2"
+                      placeholder="هزینه محصول"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">خرید به تنهایی</label>
+                    <input
+                      type="number"
+                      value={editProduct.solo_price}
+                      onChange={(e) => setEditProduct({...editProduct, solo_price: e.target.value})}
+                      className="w-full border rounded px-3 py-2"
+                      placeholder="خرید به تنهایی"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">خرید با 1 دوست</label>
+                    <input
+                      type="number"
+                      value={editProduct.friend_1_price}
+                      onChange={(e) => setEditProduct({...editProduct, friend_1_price: e.target.value})}
+                      className="w-full border rounded px-3 py-2"
+                      placeholder="خرید با 1 دوست"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">خرید با 2 دوست</label>
+                    <input
+                      type="number"
+                      value={editProduct.friend_2_price}
+                      onChange={(e) => setEditProduct({...editProduct, friend_2_price: e.target.value})}
+                      className="w-full border rounded px-3 py-2"
+                      placeholder="خرید با 2 دوست"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">خرید با 3 دوست (همیشه رایگان)</label>
+                    <input
+                      type="number"
+                      value="0"
+                      className="w-full border rounded px-3 py-2 bg-gray-100"
+                      placeholder="خرید با 3 دوست (همیشه رایگان)"
+                      readOnly
+                      disabled
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">دسته‌بندی</label>
+                    <select
+                      value={editProduct.category_id}
+                      onChange={(e) => setEditProduct({...editProduct, category_id: e.target.value})}
+                      className="w-full border rounded px-3 py-2"
+                    >
+                      <option value="">انتخاب دسته‌بندی</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">تصویر اصلی (اختیاری)</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setEditMainImage(e.target.files ? e.target.files[0] : null)}
+                      className="w-full border rounded px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">تصاویر اضافه (اختیاری)</label>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={(e) => setEditImages(e.target.files)}
+                      className="w-full border rounded px-3 py-2"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="bg-gray-500 text-white px-4 py-2 rounded ml-2"
+                >
+                  انصراف
+                </button>
+                <button
+                  disabled={editing}
+                  onClick={handleUpdateProduct}
+                  className="bg-blue-600 text-white px-4 py-2 rounded"
+                >
+                  {editing ? "در حال ویرایش..." : "ویرایش"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+  /* --------------------------------------------------------------------------
+     Categories (now includes "Add Category" modal)
       -------------------------------------------------------------------------- */
    
    function CategoriesContent() {
      const [categories, setCategories] = useState<any[]>([]);
      const [loading, setLoading] = useState(true);
+     const [error, setError] = useState<string | null>(null);
+   
+         const [showAdd, setShowAdd] = useState(false);
+    const [showEditCat, setShowEditCat] = useState(false);
+    const [adding, setAdding] = useState(false);
+    const [editing, setEditing] = useState(false);
+    const [editingCategory, setEditingCategory] = useState<any>(null);
+    const [newCat, setNewCat] = useState({ name: "", slug: "", image_url: "", image_file: null as File | null });
+    const [editCat, setEditCat] = useState({ name: "", slug: "", image_url: "", image_file: null as File | null });
+   
+     const load = useCallback(
+       (signal?: AbortSignal) =>
+         fetchJSON<any[]>(
+           `${ADMIN_API_BASE_URL}/admin/categories`,
+           undefined,
+           signal
+         ).then((data) => setCategories(data)),
+       []
+     );
    
      useEffect(() => {
        const ctrl = new AbortController();
+       let alive = true;
+   
        (async () => {
          try {
            setLoading(true);
-           const data = await fetchJSON<any[]>(
-             `${ADMIN_API_BASE_URL}/admin/categories`,
-             undefined,
-             ctrl.signal
-           );
-           setCategories(data);
-         } catch (err) {
-           console.error("Error fetching categories:", err);
+           setError(null);
+           await load(ctrl.signal);
+         } catch (err: any) {
+           if (!isAbort(err)) {
+             console.error("Categories error:", err);
+             if (alive) setError(err?.message ?? "خطای ناشناخته");
+           }
          } finally {
-           setLoading(false);
+           if (alive) setLoading(false);
          }
        })();
-       return () => ctrl.abort();
-     }, []);
    
-     return (
+       return () => {
+         alive = false;
+         ctrl.abort();
+       };
+     }, [load]);
+   
+     const handleAddCategory = async () => {
+       if (!newCat.name.trim()) {
+         alert("نام دسته را وارد کنید.");
+         return;
+       }
+       try {
+         setAdding(true);
+         let res: Response;
+         if (newCat.image_file) {
+           const form = new FormData();
+           form.append("name", newCat.name.trim());
+           if (newCat.slug.trim()) form.append("slug", newCat.slug.trim());
+           form.append("image", newCat.image_file);
+           res = await fetch(`${ADMIN_API_BASE_URL}/admin/categories`, { method: "POST", body: form, credentials: API_INIT.credentials });
+         } else {
+           const payload: any = { name: newCat.name.trim() };
+           if (newCat.slug.trim()) payload.slug = newCat.slug.trim();
+           if (newCat.image_url.trim()) payload.image_url = newCat.image_url.trim();
+           res = await fetch(`${ADMIN_API_BASE_URL}/admin/categories`, {
+             method: "POST",
+             headers: { "Content-Type": "application/json", ...(API_INIT.headers as any) },
+             credentials: API_INIT.credentials,
+             body: JSON.stringify(payload),
+           });
+         }
+         if (!res.ok) {
+           const text = await res.text().catch(() => "");
+           throw new Error(`${res.status} ${res.statusText}${text ? ` – ${text}` : ""}`);
+         }
+   
+         let created: any | null = null;
+         try {
+           created = await res.json();
+         } catch {
+           /* ignore if empty */
+         }
+   
+         setShowAdd(false);
+         setNewCat({ name: "", slug: "", image_url: "", image_file: null });
+   
+         if (created && typeof created === "object") {
+           setCategories((prev) => [created, ...prev]);
+         } else {
+           await load(); // fallback reload
+         }
+       } catch (err) {
+         console.error("Add category error:", err);
+         alert("خطا در افزودن دسته‌بندی");
+       } finally {
+         setAdding(false);
+             }
+    };
+
+    const handleEditCategory = (category: any) => {
+      setEditingCategory(category);
+      setEditCat({
+        name: category.name || "",
+        slug: category.slug || "",
+        image_url: category.image_url || "",
+        image_file: null,
+      });
+      setShowEditCat(true);
+    };
+
+    const handleUpdateCategory = async () => {
+      if (!editCat.name.trim()) {
+        alert("نام دسته را وارد کنید.");
+        return;
+      }
+      try {
+        setEditing(true);
+        let res: Response;
+        if (editCat.image_file || editCat.image_url.trim()) {
+          const formData = new FormData();
+          formData.append("name", editCat.name.trim());
+          if (editCat.slug.trim()) formData.append("slug", editCat.slug.trim());
+          if (editCat.image_file) formData.append("image", editCat.image_file);
+          if (!editCat.image_file && editCat.image_url.trim()) formData.append("image_url", editCat.image_url.trim());
+          res = await fetch(`${ADMIN_API_BASE_URL}/admin/categories/${editingCategory.id}`, { method: "PUT", body: formData, credentials: API_INIT.credentials });
+        } else {
+          // No image change; send minimal JSON
+          res = await fetch(`${ADMIN_API_BASE_URL}/admin/categories/${editingCategory.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", ...(API_INIT.headers as any) },
+            credentials: API_INIT.credentials,
+            body: JSON.stringify({ name: editCat.name.trim(), ...(editCat.slug.trim() ? { slug: editCat.slug.trim() } : {}) }),
+          });
+        }
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(`${res.status} ${res.statusText}${text ? ` – ${text}` : ""}`);
+        }
+
+        setShowEditCat(false);
+        setEditingCategory(null);
+        setEditCat({ name: "", slug: "", image_url: "", image_file: null });
+        await load(); // Reload categories
+        alert("دسته‌بندی با موفقیت ویرایش شد.");
+      } catch (err) {
+        console.error("Edit category error:", err);
+        alert("خطا در ویرایش دسته‌بندی: " + (err as Error).message);
+      } finally {
+        setEditing(false);
+      }
+    };
+
+    const handleDeleteCategory = async (id: number) => {
+      if (!confirm("آیا از حذف این دسته‌بندی اطمینان دارید؟")) return;
+      try {
+        const res = await fetch(`${ADMIN_API_BASE_URL}/admin/categories/${id}`, {
+          method: "DELETE",
+          ...API_INIT,
+        });
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(`${res.status} ${res.statusText}${text ? ` – ${text}` : ""}`);
+        }
+        setCategories((prev) => prev.filter((c) => c.id !== id));
+        alert("دسته‌بندی با موفقیت حذف شد.");
+      } catch (err) {
+        console.error("Delete category error:", err);
+        alert("خطا در حذف دسته‌بندی: " + (err as Error).message);
+      }
+    };
+  
+    return (
        <div className="bg-white rounded-lg shadow-md p-6">
-         <h2 className="text-xl font-semibold mb-6">دسته‌بندی‌ها</h2>
+         <div className="mb-6 flex items-center justify-between">
+           <h2 className="text-xl font-semibold">دسته‌بندی‌ها</h2>
+           <button
+             onClick={() => setShowAdd(true)}
+             className="bg-blue-600 text-white px-4 py-2 rounded"
+           >
+             افزودن دسته
+           </button>
+         </div>
+   
          {loading ? (
            <div className="text-center py-8">در حال بارگذاری...</div>
+         ) : error ? (
+           <div className="text-center py-8 text-red-600">
+             خطا در دریافت دسته‌بندی‌ها: {error}
+           </div>
          ) : (
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-             {categories.map((cat) => (
-               <div key={cat.id} className="border rounded-lg p-4">
-                 <h3 className="font-semibold">{cat.name}</h3>
-                 <p className="text-sm text-gray-600">{cat.slug}</p>
-               </div>
-             ))}
+                         {categories.map((cat) => (
+              <div key={cat.id} className="border rounded-lg p-4">
+                <h3 className="font-semibold">{cat.name}</h3>
+                <p className="text-sm text-gray-600">{cat.slug}</p>
+                <div className="mt-3 flex space-x-2">
+                  <button
+                    onClick={() => handleEditCategory(cat)}
+                    className="text-blue-600 hover:text-blue-900 text-sm ml-2"
+                  >
+                    ویرایش
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCategory(cat.id)}
+                    className="text-red-600 hover:text-red-900 text-sm"
+                  >
+                    حذف
+                  </button>
+                </div>
+              </div>
+            ))}
            </div>
          )}
-       </div>
-     );
-   }
    
-   /* --------------------------------------------------------------------------
-      Orders
+         {/* Add Category modal */}
+         {showAdd && (
+           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+             <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto p-6">
+               <div className="flex justify-between items-center mb-4">
+                 <h2 className="text-lg font-bold">افزودن دسته‌بندی</h2>
+                 <button
+                   onClick={() => setShowAdd(false)}
+                   className="text-gray-500 hover:text-gray-700"
+                 >
+                   <FaTimes size={22} />
+                 </button>
+               </div>
+   
+                <div className="grid gap-3">
+                 <input
+                   placeholder="نام دسته"
+                   className="border rounded p-2"
+                   value={newCat.name}
+                   onChange={(e) => setNewCat({ ...newCat, name: e.target.value })}
+                 />
+                 <input
+                   placeholder="نامک (اختیاری)"
+                   className="border rounded p-2"
+                   value={newCat.slug}
+                   onChange={(e) => setNewCat({ ...newCat, slug: e.target.value })}
+                 />
+                  <input
+                    placeholder="آدرس تصویر (اختیاری)"
+                    className="border rounded p-2"
+                    value={newCat.image_url}
+                    onChange={(e) => setNewCat({ ...newCat, image_url: e.target.value, image_file: null })}
+                  />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="border rounded p-2"
+                    onChange={(e) => setNewCat({ ...newCat, image_file: e.target.files?.[0] || null, image_url: "" })}
+                  />
+                  {(newCat.image_file || newCat.image_url) && (
+                    <div className="mt-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={newCat.image_file ? URL.createObjectURL(newCat.image_file) : newCat.image_url}
+                        alt="preview"
+                        className="w-full h-32 object-cover rounded"
+                      />
+                    </div>
+                  )}
+               </div>
+   
+               <div className="mt-5 flex justify-end">
+                 <button
+                   onClick={() => setShowAdd(false)}
+                   className="bg-gray-500 text-white px-4 py-2 rounded ml-2"
+                 >
+                   انصراف
+                 </button>
+                 <button
+                   disabled={adding}
+                   onClick={handleAddCategory}
+                   className="bg-blue-600 text-white px-4 py-2 rounded"
+                 >
+                   {adding ? "در حال افزودن..." : "افزودن"}
+                 </button>
+               </div>
+             </div>
+           </div>
+                 )}
+
+        {/* Edit Category modal */}
+        {showEditCat && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold">ویرایش دسته‌بندی</h2>
+                <button
+                  onClick={() => setShowEditCat(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <FaTimes size={20} />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">نام دسته‌بندی</label>
+                  <input
+                    type="text"
+                    value={editCat.name}
+                    onChange={(e) => setEditCat({ ...editCat, name: e.target.value })}
+                    className="w-full border rounded px-3 py-2"
+                    placeholder="نام دسته‌بندی"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">اسلاگ (اختیاری)</label>
+                  <input
+                    type="text"
+                    value={editCat.slug}
+                    onChange={(e) => setEditCat({ ...editCat, slug: e.target.value })}
+                    className="w-full border rounded px-3 py-2"
+                    placeholder="اسلاگ (به صورت خودکار تولید می‌شود)"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">آدرس تصویر (اختیاری)</label>
+                  <input
+                    type="text"
+                    value={editCat.image_url}
+                    onChange={(e) => setEditCat({ ...editCat, image_url: e.target.value, image_file: null })}
+                    className="w-full border rounded px-3 py-2"
+                    placeholder="https://..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">آپلود تصویر (اختیاری)</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setEditCat({ ...editCat, image_file: e.target.files?.[0] || null, image_url: "" })}
+                    className="w-full border rounded px-3 py-2"
+                  />
+                </div>
+                {(editCat.image_file || editCat.image_url || editingCategory?.image_url) && (
+                  <div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={editCat.image_file ? URL.createObjectURL(editCat.image_file) : (editCat.image_url || editingCategory?.image_url)}
+                      alt="preview"
+                      className="w-full h-32 object-cover rounded"
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={() => setShowEditCat(false)}
+                  className="bg-gray-500 text-white px-4 py-2 rounded ml-2"
+                >
+                  انصراف
+                </button>
+                <button
+                  disabled={editing}
+                  onClick={handleUpdateCategory}
+                  className="bg-blue-600 text-white px-4 py-2 rounded"
+                >
+                  {editing ? "در حال ویرایش..." : "ویرایش"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* --------------------------------------------------------------------------
+     Banners
+     -------------------------------------------------------------------------- */
+
+  function SettingsContent() {
+    const [label, setLabel] = useState<string>("همه");
+    const [imageUrl, setImageUrl] = useState<string>("");
+    const [file, setFile] = useState<File | null>(null);
+    const [aiChatbotEnabled, setAiChatbotEnabled] = useState<boolean>(false);
+    const [loading, setLoading] = useState<boolean>(true);
+    const [saving, setSaving] = useState<boolean>(false);
+
+    const load = useCallback(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`${ADMIN_API_BASE_URL}/admin/settings`, API_INIT);
+        if (res.ok) {
+          const js = await res.json();
+          setLabel(js?.all_category_label || "همه");
+          setImageUrl(js?.all_category_image || "");
+          setAiChatbotEnabled(js?.ai_chatbot_enabled === "true" || js?.ai_chatbot_enabled === true);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }, []);
+
+    useEffect(() => { load(); }, [load]);
+
+    const handleSave = async () => {
+      setSaving(true);
+      try {
+        let res: Response;
+        if (file) {
+          const form = new FormData();
+          form.append("all_category_label", label);
+          form.append("all_category_image_file", file);
+          form.append("ai_chatbot_enabled", aiChatbotEnabled.toString());
+          res = await fetch(`${ADMIN_API_BASE_URL}/admin/settings`, { method: "PUT", body: form });
+        } else {
+          res = await fetch(`${ADMIN_API_BASE_URL}/admin/settings`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              all_category_label: label, 
+              ai_chatbot_enabled: aiChatbotEnabled,
+              ...(imageUrl ? { all_category_image: imageUrl } : {}) 
+            }),
+          });
+        }
+        if (!res.ok) throw new Error(`${res.status}`);
+        const js = await res.json();
+        setLabel(js?.all_category_label || label);
+        setImageUrl(js?.all_category_image || imageUrl);
+        setAiChatbotEnabled(js?.ai_chatbot_enabled === "true" || js?.ai_chatbot_enabled === true);
+        setFile(null);
+        alert("تنظیمات ذخیره شد");
+      } catch (e: any) {
+        alert("خطا در ذخیره تنظیمات");
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-xl font-semibold mb-4">تنظیمات</h2>
+
+        {loading ? (
+          <div>در حال بارگذاری…</div>
+        ) : (
+          <div className="grid gap-4 max-w-lg">
+            <div>
+              <label className="block text-sm mb-1">برچسب تب «همه»</label>
+              <input className="border rounded p-2 w-full" value={label} onChange={(e) => setLabel(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">آدرس تصویر تب «همه» (اختیاری)</label>
+              <input className="border rounded p-2 w-full" placeholder="https://…" value={imageUrl} onChange={(e) => { setImageUrl(e.target.value); setFile(null); }} />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">آپلود تصویر (اختیاری)</label>
+              <input type="file" accept="image/*" onChange={(e) => { setFile(e.target.files?.[0] || null); if (e.target.files?.[0]) setImageUrl(""); }} />
+            </div>
+            {(file || imageUrl) && (
+              <div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={file ? URL.createObjectURL(file) : imageUrl} alt="preview" className="w-40 h-40 object-cover rounded-full" />
+              </div>
+            )}
+            <div className="border-t pt-4 mt-4">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={aiChatbotEnabled}
+                  onChange={(e) => setAiChatbotEnabled(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-900">
+                  فعال‌سازی چت‌بات هوش مصنوعی
+                </span>
+              </label>
+              <p className="text-xs text-gray-500 mt-1 mr-7">
+                چت‌بات هوش مصنوعی به طور خودکار به پیام‌های کاربران پاسخ می‌دهد
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={handleSave} disabled={saving} className="bg-blue-600 text-white px-4 py-2 rounded">{saving ? "در حال ذخیره…" : "ذخیره"}</button>
+              <button onClick={load} className="bg-gray-500 text-white px-4 py-2 rounded">بازنشانی</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function BannersContent() {
+    const [banners, setBanners] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [showAdd, setShowAdd] = useState(false);
+    const [adding, setAdding] = useState(false);
+    const [editing, setEditing] = useState(false);
+    const [editingBanner, setEditingBanner] = useState<any | null>(null);
+    const [newBan, setNewBan] = useState({ title: "", description: "", sort_order: 0, is_active: true, image_file: null as File | null, image_url: "" });
+    const [editBan, setEditBan] = useState({ title: "", description: "", sort_order: 0, is_active: true, image_file: null as File | null, image_url: "" });
+
+    const load = useCallback(async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch(`${ADMIN_API_BASE_URL}/admin/banners`, API_INIT);
+        if (!res.ok) throw new Error(`${res.status}`);
+        const data = await res.json();
+        setBanners(Array.isArray(data) ? data : []);
+      } catch (e: any) {
+        setError(e?.message ?? "خطا");
+      } finally {
+        setLoading(false);
+      }
+    }, []);
+
+    useEffect(() => { load(); }, [load]);
+
+    const handleCreate = async () => {
+      try {
+        setAdding(true);
+        const fd = new FormData();
+        if (newBan.image_file) fd.append('image', newBan.image_file);
+        if (!newBan.image_file && newBan.image_url) fd.append('image_url', newBan.image_url);
+        fd.append('title', newBan.title);
+        fd.append('description', newBan.description);
+        fd.append('sort_order', String(newBan.sort_order || 0));
+        fd.append('is_active', newBan.is_active ? 'true' : 'false');
+        const res = await fetch(`${ADMIN_API_BASE_URL}/admin/banners`, { method: 'POST', body: fd, credentials: API_INIT.credentials });
+        if (!res.ok) throw new Error(`${res.status}`);
+        setShowAdd(false);
+        setNewBan({ title: "", description: "", sort_order: 0, is_active: true, image_file: null, image_url: "" });
+        await load();
+      } catch (e: any) {
+        alert('خطا در ایجاد بنر');
+      } finally {
+        setAdding(false);
+      }
+    };
+
+    const handleEditOpen = (b: any) => {
+      setEditingBanner(b);
+      setEditBan({ title: b.title || '', description: b.description || '', sort_order: b.sort_order || 0, is_active: !!b.is_active, image_file: null, image_url: b.image_url || '' });
+    };
+
+    const handleUpdate = async () => {
+      if (!editingBanner) return;
+      try {
+        setEditing(true);
+        const fd = new FormData();
+        if (editBan.image_file) fd.append('image', editBan.image_file);
+        if (!editBan.image_file && editBan.image_url) fd.append('image_url', editBan.image_url);
+        fd.append('title', editBan.title);
+        fd.append('description', editBan.description);
+        fd.append('sort_order', String(editBan.sort_order || 0));
+        fd.append('is_active', editBan.is_active ? 'true' : 'false');
+        const res = await fetch(`${ADMIN_API_BASE_URL}/admin/banners/${editingBanner.id}`, { method: 'PUT', body: fd, credentials: API_INIT.credentials });
+        if (!res.ok) throw new Error(`${res.status}`);
+        setEditingBanner(null);
+        await load();
+      } catch (e: any) {
+        alert('خطا در ویرایش بنر');
+      } finally {
+        setEditing(false);
+      }
+    };
+
+    const handleDelete = async (id: number) => {
+      if (!confirm('حذف این بنر؟')) return;
+      try {
+        const res = await fetch(`${ADMIN_API_BASE_URL}/admin/banners/${id}`, { method: 'DELETE', credentials: API_INIT.credentials });
+        if (!res.ok) throw new Error(`${res.status}`);
+        setBanners(prev => prev.filter(b => b.id !== id));
+      } catch (e: any) {
+        alert('خطا در حذف بنر');
+      }
+    };
+
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-xl font-semibold">بنرها</h2>
+          <button onClick={() => setShowAdd(true)} className="bg-blue-600 text-white px-4 py-2 rounded">افزودن بنر</button>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-8">در حال بارگذاری...</div>
+        ) : error ? (
+          <div className="text-center py-8 text-red-600">خطا: {error}</div>
+        ) : banners.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">بنری موجود نیست</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {banners.map((b) => (
+              <div key={b.id} className="border rounded-lg p-3">
+                <div className="relative w-full h-40 bg-gray-100 rounded overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={b.image_url} alt={b.title || ''} className="absolute inset-0 w-full h-full object-cover" />
+                </div>
+                <div className="mt-2 font-semibold truncate">{b.title || '—'}</div>
+                <div className="text-sm text-gray-600 line-clamp-2">{b.description || ''}</div>
+                <div className="flex items-center justify-between mt-3">
+                  <span className="text-xs text-gray-500">ترتیب: {b.sort_order}</span>
+                  <div className="space-x-2">
+                    <button onClick={() => handleEditOpen(b)} className="text-blue-600 hover:text-blue-900 ml-2">ویرایش</button>
+                    <button onClick={() => handleDelete(b.id)} className="text-red-600 hover:text-red-900">حذف</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {showAdd && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg w-full max-w-xl max-h-[90vh] overflow-y-auto p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold">افزودن بنر</h2>
+                <button onClick={() => setShowAdd(false)} className="text-gray-500 hover:text-gray-700"><FaTimes size={22} /></button>
+              </div>
+              <div className="grid gap-3">
+                <input placeholder="عنوان (اختیاری)" className="border rounded p-2" value={newBan.title} onChange={e => setNewBan({ ...newBan, title: e.target.value })} />
+                <textarea placeholder="توضیحات (اختیاری)" className="border rounded p-2" value={newBan.description} onChange={e => setNewBan({ ...newBan, description: e.target.value })} />
+                <input type="number" placeholder="ترتیب نمایش" className="border rounded p-2" value={newBan.sort_order} onChange={e => setNewBan({ ...newBan, sort_order: Number(e.target.value || 0) })} />
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={newBan.is_active} onChange={e => setNewBan({ ...newBan, is_active: e.target.checked })} /> فعال
+                </label>
+                <div className="grid gap-2">
+                  <input type="file" accept="image/*" onChange={e => setNewBan({ ...newBan, image_file: e.target.files ? e.target.files[0] : null })} />
+                  <div className="text-center text-sm text-gray-500">یا</div>
+                  <input placeholder="آدرس تصویر (URL)" className="border rounded p-2" value={newBan.image_url} onChange={e => setNewBan({ ...newBan, image_url: e.target.value })} />
+                </div>
+              </div>
+              <div className="mt-5 flex justify-end">
+                <button onClick={() => setShowAdd(false)} className="bg-gray-500 text-white px-4 py-2 rounded ml-2">انصراف</button>
+                <button disabled={adding} onClick={handleCreate} className="bg-blue-600 text-white px-4 py-2 rounded">{adding ? 'در حال افزودن...' : 'افزودن'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {editingBanner && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg w-full max-w-xl max-h-[90vh] overflow-y-auto p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold">ویرایش بنر</h2>
+                <button onClick={() => setEditingBanner(null)} className="text-gray-500 hover:text-gray-700"><FaTimes size={22} /></button>
+              </div>
+              <div className="grid gap-3">
+                <input placeholder="عنوان (اختیاری)" className="border rounded p-2" value={editBan.title} onChange={e => setEditBan({ ...editBan, title: e.target.value })} />
+                <textarea placeholder="توضیحات (اختیاری)" className="border rounded p-2" value={editBan.description} onChange={e => setEditBan({ ...editBan, description: e.target.value })} />
+                <input type="number" placeholder="ترتیب نمایش" className="border rounded p-2" value={editBan.sort_order} onChange={e => setEditBan({ ...editBan, sort_order: Number(e.target.value || 0) })} />
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={editBan.is_active} onChange={e => setEditBan({ ...editBan, is_active: e.target.checked })} /> فعال
+                </label>
+                <div className="grid gap-2">
+                  <input type="file" accept="image/*" onChange={e => setEditBan({ ...editBan, image_file: e.target.files ? e.target.files[0] : null })} />
+                  <div className="text-center text-sm text-gray-500">یا</div>
+                  <input placeholder="آدرس تصویر (URL)" className="border rounded p-2" value={editBan.image_url} onChange={e => setEditBan({ ...editBan, image_url: e.target.value })} />
+                </div>
+              </div>
+              <div className="mt-5 flex justify-end">
+                <button onClick={() => setEditingBanner(null)} className="bg-gray-500 text-white px-4 py-2 rounded ml-2">انصراف</button>
+                <button disabled={editing} onClick={handleUpdate} className="bg-blue-600 text-white px-4 py-2 rounded">{editing ? 'در حال ویرایش...' : 'ویرایش'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+  /* --------------------------------------------------------------------------
+     Orders
       -------------------------------------------------------------------------- */
    
    function OrdersContent() {
      const [orders, setOrders] = useState<any[]>([]);
      const [loading, setLoading] = useState(true);
+     const [error, setError] = useState<string | null>(null);
      const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
      const [loadingDetails, setLoadingDetails] = useState(false);
+     const [detailsError, setDetailsError] = useState<string | null>(null);
      const [showDetailsModal, setShowDetailsModal] = useState(false);
    
-     /* -------------------------------------------------- fetch orders */
-     const refreshOrders = () => {
+     useEffect(() => {
        const ctrl = new AbortController();
+       let alive = true;
+   
        (async () => {
          try {
            setLoading(true);
-           const data = await fetchJSON<any[]>(
-             `${ADMIN_API_BASE_URL}/admin/orders`,
-             undefined,
-             ctrl.signal
-           );
+           setError(null);
+          const data = await fetchJSON<any[]>(
+            `${ADMIN_API_BASE_URL}/admin/orders?limit=1000`,
+            undefined,
+            ctrl.signal
+          );
+           if (!alive) return;
            setOrders(data);
-         } catch (err) {
-           console.error("Error fetching orders:", err);
-           setOrders([]);
+         } catch (err: any) {
+           if (!isAbort(err)) {
+             console.error("Orders error:", err);
+             if (alive) setError(err?.message ?? "خطای ناشناخته");
+           }
          } finally {
-           setLoading(false);
+           if (alive) setLoading(false);
          }
        })();
-       return () => ctrl.abort();
-     };
    
-     useEffect(refreshOrders, []);
+       return () => {
+         alive = false;
+         ctrl.abort();
+       };
+     }, []);
    
-     /* -------------------------------------------------- details */
-     const fetchOrderDetails = async (id: number) => {
+     const fetchDetails = async (id: number) => {
+       setLoadingDetails(true);
+       setDetailsError(null);
        try {
-         setLoadingDetails(true);
          const data = await fetchJSON<OrderDetail>(
            `${ADMIN_API_BASE_URL}/admin/orders/${id}`
          );
          setSelectedOrder(data);
          setShowDetailsModal(true);
-       } catch (err) {
-         console.error("Error fetching order details:", err);
+       } catch (err: any) {
+         if (!isAbort(err)) {
+           console.error("Order details error:", err);
+           setDetailsError(err?.message ?? "خطای ناشناخته");
+           setShowDetailsModal(true); // show modal to display error
+         }
        } finally {
          setLoadingDetails(false);
        }
      };
    
-     /* -------------------------------------------------- update status */
-     const updateOrderStatus = async (id: number, status: string) => {
+     const updateStatus = async (id: number, status: string) => {
        try {
-         await fetch(`${ADMIN_API_BASE_URL}/admin/orders/${id}/status`, {
+         const res = await fetch(`${ADMIN_API_BASE_URL}/admin/orders/${id}/status`, {
            method: "PUT",
-           headers: { "Content-Type": "application/json" },
+           headers: { "Content-Type": "application/json", ...(API_INIT.headers as any) },
            body: JSON.stringify({ status }),
+           credentials: API_INIT.credentials,
          });
-         setOrders((prev) =>
-           prev.map((o) => (o.id === id ? { ...o, status } : o))
-         );
-         if (selectedOrder?.id === id) setSelectedOrder({ ...selectedOrder, status });
+         if (!res.ok) {
+           const text = await res.text().catch(() => "");
+           throw new Error(`${res.status} ${res.statusText}${text ? ` – ${text}` : ""}`);
+         }
+         setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
+         setSelectedOrder((cur) => (cur?.id === id ? { ...cur, status } : cur));
        } catch (err) {
-         console.error("Error updating status:", err);
+         console.error("Update status error:", err);
+         alert("خطا در به‌روزرسانی وضعیت");
        }
      };
    
-     const getStatusColor = (s: string) =>
+     const color = (s: string) =>
        ({
          completed: "bg-green-100 text-green-800",
          processing: "bg-blue-100 text-blue-800",
          shipped: "bg-purple-100 text-purple-800",
          cancelled: "bg-red-100 text-red-800",
          pending: "bg-yellow-100 text-yellow-800",
+         "تایید نشده": "bg-orange-100 text-orange-800",
        }[s] ?? "bg-gray-100 text-gray-800");
    
-     const getStatusLabel = (s: string) =>
+     const label = (s: string) =>
        ({
          pending: "در انتظار",
          processing: "در حال پردازش",
          shipped: "ارسال شده",
          completed: "تکمیل شده",
          cancelled: "لغو شده",
+         "تایید نشده": "تایید نشده",
        }[s] ?? s);
    
-     /* -------------------------------------------------- JSX */
      return (
        <>
          <div className="bg-white rounded-lg shadow-md p-6">
            <h2 className="text-xl font-semibold mb-6">سفارشات</h2>
            {loading ? (
              <div className="text-center py-8">در حال بارگذاری...</div>
+           ) : error ? (
+             <div className="text-center py-8 text-red-600">
+               خطا در دریافت سفارشات: {error}
+             </div>
            ) : (
              <div className="overflow-x-auto">
-               <table className="min-w-full">
-                 <thead className="bg-gray-50">
-                   <tr>
-                     <th className="px-6 py-3">شماره سفارش</th>
-                     <th className="px-6 py-3">کاربر</th>
-                     <th className="px-6 py-3">مبلغ</th>
-                     <th className="px-6 py-3">وضعیت</th>
-                     <th className="px-6 py-3">تاریخ</th>
-                     <th className="px-6 py-3">عملیات</th>
-                   </tr>
-                 </thead>
+                <table className="min-w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3">شماره</th>
+                      <th className="px-6 py-3">کاربر</th>
+                      <th className="px-6 py-3">مبلغ</th>
+                      <th className="px-6 py-3">وضعیت</th>
+                      <th className="px-6 py-3">تاریخ</th>
+                      <th className="px-6 py-3">تحویل</th>
+                      <th className="px-6 py-3">عملیات</th>
+                    </tr>
+                  </thead>
                  <tbody className="bg-white divide-y divide-gray-200">
                    {orders.map((o) => (
                      <tr key={o.id} className="hover:bg-gray-50">
-                       <td className="px-6 py-4">#{o.id}</td>
+                       <td className="px-6 py-4">
+                         #{o.id}
+                         {o.consolidated && (
+                           <span className="mr-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                             گروهی ({o.consolidated_member_count + 1} نفر)
+                           </span>
+                         )}
+                         {o.custom_address && (
+                           <span className="mr-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+                             آدرس شخصی
+                           </span>
+                         )}
+                       </td>
                        <td className="px-6 py-4">
                          <div>{o.user_name}</div>
                          <div className="text-sm text-gray-500">{o.user_phone}</div>
+                         {o.consolidated && (
+                           <div className="text-xs text-blue-600 mt-1">سفارش گروهی ترکیب شده</div>
+                         )}
                        </td>
                        <td className="px-6 py-4">{toFa(o.total_amount)} تومان</td>
                        <td className="px-6 py-4">
                          <span
-                           className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
+                           className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${color(
                              o.status
                            )}`}
                          >
-                           {getStatusLabel(o.status)}
+                           {label(o.status)}
                          </span>
                        </td>
                        <td className="px-6 py-4">
-                         {new Date(o.created_at).toLocaleDateString("fa-IR")}
+                         {toTehranDate(o.created_at)}
                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600 max-w-[280px]">
+                          {o.delivery_slot ? (
+                            <div className="mb-1">{o.delivery_slot}</div>
+                          ) : null}
+                          {o.shipping_address ? (
+                            <div className="truncate" title={o.shipping_address}>
+                              {o.shipping_address}
+                              {o.shipping_details ? (
+                                <span className="text-gray-500"> — {o.shipping_details}</span>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
                        <td className="px-6 py-4">
                          <button
-                           onClick={() => fetchOrderDetails(o.id)}
-                           className="text-blue-600 hover:text-blue-900 ml-3"
                            disabled={loadingDetails}
+                           onClick={() => fetchDetails(o.id)}
+                           className="text-blue-600 hover:text-blue-900 ml-3"
+                           aria-label={`مشاهده سفارش #${o.id}`}
+                           title="مشاهده جزئیات"
                          >
                            <FaEye />
                          </button>
                          <select
                            className="text-sm border rounded px-2 py-1"
                            value={o.status}
-                           onChange={(e) => updateOrderStatus(o.id, e.target.value)}
+                           onChange={(e) => updateStatus(o.id, e.target.value)}
                          >
                            <option value="pending">در انتظار</option>
                            <option value="processing">در حال پردازش</option>
                            <option value="shipped">ارسال شده</option>
                            <option value="completed">تکمیل شده</option>
                            <option value="cancelled">لغو شده</option>
+                           <option value="pending_approval">در انتظار تایید</option>
                          </select>
                        </td>
                      </tr>
@@ -738,11 +2325,16 @@
            )}
          </div>
    
-         {/* Modal */}
-         {showDetailsModal && selectedOrder && (
+         {showDetailsModal && (
            <OrderDetailsModal
              order={selectedOrder}
-             close={() => setShowDetailsModal(false)}
+             error={detailsError}
+             loading={loadingDetails}
+             close={() => {
+               setShowDetailsModal(false);
+               setSelectedOrder(null);
+               setDetailsError(null);
+             }}
            />
          )}
        </>
@@ -750,23 +2342,28 @@
    }
    
    /* --------------------------------------------------------------------------
-      Order details modal (extracted for clarity)
+      Order details modal
       -------------------------------------------------------------------------- */
    
    function OrderDetailsModal({
      order,
+     error,
+     loading,
      close,
    }: {
-     order: OrderDetail;
+     order: OrderDetail | null;
+     error: string | null;
+     loading: boolean;
      close: () => void;
    }) {
-     const getColor = (s: string) =>
+     const color = (s: string) =>
        ({
          completed: "bg-green-100 text-green-800",
          processing: "bg-blue-100 text-blue-800",
          shipped: "bg-purple-100 text-purple-800",
          cancelled: "bg-red-100 text-red-800",
          pending: "bg-yellow-100 text-yellow-800",
+         "تایید نشده": "bg-orange-100 text-orange-800",
        }[s] ?? "bg-gray-100 text-gray-800");
    
      const label = (s: string) =>
@@ -776,6 +2373,7 @@
          shipped: "ارسال شده",
          completed: "تکمیل شده",
          cancelled: "لغو شده",
+         "تایید نشده": "تایید نشده",
        }[s] ?? s);
    
      return (
@@ -783,105 +2381,155 @@
          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
            <div className="p-6">
              <div className="flex justify-between items-center mb-6">
-               <h2 className="text-2xl font-bold">جزئیات سفارش #{order.id}</h2>
+               <h2 className="text-2xl font-bold">
+                 {order ? `جزئیات سفارش #${order.id}` : "جزئیات سفارش"}
+               </h2>
                <button onClick={close} className="text-gray-500 hover:text-gray-700">
                  <FaTimes size={24} />
                </button>
              </div>
    
-             {/* user + order info */}
-             <div className="grid md:grid-cols-2 gap-6 mb-6">
-               <div>
-                 <h3 className="font-semibold mb-3">اطلاعات کاربر</h3>
-                 <div className="bg-gray-50 p-4 rounded">
-                   <p>
-                     <strong>نام:</strong> {order.user_name}
-                   </p>
-                   <p>
-                     <strong>تلفن:</strong> {order.user_phone}
-                   </p>
-                   {order.user_email && (
-                     <p>
-                       <strong>ایمیل:</strong> {order.user_email}
-                     </p>
-                   )}
-                 </div>
+             {loading ? (
+               <div className="text-center py-8">در حال بارگذاری...</div>
+             ) : error ? (
+               <div className="text-center py-8 text-red-600">
+                 خطا در دریافت جزئیات: {error}
                </div>
-               <div>
-                 <h3 className="font-semibold mb-3">اطلاعات سفارش</h3>
-                 <div className="bg-gray-50 p-4 rounded">
-                   <p>
-                     <strong>وضعیت:</strong>
-                     <span
-                       className={`mr-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getColor(
-                         order.status
-                       )}`}
-                     >
-                       {label(order.status)}
-                     </span>
-                   </p>
-                   <p>
-                     <strong>تاریخ ثبت:</strong>{" "}
-                     {new Date(order.created_at).toLocaleString("fa-IR")}
-                   </p>
-                   <p>
-                     <strong>مبلغ کل:</strong> {toFa(order.total_amount)} تومان
-                   </p>
-                   {order.payment_method && (
-                     <p>
-                       <strong>روش پرداخت:</strong> {order.payment_method}
-                     </p>
-                   )}
+             ) : order ? (
+               <>
+                 <div className="grid md:grid-cols-2 gap-6 mb-6">
+                   <div>
+                     <h3 className="font-semibold mb-3">اطلاعات کاربر</h3>
+                     <div className="bg-gray-50 p-4 rounded">
+                       <p>
+                         <strong>نام:</strong> {order.user_name}
+                       </p>
+                       <p>
+                         <strong>تلفن:</strong> {order.user_phone}
+                       </p>
+                       {order.user_email && (
+                         <p>
+                           <strong>ایمیل:</strong> {order.user_email}
+                         </p>
+                       )}
+                     </div>
+                   </div>
+                   <div>
+                     <h3 className="font-semibold mb-3">اطلاعات سفارش</h3>
+                     <div className="bg-gray-50 p-4 rounded">
+                       <p>
+                         <strong>وضعیت:</strong>{" "}
+                         <span
+                           className={`mr-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${color(
+                             order.status
+                           )}`}
+                         >
+                           {label(order.status)}
+                         </span>
+                       </p>
+                       <p>
+                         <strong>تاریخ ثبت:</strong>{" "}
+                         {toTehranDateTime(order.created_at)}
+                       </p>
+                       <p>
+                         <strong>مبلغ کل:</strong> {toFa(order.total_amount)} تومان
+                       </p>
+                       {order.payment_method && (
+                         <p>
+                           <strong>روش پرداخت:</strong> {order.payment_method}
+                         </p>
+                       )}
+                     </div>
+                   </div>
                  </div>
-               </div>
-             </div>
    
-             {/* address */}
-             {order.shipping_address && (
-               <div className="mb-6">
-                 <h3 className="font-semibold mb-3">آدرس ارسال</h3>
-                 <div className="bg-gray-50 p-4 rounded">
-                   <p>{order.shipping_address}</p>
-                 </div>
-               </div>
+                                 {(order.shipping_address || order.delivery_slot) && (
+                  <div className="mb-6">
+                    <h3 className="font-semibold mb-3">اطلاعات ارسال</h3>
+                    <div className="bg-gray-50 p-4 rounded">
+                      {order.shipping_address && (
+                        <p><strong>آدرس:</strong> {order.shipping_address}</p>
+                      )}
+                      {order.delivery_slot && (
+                        <p><strong>زمان تحویل:</strong> {order.delivery_slot}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+   
+                 {order.consolidated && order.participants && order.participants.length > 0 ? (
+                   <div className="space-y-6">
+                     {order.participants.map((p, idx) => (
+                       <div key={p.order_id} className="border rounded-md">
+                         <div className="px-4 py-3 bg-gray-50 flex items-center justify-between rounded-t-md">
+                           <div className="font-semibold">
+                             سفارش عضو {idx === 0 ? '(لیدر)' : ''} — {p.user_name}
+                           </div>
+                           <div className="text-sm text-gray-600">مبلغ این سفارش: {toFa(p.total_amount)} تومان</div>
+                         </div>
+                         <div className="overflow-x-auto">
+                           <table className="min-w-full">
+                             <thead className="bg-gray-50">
+                               <tr>
+                                 <th className="px-6 py-3">محصول</th>
+                                 <th className="px-6 py-3">تعداد</th>
+                                 <th className="px-6 py-3">قیمت واحد</th>
+                                 <th className="px-6 py-3">قیمت کل</th>
+                               </tr>
+                             </thead>
+                             <tbody className="bg-white divide-y divide-gray-200">
+                               {p.items.map((i) => (
+                                 <tr key={i.id}>
+                                   <td className="px-6 py-4">{i.product_name}</td>
+                                   <td className="px-6 py-4">{i.quantity}</td>
+                                   <td className="px-6 py-4">{toFa(i.base_price)} تومان</td>
+                                   <td className="px-6 py-4">{toFa(i.total_price)} تومان</td>
+                                 </tr>
+                               ))}
+                             </tbody>
+                           </table>
+                         </div>
+                       </div>
+                     ))}
+                     <div className="text-right font-semibold">جمع کل گروه: {toFa(order.total_amount)} تومان</div>
+                   </div>
+                 ) : (
+                   <>
+                     <h3 className="font-semibold mb-3">اقلام سفارش ({order.items.length})</h3>
+                     <div className="overflow-x-auto">
+                       <table className="min-w-full">
+                         <thead className="bg-gray-50">
+                           <tr>
+                             <th className="px-6 py-3">محصول</th>
+                             <th className="px-6 py-3">تعداد</th>
+                             <th className="px-6 py-3">قیمت واحد</th>
+                             <th className="px-6 py-3">قیمت کل</th>
+                           </tr>
+                         </thead>
+                         <tbody className="bg-white divide-y divide-gray-200">
+                           {order.items.map((i) => (
+                             <tr key={i.id}>
+                               <td className="px-6 py-4">{i.product_name}</td>
+                               <td className="px-6 py-4">{i.quantity}</td>
+                               <td className="px-6 py-4">{toFa(i.base_price)} تومان</td>
+                               <td className="px-6 py-4">{toFa(i.total_price)} تومان</td>
+                             </tr>
+                           ))}
+                         </tbody>
+                         <tfoot className="bg-gray-50">
+                           <tr>
+                             <td colSpan={3} className="px-6 py-3 text-right font-semibold">جمع کل:</td>
+                             <td className="px-6 py-3 font-semibold">{toFa(order.total_amount)} تومان</td>
+                           </tr>
+                         </tfoot>
+                       </table>
+                     </div>
+                   </>
+                 )}
+               </>
+             ) : (
+               <div className="text-center py-8">اطلاعاتی برای نمایش نیست.</div>
              )}
-   
-             {/* items */}
-             <h3 className="font-semibold mb-3">
-               اقلام سفارش ({order.items.length})
-             </h3>
-             <div className="overflow-x-auto">
-               <table className="min-w-full">
-                 <thead className="bg-gray-50">
-                   <tr>
-                     <th className="px-6 py-3">محصول</th>
-                     <th className="px-6 py-3">تعداد</th>
-                     <th className="px-6 py-3">قیمت واحد</th>
-                     <th className="px-6 py-3">قیمت کل</th>
-                   </tr>
-                 </thead>
-                 <tbody className="bg-white divide-y divide-gray-200">
-                   {order.items.map((i) => (
-                     <tr key={i.id}>
-                       <td className="px-6 py-4">{i.product_name}</td>
-                       <td className="px-6 py-4">{i.quantity}</td>
-                       <td className="px-6 py-4">{toFa(i.base_price)} تومان</td>
-                       <td className="px-6 py-4">{toFa(i.total_price)} تومان</td>
-                     </tr>
-                   ))}
-                 </tbody>
-                 <tfoot className="bg-gray-50">
-                   <tr>
-                     <td colSpan={3} className="px-6 py-3 text-right font-semibold">
-                       جمع کل:
-                     </td>
-                     <td className="px-6 py-3 font-semibold">
-                       {toFa(order.total_amount)} تومان
-                     </td>
-                   </tr>
-                 </tfoot>
-               </table>
-             </div>
    
              <div className="mt-6 flex justify-end">
                <button
@@ -904,28 +2552,41 @@
    function UsersContent() {
      const [users, setUsers] = useState<any[]>([]);
      const [loading, setLoading] = useState(true);
+     const [error, setError] = useState<string | null>(null);
      const [search, setSearch] = useState("");
+    const [adjustUser, setAdjustUser] = useState<any | null>(null);
+    const [adjustMode, setAdjustMode] = useState<'set' | 'delta'>('delta');
+    const [adjustValue, setAdjustValue] = useState<string>("0");
    
      useEffect(() => {
        const ctrl = new AbortController();
-       const qs = new URLSearchParams({ search }).toString();
+       let alive = true;
+   
        (async () => {
          try {
            setLoading(true);
+           setError(null);
            const data = await fetchJSON<any[]>(
-             `${ADMIN_API_BASE_URL}/admin/users?${qs}`,
+             `${ADMIN_API_BASE_URL}/admin/users${qs({ search })}`,
              undefined,
              ctrl.signal
            );
+           if (!alive) return;
            setUsers(data);
-         } catch (err) {
-           console.error("Error fetching users:", err);
-           setUsers([]);
+         } catch (err: any) {
+           if (!isAbort(err)) {
+             console.error("Users error:", err);
+             if (alive) setError(err?.message ?? "خطای ناشناخته");
+           }
          } finally {
-           setLoading(false);
+           if (alive) setLoading(false);
          }
        })();
-       return () => ctrl.abort();
+   
+       return () => {
+         alive = false;
+         ctrl.abort();
+       };
      }, [search]);
    
      return (
@@ -941,6 +2602,10 @@
    
          {loading ? (
            <div className="text-center py-8">در حال بارگذاری...</div>
+         ) : error ? (
+           <div className="text-center py-8 text-red-600">
+             خطا در دریافت کاربران: {error}
+           </div>
          ) : (
            <div className="overflow-x-auto">
              <table className="min-w-full">
@@ -956,9 +2621,11 @@
                  </tr>
                </thead>
                <tbody className="bg-white divide-y divide-gray-200">
-                 {users.map((u) => (
-                   <tr key={u.id}>
-                     <td className="px-6 py-4">{u.first_name} {u.last_name}</td>
+                {users.map((u) => (
+                  <tr key={u.id}>
+                     <td className="px-6 py-4">
+                       {u.first_name} {u.last_name}
+                     </td>
                      <td className="px-6 py-4">{u.email ?? "N/A"}</td>
                      <td className="px-6 py-4">{u.phone_number ?? "N/A"}</td>
                      <td className="px-6 py-4">
@@ -993,9 +2660,17 @@
                          {u.user_type === "MERCHANT" ? "فروشنده" : "مشتری"}
                        </span>
                      </td>
-                     <td className="px-6 py-4">{u.coins ? toFa(u.coins) : "-"}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <span>{typeof u.coins === 'number' ? toFa(u.coins) : '-'}</span>
+                        <button
+                          className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded"
+                          onClick={() => setAdjustUser(u)}
+                        >تنظیم</button>
+                      </div>
+                    </td>
                      <td className="px-6 py-4">
-                       {new Date(u.created_at).toLocaleDateString("fa-IR")}
+                       {toTehranDate(u.created_at)}
                      </td>
                    </tr>
                  ))}
@@ -1003,6 +2678,73 @@
              </table>
            </div>
          )}
+
+        {adjustUser && (
+          <div className="fixed inset-0 bg-black/40 flex items-end justify-center z-50" onClick={() => setAdjustUser(null)}>
+            <div className="bg-white w-full max-w-md rounded-t-2xl p-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold">تنظیم موجودی کیف پول</h3>
+                <button onClick={() => setAdjustUser(null)}>×</button>
+              </div>
+              <div className="text-sm text-gray-600 mb-2">کاربر: {adjustUser.first_name} {adjustUser.last_name} — {adjustUser.phone_number}</div>
+              <div className="text-sm mb-4">موجودی فعلی: <span className="font-bold">{typeof adjustUser.coins === 'number' ? toFa(adjustUser.coins) : '-'}</span> تومان</div>
+
+              <div className="flex gap-2 mb-3">
+                <button
+                  className={`px-3 py-1 rounded ${adjustMode === 'delta' ? 'bg-pink-600 text-white' : 'bg-gray-100'}`}
+                  onClick={() => setAdjustMode('delta')}
+                >افزایش/کاهش (Δ)</button>
+                <button
+                  className={`px-3 py-1 rounded ${adjustMode === 'set' ? 'bg-pink-600 text-white' : 'bg-gray-100'}`}
+                  onClick={() => setAdjustMode('set')}
+                >تنظیم مقدار دقیق</button>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm mb-1">{adjustMode === 'delta' ? 'مقدار تغییر (تومان)' : 'موجودی جدید (تومان)'}
+                </label>
+                <input
+                  className="w-full border rounded px-3 py-2 text-right"
+                  inputMode="numeric"
+                  value={adjustValue}
+                  onChange={(e) => setAdjustValue(e.target.value.replace(/[^0-9\-]/g, ''))}
+                  placeholder={adjustMode === 'delta' ? 'مثلاً 5000 یا -3000' : 'مثلاً 120000'}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button className="px-4 py-2 rounded bg-gray-100" onClick={() => setAdjustUser(null)}>انصراف</button>
+                <button
+                  className="px-4 py-2 rounded bg-pink-600 text-white"
+                  onClick={async () => {
+                    try {
+                      const raw = parseInt(adjustValue || '0', 10);
+                      if (Number.isNaN(raw)) return;
+                      const body = adjustMode === 'delta'
+                        ? { method: 'POST', url: `${ADMIN_API_BASE_URL}/admin/users/${adjustUser.id}/coins/adjust`, payload: { delta: raw } }
+                        : { method: 'PUT', url: `${ADMIN_API_BASE_URL}/admin/users/${adjustUser.id}/coins`, payload: { coins: Math.max(0, raw) } };
+
+                      await fetchJSON(body.url, {
+                        method: body.method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body.payload),
+                        credentials: (API_INIT as any).credentials,
+                      } as RequestInit);
+
+                      // Refresh list locally
+                      setUsers(prev => prev.map(x => x.id === adjustUser.id ? { ...x, coins: (adjustMode === 'delta' ? Math.max(0, (x.coins || 0) + raw) : Math.max(0, raw)) } : x));
+                      setAdjustUser(null);
+                      setAdjustValue('0');
+                    } catch (err) {
+                      console.error('Adjust coins error:', err);
+                      alert('خطا در تنظیم موجودی');
+                    }
+                  }}
+                >ثبت</button>
+              </div>
+            </div>
+          </div>
+        )}
        </div>
      );
    }
@@ -1011,83 +2753,124 @@
       Group Buys
       -------------------------------------------------------------------------- */
    
-   function GroupBuysContent() {
-     const [groupBuys, setGroupBuys] = useState<any[]>([]);
-     const [loading, setLoading] = useState(true);
-     const [selectedGroupBuy, setSelectedGroupBuy] = useState<any | null>(null);
-     const [loadingDetails, setLoadingDetails] = useState(false);
-     const [showDetailsModal, setShowDetailsModal] = useState(false);
+  function GroupBuysContent() {
+    const [groupBuys, setGroupBuys] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [selected, setSelected] = useState<any | null>(null);
+    const [loadingDetails, setLoadingDetails] = useState(false);
+    const [detailsError, setDetailsError] = useState<string | null>(null);
+    const [showModal, setShowModal] = useState(false);
+
+    // Global error handler for this component
+    React.useEffect(() => {
+      const handleError = (event: ErrorEvent) => {
+        console.error('GroupBuysContent unhandled error:', event.error);
+        setError(event.error?.message || 'خطای ناشناخته رخ داد');
+      };
+      
+      window.addEventListener('error', handleError);
+      return () => window.removeEventListener('error', handleError);
+    }, []);
    
-     /* -------------------------------------------------- fetch */
+     /* --- list */
      useEffect(() => {
        const ctrl = new AbortController();
+       let alive = true;
+   
        (async () => {
          try {
            setLoading(true);
-           const data = await fetchJSON<any[]>(
-             `${ADMIN_API_BASE_URL}/admin/group-buys`,
-             undefined,
-             ctrl.signal
-           );
-           setGroupBuys(data);
-         } catch (err) {
-           console.error("Error fetching group buys:", err);
-           setGroupBuys([]);
-         } finally {
-           setLoading(false);
+           setError(null);
+          console.log('🔍 Fetching group buys from:', `${ADMIN_API_BASE_URL}/admin/group-buys?limit=1000`);
+          const data = await fetchJSON<any[]>(
+            `${ADMIN_API_BASE_URL}/admin/group-buys?limit=1000`,
+            undefined,
+            ctrl.signal
+          );
+           if (!alive) return;
+           setGroupBuys(Array.isArray(data) ? data : []);
+        } catch (err: any) {
+          if (!isAbort(err)) {
+            console.error("Group buys error:", err);
+            console.error("Error details:", {
+              message: err?.message,
+              status: err?.status,
+              url: err?.url,
+              body: err?.body
+            });
+            if (alive) {
+              const errorMsg = err?.message || err?.toString() || "خطای ناشناخته";
+              setError(errorMsg);
+            }
+          }
+        } finally {
+           if (alive) setLoading(false);
          }
        })();
-       return () => ctrl.abort();
+   
+       return () => {
+         alive = false;
+         ctrl.abort();
+       };
      }, []);
    
-     /* -------------------------------------------------- details */
-     const fetchGroupBuyDetails = async (id: number) => {
+     const fetchDetails = async (id: number) => {
+       setLoadingDetails(true);
+       setDetailsError(null);
        try {
-         setLoadingDetails(true);
          const data = await fetchJSON<any>(
            `${ADMIN_API_BASE_URL}/admin/group-buys/${id}`
          );
-         setSelectedGroupBuy(data);
-         setShowDetailsModal(true);
-       } catch (err) {
-         console.error("Error fetching group buy details:", err);
+         setSelected(data);
+         setShowModal(true);
+       } catch (err: any) {
+         if (!isAbort(err)) {
+           console.error("Group-buy details error:", err);
+           setDetailsError(err?.message ?? "خطای ناشناخته");
+           setShowModal(true);
+         }
        } finally {
          setLoadingDetails(false);
        }
      };
    
-     const statusColor = (s: string) =>
+     const color = (s: string) =>
        ({
-         /* persian */ "تکمیل شده": "bg-green-100 text-green-800",
-         فعال: "bg-blue-100 text-blue-800",
-         "در انتظار": "bg-yellow-100 text-yellow-800",
-         منقضی: "bg-red-100 text-red-800",
-         /* english fallback */
          completed: "bg-green-100 text-green-800",
          active: "bg-blue-100 text-blue-800",
          pending: "bg-yellow-100 text-yellow-800",
          expired: "bg-red-100 text-red-800",
+         /* Persian mirrors */
+         "تکمیل شده": "bg-green-100 text-green-800",
+         فعال: "bg-blue-100 text-blue-800",
+         "در انتظار": "bg-yellow-100 text-yellow-800",
+         منقضی: "bg-red-100 text-red-800",
        }[s] ?? "bg-gray-100 text-gray-800");
    
-     /* -------------------------------------------------- JSX */
      return (
        <>
          <div className="bg-white rounded-lg shadow-md p-6">
            <h2 className="text-xl font-semibold mb-6">خرید گروهی</h2>
            {loading ? (
              <div className="text-center py-8">در حال بارگذاری...</div>
+           ) : error ? (
+             <div className="text-center py-8 text-red-600">
+               خطا در دریافت لیست خرید گروهی: {error}
+             </div>
            ) : (
              <div className="overflow-x-auto">
                <table className="min-w-full">
-                 <thead className="bg-gray-50">
+                  <thead className="bg-gray-50">
                    <tr>
                      <th className="px-6 py-3">شماره</th>
                      <th className="px-6 py-3">محصول</th>
                      <th className="px-6 py-3">ایجادکننده</th>
                      <th className="px-6 py-3">کد دعوت</th>
+                      <th className="px-6 py-3">پیگیری</th>
                      <th className="px-6 py-3">شرکت‌کنندگان</th>
                      <th className="px-6 py-3">وضعیت</th>
-                     <th className="px-6 py-3">تاریخ ایجاد</th>
+                     <th className="px-6 py-3">ایجاد</th>
                      <th className="px-6 py-3">انقضاء</th>
                      <th className="px-6 py-3">عملیات</th>
                    </tr>
@@ -1096,18 +2879,42 @@
                    {groupBuys.map((g) => (
                      <tr key={g.id} className="hover:bg-gray-50">
                        <td className="px-6 py-4">#{g.id}</td>
-                       <td className="px-6 py-4">{g.product_name}</td>
                        <td className="px-6 py-4">
-                         <div>{g.creator_name}</div>
-                         <div className="text-sm text-gray-500">{g.creator_phone}</div>
+                         <div className="flex items-center gap-2">
+                           <span>{g.product_name}</span>
+                           {String(g?.kind || '').toLowerCase() === 'secondary' && (
+                             <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700">ثانویه</span>
+                           )}
+                         </div>
                        </td>
-                       <td className="px-6 py-4">
-                         <code className="bg-gray-100 px-2 py-1 rounded">{g.invite_code}</code>
-                       </td>
+                        <td className="px-6 py-4">
+                          <div>{g.creator_phone || g.leader_username || "—"}</div>
+                          {g.creator_name && g.creator_name !== "کاربر ناشناس" ? (
+                            <div className="text-sm text-gray-500">{g.creator_name}</div>
+                          ) : (g.leader_username && g.leader_username !== "کاربر ناشناس" ? (
+                            <div className="text-sm text-gray-500">{g.leader_username}</div>
+                          ) : null)}
+                        </td>
+                        <td className="px-6 py-4">
+                          {(() => {
+                            const href = g.invite_link || (g.invite_code ? `/landingM?invite=${g.invite_code}` : "#");
+                            const label = g.invite_link ? g.invite_link : g.invite_code;
+                            return (
+                              <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                <code className="bg-gray-100 px-2 py-1 rounded">{label}</code>
+                              </a>
+                            );
+                          })()}
+                        </td>
+                        <td className="px-6 py-4">
+                          <a href={`/track/${g.id}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                            مشاهده
+                          </a>
+                        </td>
                        <td className="px-6 py-4">{g.participants_count} نفر</td>
                        <td className="px-6 py-4">
                          <span
-                           className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor(
+                           className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${color(
                              g.status
                            )}`}
                          >
@@ -1115,16 +2922,18 @@
                          </span>
                        </td>
                        <td className="px-6 py-4">
-                         {new Date(g.created_at).toLocaleDateString("fa-IR")}
+                         {toTehranDate(g.created_at)}
                        </td>
                        <td className="px-6 py-4">
-                         {new Date(g.expires_at).toLocaleDateString("fa-IR")}
+                         {toTehranDate(g.expires_at)}
                        </td>
                        <td className="px-6 py-4">
                          <button
                            disabled={loadingDetails}
-                           onClick={() => fetchGroupBuyDetails(g.id)}
+                           onClick={() => fetchDetails(g.id)}
                            className="text-blue-600 hover:text-blue-900"
+                           aria-label={`مشاهده خرید گروهی #${g.id}`}
+                           title="مشاهده جزئیات"
                          >
                            <FaEye />
                          </button>
@@ -1137,10 +2946,16 @@
            )}
          </div>
    
-         {showDetailsModal && selectedGroupBuy && (
+         {showModal && (
            <GroupBuyDetailsModal
-             data={selectedGroupBuy}
-             close={() => setShowDetailsModal(false)}
+             data={selected}
+             loading={loadingDetails}
+             error={detailsError}
+             close={() => {
+               setShowModal(false);
+               setSelected(null);
+               setDetailsError(null);
+             }}
            />
          )}
        </>
@@ -1148,14 +2963,18 @@
    }
    
    /* --------------------------------------------------------------------------
-      Group‑buy details modal
+      GroupBuy details modal
       -------------------------------------------------------------------------- */
    
    function GroupBuyDetailsModal({
      data,
+     loading,
+     error,
      close,
    }: {
      data: any;
+     loading: boolean;
+     error: string | null;
      close: () => void;
    }) {
      const color = (s: string) =>
@@ -1164,7 +2983,6 @@
          active: "bg-blue-100 text-blue-800",
          pending: "bg-yellow-100 text-yellow-800",
          expired: "bg-red-100 text-red-800",
-         /* persian */
          "تکمیل شده": "bg-green-100 text-green-800",
          فعال: "bg-blue-100 text-blue-800",
          "در انتظار": "bg-yellow-100 text-yellow-800",
@@ -1176,65 +2994,114 @@
          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
            <div className="p-6">
              <div className="flex justify-between items-center mb-6">
-               <h2 className="text-2xl font-bold">جزئیات خرید گروهی #{data.id}</h2>
+               <h2 className="text-2xl font-bold">
+                 {data ? `جزئیات خرید گروهی #${data.id}` : "جزئیات خرید گروهی"}
+               </h2>
                <button onClick={close} className="text-gray-500 hover:text-gray-700">
                  <FaTimes size={24} />
                </button>
              </div>
    
-             {/* info */}
-             <div className="grid md:grid-cols-2 gap-6 mb-6">
-               <div>
-                 <h3 className="font-semibold mb-3">اطلاعات ایجادکننده</h3>
-                 <div className="bg-gray-50 p-4 rounded">
-                   <p><strong>نام:</strong> {data.creator_name}</p>
-                   <p><strong>تلفن:</strong> {data.creator_phone}</p>
-                   {data.creator_email && <p><strong>ایمیل:</strong> {data.creator_email}</p>}
-                 </div>
+             {loading ? (
+               <div className="text-center py-8">در حال بارگذاری...</div>
+             ) : error ? (
+               <div className="text-center py-8 text-red-600">
+                 خطا در دریافت جزئیات: {error}
                </div>
-               <div>
-                 <h3 className="font-semibold mb-3">اطلاعات خرید گروهی</h3>
-                 <div className="bg-gray-50 p-4 rounded">
-                   <p><strong>محصول:</strong> {data.product_name}</p>
-                   <p><strong>کد دعوت:</strong> <code className="bg-gray-200 px-2 py-1 rounded">{data.invite_code}</code></p>
-                   <p><strong>وضعیت:</strong>
-                     <span className={`mr-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${color(data.status)}`}>{data.status}</span>
-                   </p>
-                   <p><strong>تاریخ ایجاد:</strong> {new Date(data.created_at).toLocaleString("fa-IR")}</p>
-                   <p><strong>تاریخ انقضاء:</strong> {new Date(data.expires_at).toLocaleString("fa-IR")}</p>
+             ) : data ? (
+               <>
+                 <div className="grid md:grid-cols-2 gap-6 mb-6">
+                   <div>
+                     <h3 className="font-semibold mb-3">اطلاعات ایجادکننده</h3>
+                     <div className="bg-gray-50 p-4 rounded">
+                       <p>
+                         <strong>نام:</strong> {data.creator_name}
+                       </p>
+                       <p>
+                         <strong>تلفن:</strong> {data.creator_phone}
+                       </p>
+                       {data.creator_email && (
+                         <p>
+                           <strong>ایمیل:</strong> {data.creator_email}
+                         </p>
+                       )}
+                     </div>
+                   </div>
+                   <div>
+                     <h3 className="font-semibold mb-3">اطلاعات خرید گروهی</h3>
+                     <div className="bg-gray-50 p-4 rounded">
+                       <p>
+                         <strong>محصول:</strong> {data.product_name}
+                       </p>
+                       <p>
+                         <strong>کد دعوت:</strong>{" "}
+                         <code className="bg-gray-200 px-2 py-1 rounded">
+                           {data.invite_code}
+                         </code>
+                       </p>
+                       <p>
+                         <strong>وضعیت:</strong>{" "}
+                         <span
+                           className={`mr-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${color(
+                             data.status
+                           )}`}
+                         >
+                           {data.status}
+                         </span>
+                       </p>
+                       <p>
+                         <strong>ایجاد:</strong>{" "}
+                         {toTehranDateTime(data.created_at)}
+                       </p>
+                       <p>
+                         <strong>انقضاء:</strong>{" "}
+                         {toTehranDateTime(data.expires_at)}
+                       </p>
+                     </div>
+                   </div>
                  </div>
-               </div>
-             </div>
    
-             {/* participants */}
-             <h3 className="font-semibold mb-3">
-               شرکت‌کنندگان ({data.participants?.length ?? 0})
-             </h3>
-             <div className="overflow-x-auto">
-               <table className="min-w-full">
-                 <thead className="bg-gray-50">
-                   <tr>
-                     <th className="px-6 py-3">نام</th>
-                     <th className="px-6 py-3">تلفن</th>
-                     <th className="px-6 py-3">ایمیل</th>
-                     <th className="px-6 py-3">تاریخ پیوستن</th>
-                   </tr>
-                 </thead>
-                 <tbody className="bg-white divide-y divide-gray-200">
-                   {data.participants?.map((p: any) => (
-                     <tr key={p.id}>
-                       <td className="px-6 py-4">{p.user_name}</td>
-                       <td className="px-6 py-4">{p.user_phone}</td>
-                       <td className="px-6 py-4">{p.user_email ?? "N/A"}</td>
-                       <td className="px-6 py-4">{new Date(p.joined_at).toLocaleString("fa-IR")}</td>
-                     </tr>
-                   ))}
-                 </tbody>
-               </table>
-             </div>
+                 <h3 className="font-semibold mb-3">
+                   شرکت‌کنندگان ({data.participants?.length ?? 0})
+                 </h3>
+                 <div className="overflow-x-auto">
+                   <table className="min-w-full">
+                     <thead className="bg-gray-50">
+                       <tr>
+                         <th className="px-6 py-3">نام</th>
+                         <th className="px-6 py-3">تلفن</th>
+                         <th className="px-6 py-3">ایمیل</th>
+                         <th className="px-6 py-3">زمان پیوستن</th>
+                       </tr>
+                     </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {data.participants?.map((p: any) => {
+                          const name = (p.user_name && String(p.user_name).trim()) || (p.name && String(p.name).trim()) || "کاربر ناشناس";
+                          const phone = (p.user_phone && String(p.user_phone).trim()) || (p.phone && String(p.phone).trim()) || "";
+                          return (
+                            <tr key={p.order_id}>
+                              <td className="px-6 py-4">{name}</td>
+                              <td className="px-6 py-4">{phone}</td>
+                              <td className="px-6 py-4">{p.user_email ?? "N/A"}</td>
+                              <td className="px-6 py-4">
+                                {p.created_at ? toTehranDateTime(p.created_at) : ""}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                   </table>
+                 </div>
+               </>
+             ) : (
+               <div className="text-center py-8">اطلاعاتی برای نمایش نیست.</div>
+             )}
    
              <div className="mt-6 flex justify-end">
-               <button onClick={close} className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">
+               <button
+                 onClick={close}
+                 className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600"
+               >
                  بستن
                </button>
              </div>
@@ -1242,5 +3109,753 @@
          </div>
        </div>
      );
-   }
-   
+   } 
+
+  function DeliverySlotsContent() {
+    const [days, setDays] = useState<Array<{ date: string; day_off: boolean; slots: Array<{ id?: number; start_time: string; end_time: string; is_active: boolean }> }>>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const loadDays = useCallback(async () => {
+      const ctrl = new AbortController();
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await fetchJSON<{ days: any[] }>(`${ADMIN_API_BASE_URL}/admin/delivery-slots/next?days=7`, undefined, ctrl.signal);
+        const normalized = (data?.days ?? []).map((d: any) => ({
+          date: String(d.date),
+          day_off: !!d.day_off,
+          slots: Array.isArray(d.slots)
+            ? d.slots.map((s: any) => ({ id: s.id, start_time: String(s.start_time), end_time: String(s.end_time), is_active: !!s.is_active }))
+            : [],
+        }));
+        setDays(normalized);
+      } catch (err: any) {
+        if (!isAbort(err)) setError(err?.message ?? "خطای ناشناخته");
+      } finally {
+        setLoading(false);
+      }
+    }, []);
+
+    useEffect(() => {
+      loadDays();
+    }, [loadDays]);
+
+    const toJalaliLabel = (gDate: string): string => {
+      try {
+        const d = new Date(gDate);
+        const fmt = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'numeric',
+          day: 'numeric',
+        });
+        const parts = fmt.formatToParts(d);
+        const map: Record<string, string> = {};
+        parts.forEach(p => {
+          if (p.type !== 'literal') map[p.type] = p.value;
+        });
+        const weekday = map.weekday || '';
+        const y = map.year || '';
+        const m = map.month || '';
+        const day = map.day || '';
+        return `${weekday} ${day}/${m}/${y}`;
+      } catch {
+        return gDate;
+      }
+    };
+
+    const setDayOff = async (date: string, dayOff: boolean) => {
+      await fetchJSON(`${ADMIN_API_BASE_URL}/admin/delivery-slots/set-day-off`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, day_off: dayOff }),
+      });
+      await loadDays();
+    };
+
+    const upsertDay = async (date: string, slots: Array<{ start_time: string; end_time: string; is_active: boolean }>) => {
+      await fetchJSON(`${ADMIN_API_BASE_URL}/admin/delivery-slots/upsert-day`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, slots }),
+      });
+      await loadDays();
+    };
+
+    const toggleSlot = async (slotId: number, isActive: boolean) => {
+      await fetchJSON(`${ADMIN_API_BASE_URL}/admin/delivery-slots/${slotId}/toggle`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: isActive }),
+      });
+      await loadDays();
+    };
+
+    const deleteSlot = async (slotId: number) => {
+      await fetchJSON(`${ADMIN_API_BASE_URL}/admin/delivery-slots/${slotId}`, { method: 'DELETE' });
+      await loadDays();
+    };
+
+    const addEmptySlot = (idx: number) => {
+      setDays(prev => {
+        const copy = [...prev];
+        const day = { ...copy[idx] };
+        day.slots = [...day.slots, { start_time: '12:00', end_time: '14:00', is_active: true }];
+        copy[idx] = day;
+        return copy;
+      });
+    };
+
+    const editSlotField = (dayIndex: number, slotIndex: number, field: 'start_time' | 'end_time' | 'is_active', value: string | boolean) => {
+      setDays(prev => {
+        const copy = [...prev];
+        const day = { ...copy[dayIndex] };
+        const slots = [...day.slots];
+        const slot = { ...slots[slotIndex], [field]: value } as any;
+        slots[slotIndex] = slot;
+        day.slots = slots;
+        copy[dayIndex] = day;
+        return copy;
+      });
+    };
+
+    const saveDay = async (idx: number) => {
+      const d = days[idx];
+      const payload = d.slots.map(s => ({ start_time: s.start_time, end_time: s.end_time, is_active: s.is_active }));
+      await upsertDay(d.date, payload);
+    };
+
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-xl font-semibold mb-4">بازه‌های تحویل (۷ روز آینده)</h2>
+        {loading ? (
+          <div>در حال بارگذاری…</div>
+        ) : error ? (
+          <div className="text-red-600">{error}</div>
+        ) : (
+          <div className="space-y-6">
+            {days.map((d, idx) => (
+              <div key={d.date} className="border rounded p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="font-medium">{toJalaliLabel(d.date)}</div>
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={d.day_off}
+                        onChange={async (e) => await setDayOff(d.date, e.target.checked)}
+                      />
+                      <span>تعطیل</span>
+                    </label>
+                    {!d.day_off && (
+                      <button
+                        onClick={() => addEmptySlot(idx)}
+                        className="px-3 py-1 bg-blue-600 text-white rounded"
+                      >
+                        افزودن بازه
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {!d.day_off && (
+                  <div className="space-y-3">
+                    {d.slots.length === 0 && (
+                      <div className="text-sm text-gray-500">هیچ بازه‌ای تعیین نشده است.</div>
+                    )}
+                    {d.slots.map((s, si) => (
+                      <div key={si} className="flex items-center gap-3">
+                        <input
+                          className="border rounded p-2 w-24 text-center"
+                          placeholder="HH:MM"
+                          value={s.start_time}
+                          onChange={(e) => editSlotField(idx, si, 'start_time', e.target.value)}
+                        />
+                        <span>تا</span>
+                        <input
+                          className="border rounded p-2 w-24 text-center"
+                          placeholder="HH:MM"
+                          value={s.end_time}
+                          onChange={(e) => editSlotField(idx, si, 'end_time', e.target.value)}
+                        />
+                        <label className="flex items-center gap-2 mr-3">
+                          <input
+                            type="checkbox"
+                            checked={!!s.is_active}
+                            onChange={(e) => editSlotField(idx, si, 'is_active', e.target.checked)}
+                          />
+                          <span>فعال</span>
+                        </label>
+                        {s.id ? (
+                          <>
+                            <button
+                              className="px-3 py-1 bg-yellow-600 text-white rounded"
+                              onClick={() => toggleSlot(s.id!, !s.is_active)}
+                            >
+                              {s.is_active ? 'غیرفعال' : 'فعال'} کردن
+                            </button>
+                            <button
+                              className="px-3 py-1 bg-red-600 text-white rounded"
+                              onClick={() => deleteSlot(s.id!)}
+                            >
+                              حذف
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                    ))}
+                    <div>
+                      <button
+                        onClick={() => saveDay(idx)}
+                        className="px-4 py-2 bg-green-600 text-white rounded"
+                      >
+                        ذخیره روز
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+  /* --------------------------------------------------------------------------
+     Reviews (Fake Reviews Generator)
+     -------------------------------------------------------------------------- */
+  
+  function ReviewsContent() {
+    const [products, setProducts] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [selectedProductId, setSelectedProductId] = useState<string>("");
+    const [singleRating, setSingleRating] = useState<number>(5);
+    const [singleComment, setSingleComment] = useState<string>("");
+    const [singleDisplayName, setSingleDisplayName] = useState<string>("");
+    const [creating, setCreating] = useState(false);
+    const [singleUserId, setSingleUserId] = useState<string>("");
+  const [defaultUserId, setDefaultUserId] = useState<string>("");
+  const [defaultUserName, setDefaultUserName] = useState<string>("");
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [editingReview, setEditingReview] = useState<any>(null);
+  const [editRating, setEditRating] = useState<number>(5);
+  const [editComment, setEditComment] = useState<string>("");
+  const [editDisplayName, setEditDisplayName] = useState<string>("");
+  const [editCreatedAt, setEditCreatedAt] = useState<string>("");
+  const [singleCreatedAt, setSingleCreatedAt] = useState<string>(() => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  });
+
+    useEffect(() => {
+      const ctrl = new AbortController();
+      let alive = true;
+      (async () => {
+        try {
+          setLoading(true);
+          setError(null);
+          const list = await fetchJSON<any[]>(`${ADMIN_API_BASE_URL}/admin/products`, undefined, ctrl.signal);
+          if (!alive) return;
+          setProducts(Array.isArray(list) ? list : []);
+        } catch (err: any) {
+          if (!isAbort(err)) {
+            console.error('Load products error:', err);
+            if (alive) setError(err?.message ?? 'خطای ناشناخته');
+          }
+        } finally {
+          if (alive) setLoading(false);
+        }
+      })();
+      return () => { alive = false; ctrl.abort(); };
+    }, []);
+
+    // Load a default user to attach to fake reviews (backend requires valid user_id)
+    useEffect(() => {
+      const ctrl = new AbortController();
+      let alive = true;
+      (async () => {
+        try {
+          const users = await fetchJSON<any[]>(`${ADMIN_API_BASE_URL}/admin/users${qs({})}`, undefined, ctrl.signal);
+          if (!alive) return;
+          if (Array.isArray(users) && users.length > 0) {
+            const u = users[0];
+            setDefaultUserId(String(u.id));
+            setDefaultUserName(`${u.first_name ?? ''} ${u.last_name ?? ''}`.trim() || `کاربر #${u.id}`);
+          }
+        } catch (err) {
+          if (!isAbort(err)) console.error('Load users error:', err);
+        }
+      })();
+      return () => { alive = false; ctrl.abort(); };
+    }, []);
+
+    const createSingle = () => {
+      console.log('🚀 createSingle called!');
+      if (!selectedProductId) { 
+        alert('یک محصول انتخاب کنید'); 
+        return; 
+      }
+      if (!singleRating || singleRating < 1 || singleRating > 5) { 
+        alert('امتیاز بین 1 تا 5'); 
+        return; 
+      }
+      if (!singleDisplayName.trim()) {
+        alert('نام کاربری برای نظر الزامی است');
+        return;
+      }
+      
+      console.log('📝 About to create review:', { selectedProductId, singleRating, singleComment });
+      setCreating(true);
+      
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/admin/reviews', true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      
+      xhr.onreadystatechange = function() {
+        console.log('📡 XHR state:', xhr.readyState, 'Status:', xhr.status);
+        if (xhr.readyState === 4) {
+          console.log('✅ XHR completed. Status:', xhr.status, 'Response:', xhr.responseText);
+          setCreating(false);
+          if (xhr.status === 200) {
+            setSingleComment('');
+            refreshReviews(); // Refresh the reviews list
+            alert('ثبت شد');
+          } else {
+            alert('خطا در ثبت نظر: ' + xhr.status);
+          }
+        }
+      };
+      
+      const payload: any = {
+        product_id: parseInt(selectedProductId),
+        rating: singleRating,
+        comment: singleComment || '',
+        display_name: singleDisplayName.trim()
+      };
+      
+      if (singleUserId && singleUserId.match(/^\d+$/)) {
+        payload.user_id = parseInt(singleUserId);
+      } else if (defaultUserId) {
+        payload.user_id = parseInt(defaultUserId);
+      }
+      if (singleCreatedAt) {
+        const dt = new Date(singleCreatedAt);
+        if (!isNaN(dt.getTime())) payload.created_at = dt.toISOString();
+      }
+      
+      xhr.send(JSON.stringify(payload));
+    };
+
+    const fakeNames = ['علی', 'زهرا', 'محمد', 'فاطمه', 'رضا', 'مهدی', 'سارا', 'حسین', 'نرگس', 'نگار'];
+    const fakeComments = [
+      'کیفیت عالی بود، پیشنهاد می‌کنم!',
+      'بسته‌بندی خوب و ارسال سریع.',
+      'نسبت به قیمت ارزش خرید دارد.',
+      'از خریدم راضی بودم.',
+      'طعم و تازگی خوبی داشت.',
+      'دقیقاً مطابق توضیحات بود.',
+      'به موقع رسید، متشکرم.',
+      'کیفیت متوسط ولی قابل قبول.',
+      'در کل خوب بود.',
+      'خیلی دوست داشتم، دوباره می‌خرم.',
+    ];
+
+    const randomPick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
+    // بخش ایجاد دسته‌ای حذف شد
+
+    // Delete a review
+    const deleteReview = async (reviewId: number) => {
+      if (!confirm('آیا از حذف این نظر اطمینان دارید؟')) return;
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/product/${selectedProductId}/reviews/${reviewId}`, {
+          method: 'DELETE',
+        });
+        if (!res.ok) throw new Error('Failed to delete review');
+        setReviews(reviews.filter(r => r.id !== reviewId));
+        alert('نظر با موفقیت حذف شد');
+      } catch (err) {
+        console.error('Delete review error:', err);
+        alert('خطا در حذف نظر');
+      }
+    };
+
+    // Start editing a review
+    const startEditReview = (review: any) => {
+      setEditingReview(review);
+      setEditRating(review.rating);
+      setEditComment(review.comment || '');
+      setEditDisplayName((review.display_name ?? '').trim());
+      // ISO string input value for datetime-local: 'YYYY-MM-DDTHH:MM'
+      try {
+        const d = review.created_at ? new Date(review.created_at) : null;
+        if (d) {
+          const pad = (n: number) => String(n).padStart(2, '0');
+          const val = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+          setEditCreatedAt(val);
+        } else {
+          setEditCreatedAt('');
+        }
+      } catch {
+        setEditCreatedAt('');
+      }
+    };
+
+    // Save edited review
+    const saveEditReview = async () => {
+      if (!editingReview) return;
+      if (!editDisplayName.trim()) { alert('نام کاربری الزامی است'); return; }
+
+      try {
+        const payload: any = { rating: editRating, comment: editComment, display_name: editDisplayName.trim() };
+        if (editCreatedAt) {
+          // Convert local datetime to ISO
+          const dt = new Date(editCreatedAt);
+          if (!isNaN(dt.getTime())) payload.created_at = dt.toISOString();
+        }
+      const res = await fetch(`${API_BASE_URL}/product/${selectedProductId}/reviews/${editingReview.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error('Failed to update review');
+      // Reload from backend to reflect server timestamp accurately
+      await refreshReviews();
+        setEditingReview(null);
+        alert('نظر با موفقیت ویرایش شد');
+      } catch (err) {
+        console.error('Update review error:', err);
+        alert('خطا در ویرایش نظر');
+      }
+    };
+
+    // Load reviews for selected product
+    useEffect(() => {
+      if (!selectedProductId) {
+        setReviews([]);
+        return;
+      }
+
+      const ctrl = new AbortController();
+      let alive = true;
+      (async () => {
+        try {
+          const data = await fetchJSON<any[]>(`${API_BASE_URL}/product/${selectedProductId}/reviews`, undefined, ctrl.signal);
+          if (!alive) return;
+          setReviews(Array.isArray(data) ? data : []);
+        } catch (err) {
+          if (!isAbort(err)) console.error('Load reviews error:', err);
+        }
+      })();
+      return () => { alive = false; ctrl.abort(); };
+    }, [selectedProductId]);
+
+    // Refresh reviews list
+    const refreshReviews = () => {
+      if (!selectedProductId) return;
+      const ctrl = new AbortController();
+      (async () => {
+        try {
+          const data = await fetchJSON<any[]>(`${API_BASE_URL}/product/${selectedProductId}/reviews`, undefined, ctrl.signal);
+          setReviews(Array.isArray(data) ? data : []);
+        } catch (err) {
+          console.error('Refresh reviews error:', err);
+        }
+      })();
+    };
+
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-xl font-semibold mb-6">نظرات فیک</h2>
+        {loading ? (
+          <div className="text-center py-8">در حال بارگذاری...</div>
+        ) : error ? (
+          <div className="text-center py-8 text-red-600">خطا: {error}</div>
+        ) : (
+          <>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium mb-1">انتخاب محصول</label>
+                <select
+                  className="w-full border rounded px-3 py-2"
+                  value={selectedProductId}
+                  onChange={(e) => setSelectedProductId(e.target.value)}
+                >
+                  <option value="">— انتخاب کنید —</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-8 grid gap-6 md:grid-cols-2">
+              <div className="p-4 border rounded-lg">
+                <h3 className="font-semibold mb-3">افزودن تکی</h3>
+                <div className="grid gap-3">
+              <div>
+                <label className="block text-sm mb-1">نام کاربری (الزامی)</label>
+                <input className="w-full border rounded px-3 py-2" placeholder="مثلاً علی" value={singleDisplayName} onChange={(e) => setSingleDisplayName(e.target.value)} />
+              </div>
+              <div>
+                    <label className="block text-sm mb-1">شناسه کاربر (اختیاری)</label>
+                    <input className="w-full border rounded px-3 py-2" placeholder="مثلاً 1" value={singleUserId} onChange={(e) => setSingleUserId(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-1">امتیاز</label>
+                    <select className="w-full border rounded px-3 py-2" value={singleRating} onChange={(e) => setSingleRating(Number(e.target.value))}>
+                      {[5,4,3,2,1].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-1">نظر (اختیاری)</label>
+                    <textarea className="w-full border rounded px-3 py-2" rows={3} value={singleComment} onChange={(e) => setSingleComment(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-1">تاریخ ثبت نظر</label>
+                    <input type="datetime-local" className="w-full border rounded px-3 py-2" value={singleCreatedAt} onChange={(e) => setSingleCreatedAt(e.target.value)} />
+                  </div>
+                  <button disabled={creating} onClick={createSingle} className="bg-blue-600 text-white px-4 py-2 rounded">
+                    {creating ? 'در حال ثبت...' : 'ثبت نظر'}
+                  </button>
+                </div>
+              </div>
+
+              {/* بخش ایجاد دسته‌ای حذف شد بنا به درخواست */}
+            </div>
+
+            {/* Reviews List */}
+            {selectedProductId && (
+              <div className="mt-8">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">نظرات محصول</h3>
+                  <button
+                    onClick={refreshReviews}
+                    className="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600"
+                  >
+                    تازه‌سازی
+                  </button>
+                </div>
+
+                {reviews.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    هنوز نظری برای این محصول وجود ندارد
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {reviews.map(review => (
+                      <div key={review.id} className="border rounded-lg p-4 bg-gray-50">
+                        {editingReview?.id === review.id ? (
+                          // Edit mode
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-sm mb-1">امتیاز</label>
+                              <select
+                                className="w-full border rounded px-3 py-2"
+                                value={editRating}
+                                onChange={(e) => setEditRating(Number(e.target.value))}
+                              >
+                                {[5,4,3,2,1].map(n => <option key={n} value={n}>{n}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm mb-1">نام کاربری</label>
+                              <input
+                                className="w-full border rounded px-3 py-2"
+                                placeholder="مثلاً علی"
+                                value={editDisplayName}
+                                onChange={(e) => setEditDisplayName(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm mb-1">نظر</label>
+                              <textarea
+                                className="w-full border rounded px-3 py-2"
+                                rows={3}
+                                value={editComment}
+                                onChange={(e) => setEditComment(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm mb-1">تاریخ ثبت نظر</label>
+                              <input
+                                type="datetime-local"
+                                className="w-full border rounded px-3 py-2"
+                                value={editCreatedAt}
+                                onChange={(e) => setEditCreatedAt(e.target.value)}
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={saveEditReview}
+                                className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                              >
+                                ذخیره
+                              </button>
+                              <button
+                                onClick={() => setEditingReview(null)}
+                                className="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600"
+                              >
+                                انصراف
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          // View mode
+                          <div>
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">امتیاز: {review.rating}</span>
+                                <div className="flex">
+                                  {[1,2,3,4,5].map(i => (
+                                    <span key={i} className={`text-lg ${i <= review.rating ? 'text-yellow-400' : 'text-gray-300'}`}>
+                                      ★
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => startEditReview(review)}
+                                  className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
+                                >
+                                  ویرایش
+                                </button>
+                                <button
+                                  onClick={() => deleteReview(review.id)}
+                                  className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
+                                >
+                                  حذف
+                                </button>
+                              </div>
+                            </div>
+                            <p className="text-gray-700">{review.comment || 'بدون نظر'}</p>
+                            <div className="text-xs text-gray-500 mt-2">
+                              {(() => {
+                                const dn = String(review.display_name ?? '').trim();
+                                if (dn) return dn;
+                                if (review.first_name && review.last_name) return `${review.first_name} ${review.last_name}`;
+                                return `کاربر ${review.user_id}`;
+                              })()}
+                              {' '}• {new Date(review.created_at).toLocaleDateString('fa-IR')}
+                              {' '}• محصول: {(() => { const p = products.find((x:any) => String(x.id) === String(selectedProductId)); return p ? `${p.name} (#${p.id})` : `#${selectedProductId}`; })()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+
+  function SecondaryGroupBuysContent() {
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState<string | null>(null);
+    const [groups, setGroups] = React.useState<any[]>([]);
+
+    React.useEffect(() => {
+      let cancelled = false;
+      (async () => {
+        try {
+          setLoading(true);
+          setError(null);
+          // Fetch secondary groups from admin API
+          const BASE = (process.env.NEXT_PUBLIC_ADMIN_API_URL ?? "http://127.0.0.1:8001/api").replace(/\/$/, "");
+          const res = await fetch(`${BASE}/admin/secondary-groups?limit=1000`, { headers: { 'Accept': 'application/json' }, cache: 'no-store' });
+          if (!res.ok) {
+            if (res.status === 401 || res.status === 403) {
+              // Fallback to payment orders (public) if auth blocked
+              throw new Error('عدم دسترسی. لطفاً صفحه را مجدداً بارگذاری کنید');
+            }
+            throw new Error(`خطا در دریافت اطلاعات (HTTP ${res.status})`);
+          }
+          const data = await res.json();
+          if (cancelled) return;
+          // Data is already filtered for secondary groups by the API
+          const groupsArr = Array.isArray(data) ? data : [];
+          setGroups(groupsArr);
+        } catch (e: any) {
+          if (!cancelled) setError(e?.message || 'خطا در دریافت لیست خرید گروهی ثانویه');
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      })();
+      return () => { cancelled = true; };
+    }, []);
+
+    return (
+      <>
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold mb-6">خرید گروهی ثانویه</h2>
+          {loading ? (
+            <div className="text-center py-8">در حال بارگذاری...</div>
+          ) : error ? (
+            <div className="text-center py-8 text-red-600">{error}</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">#</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">رهبر</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">وضعیت</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">اعضا</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">اعضای پرداخت‌شده</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">ایجاد</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">انقضاء</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {groups.map((g: any) => (
+                    <tr key={g.id}>
+                      <td className="px-4 py-2 text-sm">{g.id}</td>
+                      <td className="px-4 py-2 text-sm">
+                        <div className="flex flex-col">
+                          <span className="font-medium">{g.leader_name || 'نامشخص'}</span>
+                          <span className="text-xs text-gray-500">{g.leader_phone || '-'}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 text-sm">
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          g.status === 'موفق' ? 'bg-green-100 text-green-800' :
+                          g.status === 'ناموفق' ? 'bg-red-100 text-red-800' :
+                          g.status === 'منتظر عضو' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {g.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-sm">{g.participants || 0}</td>
+                      <td className="px-4 py-2 text-sm">{g.paid || 0}</td>
+                      <td className="px-4 py-2 text-sm">
+                        {g.created_at ? toTehranDateTime(g.created_at) : '-'}
+                      </td>
+                      <td className="px-4 py-2 text-sm">
+                        {g.expires_at ? toTehranDateTime(g.expires_at) : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                  {groups.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-6 text-center text-sm text-gray-500">موردی یافت نشد</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  }
