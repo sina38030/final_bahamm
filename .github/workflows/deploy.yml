@@ -19,12 +19,30 @@ jobs:
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
             set -euo pipefail
-            cd /srv/bahamm/frontend/current || { echo "current not found"; exit 1; }
+
+            APP_DIR="/srv/bahamm/frontend/current"
+
+            if [ ! -d "$APP_DIR/.git" ]; then
+              echo "❌ First-time clone not found at $APP_DIR"
+              echo "Run once on the server:"
+              echo "  sudo mkdir -p /srv/bahamm/frontend && sudo chown -R ubuntu:ubuntu /srv/bahamm"
+              echo "  git clone https://github.com/USERNAME/REPO_NAME.git $APP_DIR"
+              exit 1
+            fi
+
+            cd "$APP_DIR"
+
+            # اگر ریموتِ origin از نوع SSH است و Permission denied می‌گیری،
+            # ساده‌ترش کن و یک‌بار روی سرور بزن:
+            #   git remote set-url origin https://github.com/USERNAME/REPO_NAME.git
+
             git fetch --all
             git reset --hard origin/main
+
             if [ -f package-lock.json ]; then npm ci; else npm install; fi
             npm run build
-            pm2 reload all || true
+
+            if command -v pm2 >/dev/null 2>&1; then pm2 reload all || true; fi
             if command -v systemctl >/dev/null 2>&1 && [ -n "${{ secrets.FRONT_SERVICE_NAME || '' }}" ]; then
               sudo systemctl restart "${{ secrets.FRONT_SERVICE_NAME }}" || true
             fi
