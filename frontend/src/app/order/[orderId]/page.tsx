@@ -341,7 +341,7 @@ export default function OrderTrackingPage() {
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">هزینه ارسال</span>
-            <span className={shippingCost === 0 ? 'text-green-600' : ''}>{shippingCost === 0 ? 'رایگان' : `${shippingCost.toLocaleString('fa-IR')} تومان`}</span>
+            <span className={shippingCost === 0 ? 'text-green-600' : ''}>{shippingCost === 0 ? 'رایگان' : `${(shippingCost as number).toLocaleString('fa-IR')} تومان`}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">جایزه تجمیع سفارشات</span>
