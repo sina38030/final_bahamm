@@ -13,15 +13,18 @@ jobs:
       - name: SSH & Deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SERVER_HOST }}        # <- مهم
-          username: ${{ secrets.SERVER_USER }}    # <- مهم
-          key: ${{ secrets.SSH_PRIVATE_KEY }}     # <- مهم
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
             set -euo pipefail
-            cd /srv/bahamm/frontend/current || exit 1
+            cd /srv/bahamm/frontend/current || { echo "current not found"; exit 1; }
             git fetch --all
             git reset --hard origin/main
             if [ -f package-lock.json ]; then npm ci; else npm install; fi
             npm run build
-            pm2 reload all || sudo systemctl restart bahamm-frontend || true
+            pm2 reload all || true
+            if command -v systemctl >/dev/null 2>&1 && [ -n "${{ secrets.FRONT_SERVICE_NAME || '' }}" ]; then
+              sudo systemctl restart "${{ secrets.FRONT_SERVICE_NAME }}" || true
+            fi
