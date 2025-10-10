@@ -1,4 +1,3 @@
-cat > /srv/app/frontend/frontend/src/app/landingM/page.tsx <<'TS'
 // @ts-nocheck
 import { ProductModalProvider } from '@/hooks/useProductModal';
 import ClientLanding from './ClientLanding';
@@ -48,4 +47,3 @@ export default async function Page(props: any) {
     </ProductModalProvider>
   );
 }
-TS
