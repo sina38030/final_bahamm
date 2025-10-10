@@ -1,4 +1,4 @@
-name: Deploy Frontend to Server
+name: Deploy Frontend
 
 on:
   push:
@@ -8,45 +8,20 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (optional)
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: SSH & Deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
+          host: ${{ secrets.SERVER_HOST }}        # <- مهم
+          username: ${{ secrets.SERVER_USER }}    # <- مهم
+          key: ${{ secrets.SSH_PRIVATE_KEY }}     # <- مهم
+          port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
             set -euo pipefail
-
-            # اگر اولین بار است و کلون نشده:
-            if [ ! -d /srv/bahamm/frontend/current/.git ]; then
-              mkdir -p /srv/bahamm/frontend
-              cd /srv/bahamm/frontend
-              # اگر repo خصوصی است و کلید deploy نداری، همین کلون اولیه را خودت دستی انجام بده
-              # یا از PAT استفاده کن.
-            fi
-
-            cd /srv/bahamm/frontend/current
-
-            # همگام‌سازی با GitHub
+            cd /srv/bahamm/frontend/current || exit 1
             git fetch --all
             git reset --hard origin/main
-
-            # نصب و بیلد
-            if command -v npm >/dev/null 2>&1; then
-              if [ -f package-lock.json ]; then npm ci; else npm install; fi
-              npm run build
-            fi
-
-            # ری‌لود سرویس
-            if command -v pm2 >/dev/null 2>&1; then
-              pm2 reload all || true
-            fi
-            if command -v systemctl >/dev/null 2>&1; then
-              if [ -n "${{ secrets.FRONT_SERVICE_NAME || '' }}" ]; then
-                sudo systemctl restart "${{ secrets.FRONT_SERVICE_NAME }}" || true
-              fi
-            fi
+            if [ -f package-lock.json ]; then npm ci; else npm install; fi
+            npm run build
+            pm2 reload all || sudo systemctl restart bahamm-frontend || true
