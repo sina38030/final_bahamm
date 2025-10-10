@@ -337,7 +337,7 @@ export default function CartPage() {
             router.push(`/checkout?${params.toString()}`);
           }}
         >
-          خریده گروهی<br />
+          خرید گروهی<br />
           {friends > 0 ? (
             totals.paymentPercentage === 0 ? (
               <span className="free">رایگان!</span>
