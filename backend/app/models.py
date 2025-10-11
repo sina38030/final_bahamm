@@ -52,6 +52,12 @@ class User(Base):
     coins = Column(Integer, default=0)
     created_at = Column(DateTime, default=lambda: datetime.now(TEHRAN_TZ))
     is_phone_verified = Column(Boolean, default=False)  # Added phone verification status
+    
+    # Telegram Mini App authentication fields
+    telegram_id = Column(String(50), unique=True, nullable=True, index=True)
+    telegram_username = Column(String(100), nullable=True)
+    telegram_photo_url = Column(String(500), nullable=True)
+    telegram_language_code = Column(String(10), nullable=True)
 
     # Relationships
     stores = relationship("Store", back_populates="merchant")
@@ -145,6 +151,11 @@ class Product(Base):
     rating_baseline_sum = Column(Float, default=0)
     rating_baseline_count = Column(Integer, default=0)
     rating_seed_set_at = Column(DateTime, nullable=True)
+    
+    # Manual positioning for curated layouts
+    # Lower numbers appear first; NULL means not curated
+    home_position = Column(Integer, nullable=True)
+    landing_position = Column(Integer, nullable=True)
     
     # Friend pricing fields
     friend_1_price = Column(Float, default=0)
