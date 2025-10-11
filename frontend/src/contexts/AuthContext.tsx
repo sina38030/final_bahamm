@@ -164,12 +164,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (storedToken && storedUser) {
           console.log('[AuthContext] Loading user from localStorage:', JSON.parse(storedUser));
           setToken(storedToken);
-          setUser(JSON.parse(storedUser));
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
           
-          // Validate token by fetching current user data from server
-          await validateToken(storedToken);
+          // Immediately fetch fresh user data from server to get latest coins
+          console.log('[AuthContext] Fetching fresh user data from server...');
+          try {
+            const response = await apiClient.get('/users/me');
+            if (response.ok) {
+              const freshUserData = await response.json();
+              console.log('[AuthContext] User data refreshed from server, coins:', freshUserData.coins);
+              setUser(freshUserData);
+              localStorage.setItem('user', JSON.stringify(freshUserData));
+            }
+          } catch (err) {
+            console.error('[AuthContext] Failed to refresh user data:', err);
+          }
         } else {
           console.log('[AuthContext] No stored auth data found');
+          
+          // If no stored auth, try Telegram auto-login
+          const telegramAuthSuccess = await checkTelegramAuth();
+          if (telegramAuthSuccess) {
+            console.log('[AuthContext] Auto-authenticated via Telegram');
+          }
         }
       } catch (error) {
         console.error('Error loading auth data:', error);
@@ -183,7 +201,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     loadUserFromStorage();
 
-    // Listen for storage events to sync logout across tabs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
+
+  // Listen for storage events to sync logout across tabs
+  useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'auth_token' && e.newValue === null) {
         console.log('[AuthContext] Logout detected in another tab');
@@ -368,8 +390,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Telegram Login
-  const telegramLogin = async (telegramUser: any) => {
+  const telegramLogin = async (telegramUser?: any) => {
     try {
+      // If no telegramUser provided, try to get from Telegram WebApp
+      if (!telegramUser && typeof window !== 'undefined') {
+        const tg = window.Telegram?.WebApp;
+        if (!tg || !tg.initData) {
+          console.log('[AuthContext] Telegram WebApp not available');
+          return false;
+        }
+        
+        telegramUser = {
+          init_data: tg.initData,
+          init_data_unsafe: tg.initDataUnsafe
+        };
+      }
+      
+      if (!telegramUser) {
+        console.log('[AuthContext] No Telegram user data available');
+        return false;
+      }
+      
+      console.log('[AuthContext] Attempting Telegram login...');
+      
       const response = await fetch(`${API_BASE_URL}/auth/telegram-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -380,20 +423,53 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const data = await response.json();
         const authToken = data.access_token;
         
-        // Store token and user data
-        localStorage.setItem('auth_token', authToken);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        setToken(authToken);
-        setUser(data.user);
+        console.log('[AuthContext] Telegram login successful');
         
-        return true;
+        // Store token
+        localStorage.setItem('auth_token', authToken);
+        setToken(authToken);
+        
+        // Fetch user profile with the new token
+        const userData = await fetchUserProfile(authToken);
+        if (userData) {
+          return true;
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('[AuthContext] Telegram login failed:', errorData);
       }
       
       return false;
     } catch (error) {
-      console.error('Telegram login error:', error);
+      console.error('[AuthContext] Telegram login error:', error);
       return false;
     }
+  };
+  
+  // Check if user is in Telegram and auto-login
+  const checkTelegramAuth = async () => {
+    if (typeof window === 'undefined') return false;
+    
+    const tg = window.Telegram?.WebApp;
+    if (!tg || !tg.initData) {
+      console.log('[AuthContext] Not running in Telegram WebApp');
+      return false;
+    }
+    
+    console.log('[AuthContext] Telegram WebApp detected, attempting auto-login...');
+    
+    // Mark Telegram WebApp as ready
+    tg.ready();
+    
+    // Attempt auto-login
+    const success = await telegramLogin();
+    if (success) {
+      console.log('[AuthContext] Telegram auto-login successful');
+    } else {
+      console.log('[AuthContext] Telegram auto-login failed');
+    }
+    
+    return success;
   };
 
   // Set authentication data directly (allows partial user and fills sensible defaults)
