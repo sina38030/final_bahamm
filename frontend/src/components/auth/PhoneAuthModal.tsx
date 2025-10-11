@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface PhoneAuthModalProps {
@@ -16,7 +16,37 @@ export default function PhoneAuthModal({ isOpen, onClose, onSuccess }: PhoneAuth
   const [error, setError] = useState('');
   const [step, setStep] = useState<'phone' | 'code'>('phone'); // Track current step
   const [countdown, setCountdown] = useState(0);
-  const { setAuthData } = useAuth();
+  const [isTelegramApp, setIsTelegramApp] = useState(false);
+  const { setAuthData, telegramLogin } = useAuth();
+  
+  // Check if in Telegram when modal opens
+  useEffect(() => {
+    if (isOpen && typeof window !== 'undefined' && window.Telegram?.WebApp?.initData) {
+      setIsTelegramApp(true);
+      
+      // Try Telegram auto-login
+      const attemptTelegramLogin = async () => {
+        setLoading(true);
+        setError('');
+        try {
+          const success = await telegramLogin();
+          if (success) {
+            onSuccess();
+            handleClose();
+          } else {
+            setError('ورود از طریق تلگرام ناموفق بود. لطفا از شماره تلفن استفاده کنید.');
+          }
+        } catch (err) {
+          console.error('Telegram login error:', err);
+          setError('خطا در ورود از طریق تلگرام');
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      attemptTelegramLogin();
+    }
+  }, [isOpen]);
 
   // Send verification code
   const sendVerificationCode = async () => {
