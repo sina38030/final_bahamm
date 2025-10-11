@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Checkbox } from '@heroui/react';
 import CustomModal from '@/components/common/CustomModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,8 +12,23 @@ const LoginPage: React.FC = () => {
     const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isTelegramApp, setIsTelegramApp] = useState(false);
     const router = useRouter();
-    const { login, setPhoneNumber: setAuthPhoneNumber } = useAuth();
+    const { login, setPhoneNumber: setAuthPhoneNumber, user, loading } = useAuth();
+    
+    // Check if already authenticated or in Telegram
+    useEffect(() => {
+        // Check if user is already logged in
+        if (user) {
+            router.push('/');
+            return;
+        }
+        
+        // Check if running in Telegram
+        if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initData) {
+            setIsTelegramApp(true);
+        }
+    }, [user, router]);
 
     const handleNext = async () => {
         if (!phoneNumber) {
@@ -53,9 +68,26 @@ const LoginPage: React.FC = () => {
         }
     };
 
+    // Show loading state while checking auth
+    if (loading) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">در حال بارگذاری...</p>
+                </div>
+            </div>
+        );
+    }
+    
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
             <h1 className="text-2xl font-bold mb-4">ورود به حساب کاربری</h1>
+            {isTelegramApp && (
+                <div className="w-full bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded mb-4" role="alert">
+                    <span className="block sm:inline text-xs">شما از طریق تلگرام وارد شده‌اید. احراز هویت خودکار انجام می‌شود.</span>
+                </div>
+            )}
             <p className='text-black text-xs py-3'>لطفا شماره موبایل خود را وارد کنید</p>
             
             {error && (
