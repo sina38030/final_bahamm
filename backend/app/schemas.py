@@ -49,6 +49,10 @@ class UserBase(BaseModel):
     email: Optional[EmailStr] = None
     user_type: Optional[UserTypeEnum] = None
     phone_number: Optional[str] = Field(None, pattern=r'^\+?1?\d{9,15}$')
+    telegram_id: Optional[str] = None
+    telegram_username: Optional[str] = None
+    telegram_photo_url: Optional[str] = None
+    telegram_language_code: Optional[str] = None
 
 # Creation models
 class CategoryCreate(CategoryBase):
@@ -547,6 +551,7 @@ class TokenData(BaseModel):
     user_id: Optional[int] = None
     phone_number: Optional[str] = None
     user_type: Optional[str] = None
+    telegram_id: Optional[str] = None
 
 # Profile update schema (used for complete-profile endpoint)
 class ProfileUpdate(BaseModel):
@@ -613,3 +618,8 @@ class TransactionsResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+# Telegram authentication schemas
+class TelegramLoginRequest(BaseModel):
+    init_data: str
+    init_data_unsafe: dict
