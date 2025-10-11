@@ -12,11 +12,13 @@ from app.schemas import (
     Token,
     UserCreate,
     ProfileUpdate,
-    User
+    User,
+    TelegramLoginRequest
 )
 from app.models import User as UserModel, UserType
 from app.utils.auth import send_verification_code, verify_code
 from app.utils.security import create_access_token, get_current_user
+from app.utils.telegram_auth import verify_telegram_init_data, parse_telegram_user
 from app.config import get_settings
 from app.utils.logging import get_logger
 
@@ -58,6 +60,111 @@ async def verify_phone(
     )
     
     logger.info(f"User {user.id} successfully verified and authenticated")
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/telegram-login", response_model=Token)
+async def telegram_login(
+    request: TelegramLoginRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Authenticate user via Telegram Mini App.
+    Verifies initData signature and creates or retrieves user account.
+    """
+    logger.info("Received Telegram login request")
+    
+    # Verify the Telegram initData signature
+    if not settings.TELEGRAM_BOT_TOKEN:
+        logger.error("TELEGRAM_BOT_TOKEN not configured")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Telegram authentication not configured"
+        )
+    
+    is_valid = verify_telegram_init_data(request.init_data, settings.TELEGRAM_BOT_TOKEN)
+    if not is_valid:
+        logger.warning("Telegram initData verification failed")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Telegram authentication data"
+        )
+    
+    # Parse Telegram user information
+    telegram_user = parse_telegram_user(request.init_data_unsafe)
+    if not telegram_user or not telegram_user.get('telegram_id'):
+        logger.error("Failed to parse Telegram user data")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid Telegram user data"
+        )
+    
+    telegram_id = telegram_user['telegram_id']
+    logger.info(f"Telegram user authenticated: telegram_id={telegram_id}")
+    
+    # Try to find user by telegram_id first
+    user = db.query(UserModel).filter(UserModel.telegram_id == telegram_id).first()
+    
+    if user:
+        logger.info(f"Found existing user by telegram_id: user_id={user.id}")
+    else:
+        # If not found by telegram_id, try to match by phone number (if available)
+        phone_number = telegram_user.get('phone_number')
+        if phone_number:
+            # Format phone number to match database format
+            if not phone_number.startswith('+'):
+                phone_number = '+' + phone_number
+            
+            user = db.query(UserModel).filter(UserModel.phone_number == phone_number).first()
+            if user:
+                logger.info(f"Found existing user by phone: user_id={user.id}, phone={phone_number}")
+                # Update this user with Telegram info
+                user.telegram_id = telegram_id
+                user.telegram_username = telegram_user.get('username')
+                user.telegram_photo_url = telegram_user.get('photo_url')
+                user.telegram_language_code = telegram_user.get('language_code')
+                # Update name if not set
+                if not user.first_name and telegram_user.get('first_name'):
+                    user.first_name = telegram_user.get('first_name')
+                if not user.last_name and telegram_user.get('last_name'):
+                    user.last_name = telegram_user.get('last_name')
+                db.commit()
+                db.refresh(user)
+    
+    # If still no user found, create a new one
+    if not user:
+        logger.info(f"Creating new user for telegram_id={telegram_id}")
+        user = UserModel(
+            telegram_id=telegram_id,
+            telegram_username=telegram_user.get('username'),
+            telegram_photo_url=telegram_user.get('photo_url'),
+            telegram_language_code=telegram_user.get('language_code'),
+            first_name=telegram_user.get('first_name'),
+            last_name=telegram_user.get('last_name'),
+            phone_number=telegram_user.get('phone_number'),
+            user_type=UserType.CUSTOMER,  # Default to customer
+            is_phone_verified=bool(telegram_user.get('phone_number'))  # Consider verified if phone provided
+        )
+        
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        logger.info(f"New user created: user_id={user.id}")
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    user_type_str = user.user_type.value if user.user_type else None
+    
+    access_token = create_access_token(
+        data={
+            "sub": str(user.id),
+            "telegram_id": telegram_id,
+            "phone_number": user.phone_number,
+            "user_type": user_type_str
+        },
+        expires_delta=access_token_expires
+    )
+    
+    logger.info(f"User {user.id} successfully authenticated via Telegram")
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/complete-profile", response_model=User)
