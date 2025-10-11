@@ -29,6 +29,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="preconnect" href="http://localhost:8001" />
         <link rel="dns-prefetch" href="http://localhost:8001" />
+        {/* Telegram Mini App Script */}
+        <script src="https://telegram.org/js/telegram-web-app.js" async></script>
       </head>
       <body style={{ background: '#fff' }}>
         <Providers>
