@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "sqlite:///C:/Users/User/OneDrive/Desktop/final_project/bahamm1.db"
+    DATABASE_URL: str = "sqlite:///C:/Projects/final_bahamm/bahamm1.db"
     SECRET_KEY: str = "dev-secret-key-for-bahamm-app-2025"
     ALGORITHM: str = "HS256"
     # Default token lifetime set long to keep users logged in until explicit logout
@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     ZARINPAL_MERCHANT_ID: str = "2cea1309-4a05-4f02-82ce-9a6d183db8a4"  # Real merchant ID
     ZARINPAL_SANDBOX: bool = False
     FRONTEND_URL: str = "http://localhost:3000"
+    
+    # Telegram Mini App Configuration
+    # Required for verifying Telegram WebApp authentication
+    # Get your bot token from @BotFather on Telegram
+    TELEGRAM_BOT_TOKEN: str = ""
 
     class Config:
         env_file = ".env"
