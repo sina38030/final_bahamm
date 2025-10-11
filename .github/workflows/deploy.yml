@@ -6,7 +6,39 @@ on:
       - main
 
 jobs:
+  # ابتدا Build و Test می‌کنیم
+  test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+      
+      - name: Check build success
+        run: |
+          if [ ! -d "frontend/.next" ]; then
+            echo "❌ Build failed!"
+            exit 1
+          fi
+          echo "✅ Build successful!"
+
+  # فقط اگر Build موفق بود، Deploy می‌کنیم
   deploy:
+    needs: test-build
     runs-on: ubuntu-latest
     
     steps:
@@ -18,13 +50,31 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd ${{ secrets.SERVER_PATH }}
-            git pull origin main
-            echo "Updating backend..."
-            pip install -r requirements.txt
-            echo "Updating frontend..."
+            
+            echo "📥 Fetching latest changes..."
+            git fetch --all
+            
+            echo "🔄 Updating to latest main..."
+            git reset --hard origin/main
+            git clean -fd
+            
+            echo "🔧 Installing backend dependencies..."
+            pip3 install -r requirements.txt --quiet || true
+            
+            echo "📦 Installing frontend dependencies..."
             cd frontend
-            npm install
+            npm ci || npm install
+            
+            echo "🏗️ Building frontend..."
             npm run build
-            echo "Restarting services..."
-            pm2 restart all
-            echo "Deployment completed!"
+            
+            if [ ! -d ".next" ]; then
+              echo "❌ Build failed on server!"
+              exit 1
+            fi
+            
+            echo "♻️ Restarting services..."
+            pm2 restart all || echo "⚠️ pm2 restart failed"
+            
+            echo "✅ Deployment completed!"
+            echo "📊 Current commit: $(git log -1 --oneline)"
