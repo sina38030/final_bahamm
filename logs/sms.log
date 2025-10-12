@@ -1,0 +1,70 @@
+2025-08-03 04:02:27,345 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-03 04:02:27,346 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-03 22:32:52,504 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-03 22:32:52,505 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-03 22:37:33,252 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-03 22:37:33,263 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-03 22:54:57,122 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-03 22:54:57,122 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-03 23:01:44,773 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-03 23:01:44,774 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-04 01:31:25,340 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-04 01:31:25,341 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-04 01:37:14,443 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-04 01:37:14,444 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-05 08:08:23,941 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-05 08:08:23,949 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-05 08:23:49,283 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-05 08:23:49,284 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-05 11:32:00,345 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-05 11:32:00,346 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-05 11:47:30,757 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-05 11:47:30,757 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-05 11:55:56,425 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-05 11:55:56,426 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-05 12:03:37,493 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-05 12:03:37,494 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-08-05 12:23:21,243 - sms - INFO - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-08-05 12:23:21,243 - sms - WARNING - C:\Users\User\OneDrive\Desktop\final project\backend\app\services\sms.py:20 - SMS gateway disabled; running in TEST MODE (no external SMS will be sent).
+2025-09-05 01:12:40,502 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-05 01:12:40,503 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-05 01:12:40,503 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-05 01:13:09,419 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-05 01:13:09,419 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-05 01:13:09,420 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-05 01:13:40,615 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-05 01:13:40,615 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-05 01:13:40,616 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-11 22:06:59,850 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-11 22:06:59,856 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-11 22:06:59,856 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-15 18:57:48,351 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-15 18:57:48,353 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-15 18:57:48,353 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-16 19:13:02,131 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-16 19:13:02,137 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-16 19:13:02,137 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-16 19:13:12,158 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-16 19:13:12,160 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-16 19:13:12,160 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-16 19:13:21,916 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-16 19:13:21,917 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-16 19:13:21,917 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-17 23:29:05,347 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-17 23:29:05,353 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-17 23:29:05,354 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-18 00:19:59,001 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-18 00:19:59,004 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-18 00:19:59,004 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-09-18 00:20:57,239 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-09-18 00:20:57,240 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-09-18 00:20:57,240 - sms - INFO - C:\Users\User\OneDrive\Desktop\final_project\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-10-05 17:54:34,890 - sms - INFO - C:\Projects\final_bahamm\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-10-05 17:54:34,891 - sms - INFO - C:\Projects\final_bahamm\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-10-05 17:54:34,892 - sms - INFO - C:\Projects\final_bahamm\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-10-05 17:55:52,281 - sms - INFO - C:\Projects\final_bahamm\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-10-05 17:55:52,282 - sms - INFO - C:\Projects\final_bahamm\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-10-05 17:55:52,282 - sms - INFO - C:\Projects\final_bahamm\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-10-05 17:56:03,017 - sms - INFO - C:\Projects\final_bahamm\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-10-05 17:56:03,018 - sms - INFO - C:\Projects\final_bahamm\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-10-05 17:56:03,018 - sms - INFO - C:\Projects\final_bahamm\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9

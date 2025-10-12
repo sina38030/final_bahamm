@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Coins - بررسی موجودی</title>
+    <style>
+        body {
+            font-family: Tahoma, Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button.danger {
+            background: #f44336;
+        }
+        button.danger:hover {
+            background: #da190b;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            direction: ltr;
+            text-align: left;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>🔍 بررسی موجودی کاربر (Debug Coins)</h2>
+        <p>این صفحه برای بررسی و رفع مشکل نمایش موجودی است.</p>
+    </div>
+
+    <div class="card">
+        <h2>📦 localStorage</h2>
+        <button onclick="checkLocalStorage()">بررسی localStorage</button>
+        <button onclick="clearLocalStorage()" class="danger">پاک کردن localStorage</button>
+        <div id="localStorageResult"></div>
+    </div>
+
+    <div class="card">
+        <h2>🌐 API Call</h2>
+        <button onclick="testUsersMe()">تست /users/me</button>
+        <button onclick="testUsersCoins()">تست /users/coins</button>
+        <div id="apiResult"></div>
+    </div>
+
+    <div class="card">
+        <h2>🔄 رفرش موجودی</h2>
+        <button onclick="refreshCoins()">رفرش موجودی از سرور</button>
+        <div id="refreshResult"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8001/api';
+
+        function showResult(elementId, html) {
+            document.getElementById(elementId).innerHTML = html;
+        }
+
+        function checkLocalStorage() {
+            try {
+                const token = localStorage.getItem('token');
+                const user = localStorage.getItem('user');
+                
+                let html = '<div class="status info"><h3>محتویات localStorage:</h3>';
+                
+                if (token) {
+                    html += '<p><strong>✅ Token:</strong> موجود است</p>';
+                    html += `<pre>${token.substring(0, 50)}...</pre>`;
+                } else {
+                    html += '<p><strong>❌ Token:</strong> وجود ندارد</p>';
+                }
+                
+                if (user) {
+                    html += '<p><strong>✅ User:</strong></p>';
+                    const userData = JSON.parse(user);
+                    html += `<pre>${JSON.stringify(userData, null, 2)}</pre>`;
+                    
+                    if (typeof userData.coins === 'number') {
+                        html += `<div class="status ${userData.coins > 0 ? 'success' : 'error'}">`;
+                        html += `<strong>💰 موجودی:</strong> ${userData.coins.toLocaleString()} تومان`;
+                        html += '</div>';
+                    } else {
+                        html += '<div class="status error"><strong>❌ فیلد coins وجود ندارد!</strong></div>';
+                    }
+                } else {
+                    html += '<p><strong>❌ User:</strong> وجود ندارد</p>';
+                }
+                
+                html += '</div>';
+                showResult('localStorageResult', html);
+            } catch (error) {
+                showResult('localStorageResult', `<div class="status error">خطا: ${error.message}</div>`);
+            }
+        }
+
+        function clearLocalStorage() {
+            if (confirm('آیا مطمئن هستید که می‌خواهید localStorage را پاک کنید؟\n\nبعد از این کار باید دوباره لاگین کنید.')) {
+                localStorage.clear();
+                showResult('localStorageResult', '<div class="status success">✅ localStorage پاک شد! لطفاً صفحه را رفرش کنید.</div>');
+            }
+        }
+
+        async function testUsersMe() {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    showResult('apiResult', '<div class="status error">❌ Token یافت نشد! لطفاً ابتدا لاگین کنید.</div>');
+                    return;
+                }
+
+                showResult('apiResult', '<div class="status info">در حال ارسال درخواست...</div>');
+
+                const response = await fetch(`${API_BASE}/users/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    let html = '<div class="status success"><h3>✅ Response از /users/me:</h3>';
+                    html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    
+                    if (typeof data.coins === 'number') {
+                        html += `<div class="status ${data.coins > 0 ? 'success' : 'error'}">`;
+                        html += `<strong>💰 موجودی:</strong> ${data.coins.toLocaleString()} تومان`;
+                        html += '</div>';
+                    } else {
+                        html += '<div class="status error"><strong>❌ فیلد coins در response وجود ندارد!</strong></div>';
+                    }
+                    
+                    html += '</div>';
+                    showResult('apiResult', html);
+                } else {
+                    showResult('apiResult', `<div class="status error">❌ خطا: ${response.status} ${response.statusText}</div>`);
+                }
+            } catch (error) {
+                showResult('apiResult', `<div class="status error">❌ خطا: ${error.message}</div>`);
+            }
+        }
+
+        async function testUsersCoins() {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    showResult('apiResult', '<div class="status error">❌ Token یافت نشد! لطفاً ابتدا لاگین کنید.</div>');
+                    return;
+                }
+
+                showResult('apiResult', '<div class="status info">در حال ارسال درخواست...</div>');
+
+                const response = await fetch(`${API_BASE}/users/coins`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    let html = '<div class="status success"><h3>✅ Response از /users/coins:</h3>';
+                    html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    html += `<div class="status ${data.coins > 0 ? 'success' : 'error'}">`;
+                    html += `<strong>💰 موجودی:</strong> ${data.coins.toLocaleString()} تومان`;
+                    html += '</div></div>';
+                    showResult('apiResult', html);
+                } else {
+                    showResult('apiResult', `<div class="status error">❌ خطا: ${response.status} ${response.statusText}</div>`);
+                }
+            } catch (error) {
+                showResult('apiResult', `<div class="status error">❌ خطا: ${error.message}</div>`);
+            }
+        }
+
+        async function refreshCoins() {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    showResult('refreshResult', '<div class="status error">❌ Token یافت نشد! لطفاً ابتدا لاگین کنید.</div>');
+                    return;
+                }
+
+                showResult('refreshResult', '<div class="status info">در حال رفرش...</div>');
+
+                // گرفتن موجودی از API
+                const response = await fetch(`${API_BASE}/users/coins`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    showResult('refreshResult', `<div class="status error">❌ خطا در دریافت موجودی: ${response.status}</div>`);
+                    return;
+                }
+
+                const data = await response.json();
+                const newCoins = data.coins;
+
+                // به‌روزرسانی localStorage
+                const userStr = localStorage.getItem('user');
+                if (userStr) {
+                    const user = JSON.parse(userStr);
+                    user.coins = newCoins;
+                    localStorage.setItem('user', JSON.stringify(user));
+                    
+                    showResult('refreshResult', `
+                        <div class="status success">
+                            <h3>✅ موجودی به‌روزرسانی شد!</h3>
+                            <p><strong>💰 موجودی جدید:</strong> ${newCoins.toLocaleString()} تومان</p>
+                            <p>localStorage هم به‌روز شد.</p>
+                            <p><strong>⚠️ اکنون به صفحه wallet بروید و رفرش کنید:</strong></p>
+                            <p><a href="/profile/wallet" style="color: #4CAF50; text-decoration: underline;">رفتن به صفحه کیف پول</a></p>
+                        </div>
+                    `);
+                } else {
+                    showResult('refreshResult', '<div class="status error">❌ user در localStorage یافت نشد!</div>');
+                }
+            } catch (error) {
+                showResult('refreshResult', `<div class="status error">❌ خطا: ${error.message}</div>`);
+            }
+        }
+
+        // بررسی خودکار در بارگذاری صفحه
+        window.addEventListener('load', () => {
+            checkLocalStorage();
+        });
+    </script>
+</body>
+</html>
+

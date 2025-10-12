@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Finalize</title>
+</head>
+<body>
+    <h1>Test Group Finalize</h1>
+    <button onclick="testFinalize()">Test Finalize Group 136</button>
+    <div id="result"></div>
+    
+    <script>
+    async function testFinalize() {
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = 'Testing...';
+        
+        try {
+            const response = await fetch('http://localhost:3000/api/groups/136', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ confirm: true })
+            });
+            
+            const text = await response.text();
+            console.log('Response status:', response.status);
+            console.log('Response text:', text);
+            
+            resultDiv.innerHTML = `
+                <p>Status: ${response.status}</p>
+                <p>Response: ${text}</p>
+            `;
+            
+            if (!response.ok) {
+                try {
+                    const json = JSON.parse(text);
+                    resultDiv.innerHTML += `<p>Error: ${json.error || json.detail || json.message}</p>`;
+                } catch {}
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            resultDiv.innerHTML = `Error: ${error.message}`;
+        }
+    }
+    </script>
+</body>
+</html>

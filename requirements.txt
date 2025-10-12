@@ -1,0 +1,31 @@
+# Bahamm Backend Dependencies
+# Core FastAPI and web server
+fastapi>=0.115.11
+uvicorn>=0.34.0
+
+# Database and ORM
+sqlalchemy>=2.0.38
+psycopg2-binary>=2.9.9
+
+# Data validation and settings
+pydantic>=2.10.6
+pydantic-settings>=2.8.1
+email-validator>=2.2.0
+
+# Authentication and security
+passlib==1.7.4
+bcrypt==4.0.1
+python-jose[cryptography]>=3.4.0
+
+# File uploads and forms
+python-multipart>=0.0.20
+
+# Environment and configuration
+python-dotenv>=1.1.0
+
+# HTTP requests
+requests>=2.32.3
+
+# AI integration
+openai>=1.54.3
+orjson>=3.10.7
