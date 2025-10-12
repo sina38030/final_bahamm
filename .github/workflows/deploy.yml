@@ -77,8 +77,34 @@ jobs:
             fi
             
             echo "♻️ Restarting services..."
-            pm2 restart all || echo "⚠️ pm2 restart failed"
+            cd ..
+            
+            # Restart backend
+            if pm2 describe backend > /dev/null 2>&1; then
+              echo "Restarting existing backend process..."
+              pm2 restart backend
+            else
+              echo "Starting new backend process..."
+              cd backend
+              pm2 start "python3 -m uvicorn main:app --host 0.0.0.0 --port 8001" --name backend
+              cd ..
+            fi
+            
+            # Restart frontend  
+            if pm2 describe frontend > /dev/null 2>&1; then
+              echo "Restarting existing frontend process..."
+              pm2 restart frontend
+            else
+              echo "Starting new frontend process..."
+              cd frontend
+              PORT=8000 pm2 start "npm run start" --name frontend
+              cd ..
+            fi
+            
+            pm2 save
             
             echo "✅ Deployment completed!"
             echo "📊 Current commit: $(git log -1 --oneline)"
+            echo "📊 PM2 Status:"
+            pm2 list
 

@@ -27,30 +27,44 @@ import Image from "next/image";
 import { API_BASE_URL } from "@/utils/api";
    
    /* --------------------------------------------------------------------------
-      Config
+      Config - Backend URL computed at runtime
       -------------------------------------------------------------------------- */
    
-  // Use NEXT_PUBLIC_BACKEND_URL for consistency with the rest of the app
-  // For production, if NEXT_PUBLIC_BACKEND_URL is not set, try to use current domain
-  const getBackendURL = () => {
-    if (typeof window !== 'undefined') {
-      // Client-side: use env var or construct from current location
-      const envUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_ADMIN_API_URL;
-      if (envUrl) return envUrl;
-      
+  // Lazy-computed backend URL (cached after first access)
+  let _cachedAdminApiBaseUrl: string | null = null;
+  
+  function getAdminApiBaseUrl(): string {
+    if (_cachedAdminApiBaseUrl) return _cachedAdminApiBaseUrl;
+    
+    if (typeof window === 'undefined') {
+      return "http://localhost:8001/api";
+    }
+    
+    // Client-side: use env var or construct from current location
+    const envUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_ADMIN_API_URL;
+    let rawBase: string;
+    
+    if (envUrl) {
+      console.log('[Admin] Using env URL:', envUrl);
+      rawBase = envUrl;
+    } else {
       // If no env var, assume backend is on same host but port 8001
       const protocol = window.location.protocol;
       const hostname = window.location.hostname;
-      return `${protocol}//${hostname}:8001`;
+      rawBase = `${protocol}//${hostname}:8001`;
+      console.log('[Admin] Auto-detected URL:', rawBase);
     }
-    return "http://localhost:8001";
-  };
+    
+    const trimmed = rawBase.replace(/\/+$/, "");
+    const apiUrl = /\/api$/i.test(trimmed) ? trimmed : `${trimmed}/api`;
+    
+    console.log('[Admin] Final API Base URL:', apiUrl);
+    _cachedAdminApiBaseUrl = apiUrl;
+    return apiUrl;
+  }
   
-  const RAW_ADMIN_BASE = getBackendURL();
-  const TRIMMED_ADMIN_BASE = (RAW_ADMIN_BASE || "").replace(/\/+$/, "");
-  const ADMIN_API_BASE_URL = /\/api$/i.test(TRIMMED_ADMIN_BASE)
-    ? TRIMMED_ADMIN_BASE
-    : `${TRIMMED_ADMIN_BASE}/api`;
+  // Use this in all fetch calls
+  const ADMIN_API_BASE_URL = (() => getAdminApiBaseUrl())();
    
    /** If your API uses cookie-based auth, keep credentials:"include".
     * If you use Bearer tokens instead, remove `credentials` and add Authorization headers where needed.
