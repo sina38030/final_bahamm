@@ -48,11 +48,23 @@ import { API_BASE_URL } from "@/utils/api";
       console.log('[Admin] Using env URL:', envUrl);
       rawBase = envUrl;
     } else {
-      // If no env var, assume backend is on same host but port 8001
+      // Auto-detect based on environment
       const protocol = window.location.protocol;
       const hostname = window.location.hostname;
-      rawBase = `${protocol}//${hostname}:8001`;
-      console.log('[Admin] Auto-detected URL:', rawBase);
+      
+      // Production: use nginx reverse proxy path
+      if (hostname === 'bahamm.ir' || hostname === 'www.bahamm.ir') {
+        rawBase = `${protocol}//${hostname}/backend`;
+        console.log('[Admin] Production URL (nginx proxy):', rawBase);
+      } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        // Development: direct connection to backend port
+        rawBase = `${protocol}//${hostname}:8001`;
+        console.log('[Admin] Development URL (direct):', rawBase);
+      } else {
+        // Unknown environment, try direct port access
+        rawBase = `${protocol}//${hostname}:8001`;
+        console.log('[Admin] Unknown env, trying port 8001:', rawBase);
+      }
     }
     
     const trimmed = rawBase.replace(/\/+$/, "");
