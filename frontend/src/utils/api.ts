@@ -14,12 +14,11 @@ function getApiBaseUrl(): string {
   // Runtime detection for browser
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    const protocol = window.location.protocol;
     
-    // If on production domain, use reverse proxy path (same origin)
+    // If on production domain, force HTTP to backend on port 8001
     if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      const url = `${protocol}//${hostname}/backend/api`;
-      console.log('[API Config] Using proxy URL:', url);
+      const url = `http://${hostname}:8001/api`;
+      console.log('[API Config] Auto-detected URL:', url);
       return url;
     }
   }
