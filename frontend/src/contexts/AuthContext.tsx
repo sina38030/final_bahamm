@@ -59,7 +59,7 @@ interface AuthContextType {
   setPhoneNumber: (phoneNumber: string) => void;
   login: (phoneNumber: string, userType: 'CUSTOMER' | 'MERCHANT') => Promise<boolean>;
   verifyOtp: (code: string) => Promise<boolean>;
-  telegramLogin: (telegramUser: any) => Promise<boolean>;
+  telegramLogin: (telegramUser?: any) => Promise<boolean>;
   setAuthData: (token: string, userData?: Partial<User>) => void;
   logout: () => void;
   updateUserProfile: (userData: ProfileUpdate) => Promise<boolean>;
