@@ -2,7 +2,8 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "sqlite:///C:/Users/User/OneDrive/Desktop/final_project/bahamm1.db"
+    # Use relative path from project root - works on both Windows and Linux
+    DATABASE_URL: str = "sqlite:///./bahamm1.db"
     SECRET_KEY: str = "dev-secret-key-for-bahamm-app-2025"
     ALGORITHM: str = "HS256"
     # Default token lifetime set long to keep users logged in until explicit logout
