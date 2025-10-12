@@ -3,8 +3,9 @@ import ClientLanding from './ClientLanding';
 
 export const revalidate = 60;
 
-export default async function Page({ searchParams }: { searchParams: { invite?: string } }) {
-  const invite = searchParams?.invite ?? '';
+export default async function Page({ searchParams }: { searchParams: Promise<{ invite?: string }> }) {
+  const params = await searchParams;
+  const invite = params?.invite ?? '';
 
   const backendUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8001').replace(/\/$/, '');
 
