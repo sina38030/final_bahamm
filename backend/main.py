@@ -98,7 +98,10 @@ api_app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-    ],  # In production, replace with specific origins
+        "http://localhost:8000",  # Next.js production port
+        "http://127.0.0.1:8000",
+        "*",  # Allow all origins for admin API (can be restricted later)
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -129,7 +132,10 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-    ],  # In production, replace with specific origins
+        "http://localhost:8000",  # Next.js production port
+        "http://127.0.0.1:8000",
+        "*",  # Allow all origins for now (can be restricted later)
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

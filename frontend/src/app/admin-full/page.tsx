@@ -31,7 +31,22 @@ import { API_BASE_URL } from "@/utils/api";
       -------------------------------------------------------------------------- */
    
   // Use NEXT_PUBLIC_BACKEND_URL for consistency with the rest of the app
-  const RAW_ADMIN_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_ADMIN_API_URL || "http://localhost:8001";
+  // For production, if NEXT_PUBLIC_BACKEND_URL is not set, try to use current domain
+  const getBackendURL = () => {
+    if (typeof window !== 'undefined') {
+      // Client-side: use env var or construct from current location
+      const envUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_ADMIN_API_URL;
+      if (envUrl) return envUrl;
+      
+      // If no env var, assume backend is on same host but port 8001
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      return `${protocol}//${hostname}:8001`;
+    }
+    return "http://localhost:8001";
+  };
+  
+  const RAW_ADMIN_BASE = getBackendURL();
   const TRIMMED_ADMIN_BASE = (RAW_ADMIN_BASE || "").replace(/\/+$/, "");
   const ADMIN_API_BASE_URL = /\/api$/i.test(TRIMMED_ADMIN_BASE)
     ? TRIMMED_ADMIN_BASE
