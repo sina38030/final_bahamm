@@ -1,0 +1,51 @@
+# Systemd service file for Bahamm Backend
+# این فایل را در سرور به مسیر زیر کپی کنید:
+# /etc/systemd/system/bahamm-backend.service
+#
+# سپس دستورات زیر را اجرا کنید:
+# sudo systemctl daemon-reload
+# sudo systemctl enable bahamm-backend
+# sudo systemctl start bahamm-backend
+# sudo systemctl status bahamm-backend
+
+[Unit]
+Description=Bahamm Backend FastAPI Service
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+Group=YOUR_USERNAME
+WorkingDirectory=/path/to/final_bahamm/backend
+
+# اگر virtual environment دارید، مسیر آن را اینجا قرار دهید
+Environment="PATH=/path/to/final_bahamm/venv/bin:/usr/local/bin:/usr/bin:/bin"
+
+# متغیرهای محیطی برای production
+Environment="PYTHONUNBUFFERED=1"
+Environment="ENVIRONMENT=production"
+
+# دستور اجرای backend
+ExecStart=/path/to/final_bahamm/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8001 --workers 2 --log-level info
+
+# Restart policy
+Restart=always
+RestartSec=10
+StartLimitInterval=200
+StartLimitBurst=5
+
+# Logging
+StandardOutput=append:/path/to/final_bahamm/logs/backend.log
+StandardError=append:/path/to/final_bahamm/logs/backend_error.log
+
+# Security settings (اختیاری ولی توصیه می‌شود)
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Resource limits
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+

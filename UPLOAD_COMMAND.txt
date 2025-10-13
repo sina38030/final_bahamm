@@ -1,0 +1,40 @@
+========================================
+دستور آپلود فایل‌ها به سرور
+========================================
+
+در PowerShell یا CMD، این دستور را کپی کرده و اطلاعات زیر را جایگزین کنید:
+
+ENTER_USERNAME: نام کاربری سرور (مثل ubuntu یا root)
+ENTER_HOSTNAME: آدرس سرور (مثل bahamm.ir یا 185.x.x.x)
+ENTER_PATH: مسیر پروژه روی سرور (مثل /home/ubuntu/final_bahamm)
+
+دستور:
+-------
+
+scp nginx_server.conf start_backend_production.sh bahamm-backend.service test_server_setup.sh SERVER_SETUP_QUICKSTART.md SERVER_404_FIX_GUIDE.md ENTER_USERNAME@ENTER_HOSTNAME:ENTER_PATH/
+
+
+مثال:
+------
+
+اگر:
+- Username: ubuntu
+- Hostname: bahamm.ir  
+- Path: /home/ubuntu/final_bahamm
+
+دستور می‌شود:
+
+scp nginx_server.conf start_backend_production.sh bahamm-backend.service test_server_setup.sh SERVER_SETUP_QUICKSTART.md SERVER_404_FIX_GUIDE.md ubuntu@bahamm.ir:/home/ubuntu/final_bahamm/
+
+
+بعد از آپلود:
+--------------
+
+ssh ENTER_USERNAME@ENTER_HOSTNAME
+cd ENTER_PATH
+cat SERVER_SETUP_QUICKSTART.md
+
+و مراحل را دنبال کنید!
+
+========================================
+
