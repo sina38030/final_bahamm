@@ -54,7 +54,7 @@ import { API_BASE_URL } from "@/utils/api";
       
       // Production: use nginx reverse proxy path
       if (hostname === 'bahamm.ir' || hostname === 'www.bahamm.ir' || hostname === 'app.bahamm.ir') {
-        rawBase = `${protocol}//${hostname}/api`;
+        rawBase = `${protocol}//${hostname}`;
         console.log('[Admin] Production URL (nginx proxy):', rawBase);
       } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
         // Development: direct connection to backend port
