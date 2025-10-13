@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import TelegramReturn from '@/components/TelegramReturn';
 
 function PaymentCallbackContent() {
   const [status, setStatus] = useState<'loading' | 'success' | 'failed'>('loading');
@@ -509,6 +510,13 @@ function PaymentCallbackContent() {
               <h2 className="text-gray-800 font-bold text-base mb-1">پرداخت شما با موفقیت ثبت شد</h2>
               <div className="text-gray-600 text-sm">برای پیگیری وضعیت، به صفحه سفارش‌ها بروید.</div>
             </div>
+
+            {/* Telegram Return - Deep Link to Mini App */}
+            <TelegramReturn 
+              orderId={order?.id}
+              groupId={order?.group_order_id}
+              showVpnWarning={true}
+            />
 
             {/* CTAs */}
             <div className="grid grid-cols-2 gap-3">

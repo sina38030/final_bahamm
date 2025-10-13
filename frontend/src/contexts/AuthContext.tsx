@@ -204,6 +204,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
+  // Handle Telegram Deep Link start_param (for payment returns)
+  useEffect(() => {
+    // Only run once and only if Telegram WebApp is available
+    if (typeof window === 'undefined' || !window.Telegram?.WebApp) return;
+    
+    try {
+      const startParam = window.Telegram.WebApp.initDataUnsafe?.start_param;
+      
+      if (startParam) {
+        console.log('[AuthContext] Telegram start_param detected:', startParam);
+        
+        // Parse parameter format: "order_123_group_456" or "order_123"
+        const match = startParam.match(/order_(\d+)(?:_group_(\d+))?/);
+        
+        if (match) {
+          const orderId = match[1];
+          const groupId = match[2];
+          
+          console.log('[AuthContext] Parsed payment return:', { orderId, groupId });
+          
+          // Show success notification
+          if (window.Telegram.WebApp.showAlert) {
+            window.Telegram.WebApp.showAlert('✅ پرداخت شما با موفقیت انجام شد!');
+          }
+          
+          // Redirect to appropriate page after a short delay
+          setTimeout(() => {
+            if (groupId) {
+              console.log('[AuthContext] Redirecting to group tracking page:', groupId);
+              router.push(`/track/${groupId}`);
+            } else if (orderId) {
+              console.log('[AuthContext] Redirecting to order page:', orderId);
+              router.push(`/orders/${orderId}`);
+            }
+          }, 500);
+        }
+      }
+    } catch (error) {
+      console.error('[AuthContext] Error handling start_param:', error);
+    }
+  }, []); // Only run once on mount
+
   // Listen for storage events to sync logout across tabs
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
