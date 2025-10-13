@@ -15,9 +15,9 @@ function getApiBaseUrl(): string {
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     
-    // If on production domain, force HTTP to backend on port 8001
+    // If on production domain, use relative API path
     if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      const url = `http://${hostname}:8001/api`;
+      const url = `/api`;
       console.log('[API Config] Auto-detected URL:', url);
       return url;
     }
