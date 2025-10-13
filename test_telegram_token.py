@@ -26,18 +26,18 @@ try:
         else:
             masked_token = "***"
         
-        print(f"✅ Token is set: {masked_token}")
-        print(f"   Length: {len(token)} characters")
+        print(f"[OK] Token is set: {masked_token}")
+        print(f"     Length: {len(token)} characters")
         
         # Basic format check
         if ":" in token and len(token) > 40:
-            print("✅ Token format looks correct")
+            print("[OK] Token format looks correct")
         else:
-            print("⚠️  Token format might be incorrect")
-            print("   Expected format: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz")
+            print("[WARNING] Token format might be incorrect")
+            print("         Expected format: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz")
         
     else:
-        print("❌ Token is NOT set or empty")
+        print("[ERROR] Token is NOT set or empty")
         print("\nTo fix:")
         print("1. Create a bot with @BotFather on Telegram")
         print("2. Add the token to backend/app/config.py:")
@@ -54,12 +54,12 @@ try:
     print(f"  Token Expiry: {settings.ACCESS_TOKEN_EXPIRE_MINUTES} minutes")
     
     if settings.TELEGRAM_BOT_TOKEN:
-        print("\n✅ Configuration looks good! Restart backend if it's running.")
+        print("\n[SUCCESS] Configuration looks good! Restart backend if it's running.")
     else:
-        print("\n❌ Please configure TELEGRAM_BOT_TOKEN before using Telegram Mini App")
+        print("\n[ERROR] Please configure TELEGRAM_BOT_TOKEN before using Telegram Mini App")
     
 except Exception as e:
-    print(f"❌ Error loading configuration: {e}")
+    print(f"[ERROR] Error loading configuration: {e}")
     print("\nMake sure you're running this from the project root directory.")
     sys.exit(1)
 

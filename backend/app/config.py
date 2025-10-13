@@ -22,8 +22,7 @@ class Settings(BaseSettings):
     # Telegram Mini App Configuration
     # Required for verifying Telegram WebApp authentication
     # Get your bot token from @BotFather on Telegram
-    # TODO: Replace with your actual bot token from @BotFather
-    TELEGRAM_BOT_TOKEN: str = "YOUR_BOT_TOKEN_HERE"
+    TELEGRAM_BOT_TOKEN: str = "8413343514:AAFiyFNsJUSuEh0aLG9dZxSnSHwAyRPK09E"
 
     class Config:
         env_file = ".env"
