@@ -27,8 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fa" dir="rtl" className={iransans.variable}>
       <head>
-        <link rel="preconnect" href="http://localhost:8001" />
-        <link rel="dns-prefetch" href="http://localhost:8001" />
+        {/* Preconnect links removed to avoid localhost references in production */}
         {/* Telegram Mini App Script */}
         <script src="https://telegram.org/js/telegram-web-app.js" async></script>
       </head>

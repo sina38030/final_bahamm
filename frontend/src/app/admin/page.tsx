@@ -23,8 +23,28 @@
       Config
       -------------------------------------------------------------------------- */
    
-   const ADMIN_API_BASE_URL =
-     process.env.NEXT_PUBLIC_ADMIN_API_URL ?? "http://localhost:8001/api";
+  // Dynamic API URL construction for admin
+  const getAdminApiBaseUrl = () => {
+    if (typeof window === 'undefined') {
+      return "http://localhost:8001/api";
+    }
+    
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    
+    // Production: use nginx reverse proxy path
+    if (hostname === 'bahamm.ir' || hostname === 'www.bahamm.ir' || hostname === 'app.bahamm.ir') {
+      return `${protocol}//${hostname}/api`;
+    } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      // Development: direct connection to backend port
+      return `${protocol}//${hostname}:8001/api`;
+    } else {
+      // Unknown environment, try direct port access
+      return `${protocol}//${hostname}:8001/api`;
+    }
+  };
+
+  const ADMIN_API_BASE_URL = getAdminApiBaseUrl();
    
    /** If your API uses cookie-based auth, keep credentials:"include".
     * If you use Bearer tokens instead, remove `credentials` and add Authorization headers where needed.
