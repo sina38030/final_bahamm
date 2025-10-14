@@ -97,6 +97,21 @@ def _serialize_group(g: GroupOrder, db: Session) -> Dict[str, Any]:
         int(expected_friends) if isinstance(expected_friends, int) else (0 if is_secondary else 1)
     )
     
+    # Calculate remaining time in seconds
+    remaining_seconds = None
+    expires_at_ms = None
+    server_now_ms = None
+    if g.expires_at:
+        # اطمینان از اینکه هر دو datetime در یک timezone هستند
+        expires_at = g.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=TEHRAN_TZ)
+        current_time = datetime.now(TEHRAN_TZ)
+        remaining_seconds = max(0, int((expires_at - current_time).total_seconds()))
+        # Also provide millisecond timestamps for more precise client-side countdown
+        expires_at_ms = int(expires_at.timestamp() * 1000)
+        server_now_ms = int(current_time.timestamp() * 1000)
+    
     return {
         "id": g.id,
         "kind": (meta.get("kind") or "primary"),
@@ -110,6 +125,9 @@ def _serialize_group(g: GroupOrder, db: Session) -> Dict[str, Any]:
         "expectedFriends": expected_friends,
         "participants": participants,
         "expiresAt": g.expires_at.isoformat() if g.expires_at else None,
+        "remainingSeconds": remaining_seconds,
+        "expiresAtMs": expires_at_ms,
+        "serverNowMs": server_now_ms,
         "sourceGroupId": meta.get("source_group_id"),
         "sourceOrderId": meta.get("source_order_id"),
         "joinCode": g.invite_token,
@@ -118,8 +136,42 @@ def _serialize_group(g: GroupOrder, db: Session) -> Dict[str, Any]:
 
 
 @router.get("/{group_id}")
-async def get_group(group_id: int, db: Session = Depends(get_db)):
-    group = db.query(GroupOrder).filter(GroupOrder.id == group_id).first()
+async def get_group(group_id: str, db: Session = Depends(get_db)):
+    # Try to parse as int first (numeric group ID)
+    group = None
+    try:
+        gid = int(group_id)
+        group = db.query(GroupOrder).filter(GroupOrder.id == gid).first()
+    except ValueError:
+        # Not a numeric ID, try as invite_token/code
+        pass
+    
+    # If not found by ID, try by invite_token
+    if not group:
+        from sqlalchemy import func
+        group = db.query(GroupOrder).filter(
+            func.lower(GroupOrder.invite_token) == str(group_id).lower()
+        ).order_by(GroupOrder.created_at.desc()).first()
+    
+    # If still not found, try legacy GB code format
+    if not group and group_id and str(group_id).startswith("GB"):
+        try:
+            raw = str(group_id)[2:]
+            digits = ""
+            for ch in raw:
+                if ch.isdigit():
+                    digits += ch
+                else:
+                    break
+            if digits:
+                from app.models import Order
+                order_id = int(digits)
+                order = db.query(Order).filter(Order.id == order_id).first()
+                if order and order.group_order_id:
+                    group = db.query(GroupOrder).filter(GroupOrder.id == order.group_order_id).first()
+        except Exception:
+            pass
+    
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     return _serialize_group(group, db)
