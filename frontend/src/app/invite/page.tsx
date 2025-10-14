@@ -68,6 +68,7 @@ function InvitePageContent() {
   const [progressReady, setProgressReady] = useState(false);
   const [isSecondaryFlow, setIsSecondaryFlow] = useState(false);
   const [isSecondaryGroup, setIsSecondaryGroup] = useState(false);
+  const [isLeader, setIsLeader] = useState(false);
  
 
   const markSecondaryFlow = (payload?: any, fallbackRequiredMembers?: number) => {
@@ -86,6 +87,16 @@ function InvitePageContent() {
 
   // Convert numbers to Persian digits
   const toFa = (n: number | string) => n.toString().replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[parseInt(d)]);
+
+  // Detect if user is leader based on payment role cookie
+  useEffect(() => {
+    const soloCookie = typeof document !== 'undefined' ? document.cookie.split('; ').find(c => c.startsWith('payment_role=')) : null;
+    const paymentRole = soloCookie ? soloCookie.split('=')[1] : null;
+    const isLeaderUser = paymentRole === 'leader';
+    setIsLeader(isLeaderUser);
+    
+    console.log('[Invite] Detected user type:', { paymentRole, isLeaderUser });
+  }, []);
 
   // Fetch order data with retry logic for fresh payments
   useEffect(() => {
@@ -106,8 +117,9 @@ function InvitePageContent() {
           setOrder(data.order);
           setLoading(false);
           // Show success banner when returning from bank with ref_id or confirmed order
+          // Only show for leaders, not for invited users
           const refIdParam = searchParams.get('ref_id');
-          if (refIdParam || data.order?.payment_ref_id) {
+          if ((refIdParam || data.order?.payment_ref_id) && isLeader) {
             setShowSuccess(true);
           }
           
@@ -136,7 +148,7 @@ function InvitePageContent() {
     };
 
     fetchOrder();
-  }, [searchParams]);
+  }, [searchParams, isLeader]);
 
   
 

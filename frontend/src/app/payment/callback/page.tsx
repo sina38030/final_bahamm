@@ -70,8 +70,20 @@ function PaymentCallbackContent() {
                 return;
               }
             } catch {}
-            // For non-invited users (leaders), show success message instead of redirecting to invite
-            console.log('[PaymentCallback] Leader payment successful, showing success message');
+            // Check if this is a leader (group mode) - they should go to invite page
+            if (paymentRole === 'leader') {
+              const inviteTarget = `/invite?authority=${encodeURIComponent(authority)}`;
+              console.log('[PaymentCallback] Leader payment successful, redirecting to invite page:', inviteTarget);
+              if (typeof window !== 'undefined') {
+                window.location.replace(inviteTarget);
+              } else {
+                router.replace(inviteTarget);
+              }
+              return;
+            }
+            
+            // For other non-invited users (solo), show success message
+            console.log('[PaymentCallback] Non-leader payment successful, showing success message');
             setStatus('success');
             setMessage('پرداخت با موفقیت انجام شد');
             try {
@@ -317,8 +329,24 @@ function PaymentCallbackContent() {
           const processedData = { isInvited: false, timestamp: Date.now() };
           try { localStorage.setItem(processedKey, JSON.stringify(processedData)); } catch {}
           
-          // For leaders, show success message instead of redirecting to invite page
-          console.log('[PaymentCallback] Leader payment verified, showing success message');
+          // Check if this is a leader (group mode) - they should go to invite page
+          if (paymentRole === 'leader') {
+            const inviteTarget = `/invite?authority=${encodeURIComponent(authority)}`;
+            console.log('[PaymentCallback] Leader payment verified, redirecting to invite page:', inviteTarget);
+            try {
+              if (typeof window !== 'undefined') {
+                window.location.replace(inviteTarget);
+              } else {
+                router.replace(inviteTarget);
+              }
+            } catch {
+              router.replace(inviteTarget);
+            }
+            return;
+          }
+          
+          // For other non-leader users, show success message
+          console.log('[PaymentCallback] Non-leader payment verified, showing success message');
           setStatus('success');
           setMessage('پرداخت با موفقیت انجام شد');
           try {
