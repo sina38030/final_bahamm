@@ -6,6 +6,7 @@ import type { Group } from '@/types/group';
 import { useRouter, useSearchParams } from 'next/navigation';
 import './invite.css';
 import { useAuth } from '@/contexts/AuthContext';
+import { generateInviteLink, generateShareUrl, extractInviteCode, isTelegramMiniApp } from '@/utils/linkGenerator';
 
 interface Product {
   id: number;
@@ -581,12 +582,9 @@ function InvitePageContent() {
   const handleShare = (app: string) => {
     if (!order || inviteDisabled) return;
 
-    const baseUrl = window.location.origin;
-    // Prefer backend-provided code; otherwise synthesize from order id + authority prefix
-    const computedCode = order.group_buy?.invite_code || (order.id && order.payment_authority ? `GB${order.id}${order.payment_authority.slice(0, 8)}` : '');
-    if (!computedCode) return;
+    const landingUrl = resolvedInviteLink;
+    if (!landingUrl) return;
 
-    const landingUrl = `${baseUrl}/landingM?invite=${computedCode}`;
     // Close sheet before navigating to avoid popup blockers on some browsers
     try { setShareSheetOpen(false); } catch {}
 
@@ -602,37 +600,37 @@ function InvitePageContent() {
       return;
     }
 
+    const shareMessage = 'بیا با هم سبد رو بخریم تا رایگان بگیریم!';
     const inviteURL = encodeURIComponent(landingUrl);
-    const inviteMsg = encodeURIComponent('بیا با هم سبد رو بخریم تا رایگان بگیریم!');
+    const inviteMsg = encodeURIComponent(shareMessage);
 
     let url = '#';
     switch (app) {
       case 'telegram':
+        // Generate share URL using utility
+        url = generateShareUrl('telegram', landingUrl, shareMessage);
         // Try opening Telegram app first, then fallback to web
         try {
           const tgApp = `tg://msg_url?url=${inviteURL}&text=${inviteMsg}`;
           const winApp = window.open(tgApp, '_blank', 'noopener,noreferrer');
           setTimeout(() => {
-            const web = `https://t.me/share/url?url=${inviteURL}&text=${inviteMsg}`;
-            const winWeb = window.open(web, '_blank', 'noopener,noreferrer');
-            if (!winWeb) window.location.href = web;
+            const winWeb = window.open(url, '_blank', 'noopener,noreferrer');
+            if (!winWeb) window.location.href = url;
           }, 300);
           if (!winApp) {
-            const web = `https://t.me/share/url?url=${inviteURL}&text=${inviteMsg}`;
-            const winWeb = window.open(web, '_blank', 'noopener,noreferrer');
-            if (!winWeb) window.location.href = web;
+            const winWeb = window.open(url, '_blank', 'noopener,noreferrer');
+            if (!winWeb) window.location.href = url;
           }
         } catch {
-          const web = `https://t.me/share/url?url=${inviteURL}&text=${inviteMsg}`;
-          const winWeb = window.open(web, '_blank', 'noopener,noreferrer');
-          if (!winWeb) window.location.href = web;
+          const winWeb = window.open(url, '_blank', 'noopener,noreferrer');
+          if (!winWeb) window.location.href = url;
         }
         return;
       case 'whatsapp':
-        url = `https://wa.me/?text=${inviteMsg}%20${inviteURL}`;
+        url = generateShareUrl('whatsapp', landingUrl, shareMessage);
         break;
       case 'instagram':
-        url = `https://www.instagram.com/?url=${inviteURL}`;
+        url = generateShareUrl('instagram', landingUrl);
         break;
     }
     try {
@@ -650,20 +648,45 @@ function InvitePageContent() {
 
   const resolvedInviteLink = useMemo(() => {
     if (!order) return '';
+    
     // Prefer newly created secondary group link when present
-    if (createdGroup && createdGroup.shareUrl) return createdGroup.shareUrl;
-    // Prefer backend-provided invite_url if present
-    const backendUrl = (order as any)?.group_buy?.invite_url as string | undefined;
-    if (backendUrl && typeof backendUrl === 'string' && backendUrl.includes('/landingM?invite=')) {
-      return backendUrl;
+    if (createdGroup && createdGroup.shareUrl) {
+      // If we have a share URL, we might want to regenerate it for current environment
+      const code = extractInviteCode(createdGroup.shareUrl);
+      if (code) return generateInviteLink(code);
+      return createdGroup.shareUrl;
     }
-    const authorityParam = (typeof window !== 'undefined') ? (new URLSearchParams(window.location.search).get('authority') || '') : '';
-    const authoritySource = order.payment_authority || authorityParam || '';
-    const code = order.group_buy?.invite_code || (order.id && authoritySource ? `GB${order.id}${authoritySource.slice(0, 8)}` : '');
-    if (!code) return '';
-    const envBase = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_FRONTEND_URL || '').replace(/\/$/, '');
-    const origin = envBase || ((typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '');
-    return `${origin}/landingM?invite=${code}`;
+    
+    // Get invite code from various sources
+    let inviteCode = '';
+    
+    // Try backend-provided invite_url first
+    const backendUrl = (order as any)?.group_buy?.invite_url as string | undefined;
+    if (backendUrl) {
+      const extractedCode = extractInviteCode(backendUrl);
+      if (extractedCode) inviteCode = extractedCode;
+    }
+    
+    // Try direct invite_code
+    if (!inviteCode && order.group_buy?.invite_code) {
+      inviteCode = order.group_buy.invite_code;
+    }
+    
+    // Generate code from order ID and authority as fallback
+    if (!inviteCode) {
+      const authorityParam = (typeof window !== 'undefined') 
+        ? (new URLSearchParams(window.location.search).get('authority') || '') 
+        : '';
+      const authoritySource = order.payment_authority || authorityParam || '';
+      if (order.id && authoritySource) {
+        inviteCode = `GB${order.id}${authoritySource.slice(0, 8)}`;
+      }
+    }
+    
+    if (!inviteCode) return '';
+    
+    // Generate environment-aware link (Telegram mini app vs website)
+    return generateInviteLink(inviteCode);
   }, [order, createdGroup]);
 
   // Include the link inside the text too for clients that ignore the url param

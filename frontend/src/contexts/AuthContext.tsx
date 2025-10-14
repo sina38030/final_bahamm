@@ -276,6 +276,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
         
+        // Check for invite code format (e.g., GB12345ABC or any other invite code)
+        // This handles sharing links from the invite page
+        if (startParam.length > 0 && !paymentMatch) {
+          console.log('[AuthContext] Invite code detected in start_param:', startParam);
+          // Redirect to landing page with invite code
+          setTimeout(() => {
+            router.push(`/landingM?invite=${startParam}`);
+          }, 500);
+          return;
+        }
+        
         // Legacy format support: "order_123_group_456" or "order_123"
         const orderMatch = startParam.match(/order_(\d+)(?:_group_(\d+))?/);
         if (orderMatch) {

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useSheet } from './BottomSheet';
 import styles from '../styles.module.css';
+import { generateInviteLink, generateShareUrl, extractInviteCode } from '@/utils/linkGenerator';
 
 export default function ShareSheet() {
   const { close } = useSheet();
@@ -10,13 +11,21 @@ export default function ShareSheet() {
   const [url, setUrl] = useState<string>('');
   useEffect(() => {
     /* window و location فقط در مرورگر هستند */
-    setUrl(window.location.href);
+    let shareUrl = window.location.href;
+    
+    // Check if there's an invite code in the URL and regenerate based on environment
+    const inviteCode = extractInviteCode(shareUrl);
+    if (inviteCode) {
+      shareUrl = generateInviteLink(inviteCode);
+    }
+    
+    setUrl(shareUrl);
   }, []);
 
   /* تا زمانی که url آماده نشده، چیزی رندر نمی‌کنیم */
   if (!url) return null;
 
-  const enc = encodeURIComponent(url);
+  const shareMessage = 'بیا با هم سبد رو بخریم تا رایگان بگیریم!';
 
   return (
     <div className={styles.shareSheet}>
@@ -26,7 +35,7 @@ export default function ShareSheet() {
 
       <a
         className={styles.shareItem}
-        href={`https://t.me/share/url?url=${enc}`}
+        href={generateShareUrl('telegram', url, shareMessage)}
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -35,7 +44,7 @@ export default function ShareSheet() {
 
       <a
         className={styles.shareItem}
-        href={`https://wa.me/?text=${enc}`}
+        href={generateShareUrl('whatsapp', url, shareMessage)}
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -44,7 +53,7 @@ export default function ShareSheet() {
 
       <a
         className={styles.shareItem}
-        href={`https://www.instagram.com/?url=${enc}`}
+        href={generateShareUrl('instagram', url)}
         target="_blank"
         rel="noopener noreferrer"
       >

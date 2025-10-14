@@ -6,6 +6,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus as faPlusSolid, faMinus as faMinusSolid, faStar, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
 import { useRouter } from 'next/navigation';
 import { useProductModal } from '@/hooks/useProductModal';
+import { generateInviteLink, generateShareUrl, extractInviteCode } from '@/utils/linkGenerator';
 
 // Resilient dynamic import to auto-recover once from transient ChunkLoadError after HMR/build changes
 async function safeImport<T>(importer: () => Promise<T>, key: string): Promise<T> {
@@ -826,17 +827,29 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
       <header ref={headerRef}>
         <button className="share-icon" aria-label="اشتراک‌گذاری" onClick={() => {
           if (typeof window === 'undefined') return;
-          const rawUrl = window.location.href;
-          const urlEnc = encodeURIComponent(rawUrl);
+          
+          // Generate environment-aware link
+          let shareUrl = window.location.href;
+          const inviteCode = extractInviteCode(shareUrl);
+          if (inviteCode) {
+            // Regenerate the link based on current environment
+            shareUrl = generateInviteLink(inviteCode);
+          }
+          
+          const urlEnc = encodeURIComponent(shareUrl);
+          
           if (navigator.share) {
-            navigator.share({ title: document.title || 'اشتراک‌گذاری', url: rawUrl }).catch(() => {});
+            navigator.share({ title: document.title || 'اشتراک‌گذاری', url: shareUrl }).catch(() => {});
             return;
           }
+          
+          const shareMessage = 'بیا با هم سبد رو بخریم تا رایگان بگیریم!';
+          
           openSheet("اشتراک‌گذاری", (
             <div className="share-grid">
-              <a href={`https://t.me/share/url?url=${urlEnc}`} target="_blank" rel="noopener noreferrer"><img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/telegram.svg" alt="تلگرام" loading="lazy" /></a>
-              <a href={`https://api.whatsapp.com/send?text=${urlEnc}`} target="_blank" rel="noopener noreferrer"><img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/whatsapp.svg" alt="واتساپ" loading="lazy" /></a>
-              <button className="copy-link" onClick={async () => { try { await navigator.clipboard.writeText(rawUrl); alert('لینک کپی شد'); } catch { window.prompt('کپی لینک', rawUrl); }}}>کپی لینک</button>
+              <a href={generateShareUrl('telegram', shareUrl, shareMessage)} target="_blank" rel="noopener noreferrer"><img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/telegram.svg" alt="تلگرام" loading="lazy" /></a>
+              <a href={generateShareUrl('whatsapp', shareUrl, shareMessage)} target="_blank" rel="noopener noreferrer"><img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/whatsapp.svg" alt="واتساپ" loading="lazy" /></a>
+              <button className="copy-link" onClick={async () => { try { await navigator.clipboard.writeText(shareUrl); alert('لینک کپی شد'); } catch { window.prompt('کپی لینک', shareUrl); }}}>کپی لینک</button>
             </div>
           ));
         }}>

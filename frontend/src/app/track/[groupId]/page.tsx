@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useParams, useSearchParams } from "next/navigation";
 import { useGroupBuyResult } from "@/components/providers/GroupBuyResultProvider";
+import { generateInviteLink, generateShareUrl, extractInviteCode } from "@/utils/linkGenerator";
 // Removed auth requirement for public access
 
 type GroupStatus = "ongoing" | "success" | "failed";
@@ -402,9 +403,18 @@ export default function TrackPage() {
   const resolvedInviteLink = useMemo(() => {
     try {
       const raw = data?.invite?.shareUrl || "";
+      if (!raw) return "";
+      
+      // Extract invite code from the URL
+      const inviteCode = extractInviteCode(raw);
+      if (inviteCode) {
+        // Generate environment-aware link (Telegram mini app vs website)
+        return generateInviteLink(inviteCode);
+      }
+      
+      // Fallback: resolve the raw URL as before
       const envBase = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_FRONTEND_URL || "").replace(/\/$/, "");
       const origin = envBase || (typeof window !== "undefined" ? window.location.origin : "");
-      if (!raw) return "";
       if (/^https?:\/\//i.test(raw)) return raw;
       if (raw.startsWith("/")) return `${origin}${raw}`;
       return `${origin}/${raw.replace(/^\/+/, "")}`;
