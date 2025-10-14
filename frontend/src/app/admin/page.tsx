@@ -47,14 +47,14 @@
 
   const ADMIN_API_BASE_URL = getAdminApiBaseUrl();
    
-   /** If your API uses cookie-based auth, keep credentials:"include".
-    * If you use Bearer tokens instead, remove `credentials` and add Authorization headers where needed.
+   /** Using Bearer token auth from localStorage (not cookies)
+    * This allows cross-domain authentication between bahamm.ir and app.bahamm.ir
     */
    const API_INIT: RequestInit = {
-     credentials: "include",
      headers: {
        Accept: "application/json",
      },
+     // Removed credentials: "include" to avoid cookie issues with cross-domain
    };
    
    type Section =
@@ -131,7 +131,15 @@
      init?: RequestInit,
      signal?: AbortSignal
    ): Promise<T> {
-     const res = await fetch(url, { ...API_INIT, ...init, signal });
+     // Attach Bearer token from localStorage for authentication
+     const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+     const mergedHeaders: HeadersInit = {
+       ...(API_INIT.headers as any),
+       ...(init?.headers as any),
+       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+     };
+     const mergedInit = { ...API_INIT, ...init, headers: mergedHeaders, signal } as RequestInit;
+     const res = await fetch(url, mergedInit);
    
      // Read body once for reuse in error or JSON parse
      let raw = "";

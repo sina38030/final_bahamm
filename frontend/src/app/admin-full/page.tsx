@@ -79,14 +79,14 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
   // Use this in all fetch calls
   const ADMIN_API_BASE_URL = (() => getAdminApiBaseUrl())();
    
-   /** If your API uses cookie-based auth, keep credentials:"include".
-    * If you use Bearer tokens instead, remove `credentials` and add Authorization headers where needed.
+   /** Using Bearer token auth from localStorage (not cookies)
+    * This allows cross-domain authentication between bahamm.ir and app.bahamm.ir
     */
   const API_INIT: RequestInit = {
     headers: {
       Accept: "application/json",
     },
-    credentials: "include",
+    // Removed credentials: "include" to avoid cookie issues with cross-domain
   };
    
   type Section =
