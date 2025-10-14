@@ -656,29 +656,33 @@ async def payment_callback(
             redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
             return RedirectResponse(url=redirect_url, status_code=303)
         
-        # Determine user type and redirect accordingly
-        is_leader = (order.order_type == OrderType.GROUP and order.group_order_id is None)
-        is_invited_or_solo = (order.group_order_id is not None or order.order_type == OrderType.ALONE)
+        # Determine user type based on GroupOrder.leader_id
+        is_leader = False
+        is_invited = False
         
-        if is_leader:
-            # Leader of group order ➜ invite page to share with friends
-            logger.info(f"Leader order detected (order_id={order.id}) ➜ redirecting to /invite")
-            redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
-        elif is_invited_or_solo:
-            # Invited user or solo purchase ➜ success page
-            logger.info(f"Invited/Solo order detected (order_id={order.id}) ➜ redirecting to /success-buy")
-            # Get invite code if available for success page
-            invite_code = ""
-            if order.group_order_id:
-                group_order = db.query(GroupOrder).filter(GroupOrder.id == order.group_order_id).first()
-                if group_order:
-                    invite_code = group_order.invite_token
+        if order.order_type == OrderType.ALONE:
+            # Solo purchase ➜ success page
+            logger.info(f"Solo order detected (order_id={order.id}) ➜ redirecting to /success-buy")
             redirect_url = f"{settings.FRONTEND_URL}/success-buy?authority={Authority}"
-            if invite_code:
-                redirect_url += f"&inviteCode={invite_code}"
+        elif order.group_order_id:
+            # Group order - check if user is leader or invited
+            group_order = db.query(GroupOrder).filter(GroupOrder.id == order.group_order_id).first()
+            if group_order and group_order.leader_id == order.user_id:
+                # User is the leader ➜ invite page
+                is_leader = True
+                logger.info(f"Leader order detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /invite")
+                redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
+            else:
+                # User is invited (follower) ➜ success page
+                is_invited = True
+                logger.info(f"Invited user order detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /success-buy")
+                invite_code = group_order.invite_token if group_order else ""
+                redirect_url = f"{settings.FRONTEND_URL}/success-buy?authority={Authority}"
+                if invite_code:
+                    redirect_url += f"&inviteCode={invite_code}"
         else:
-            # Fallback to invite page
-            logger.info(f"Unknown order type (order_id={order.id}) ➜ redirecting to /invite")
+            # Fallback: no group_order_id but order_type is GROUP (shouldn't happen but handle it)
+            logger.warning(f"GROUP order without group_order_id (order_id={order.id}) ➜ redirecting to /invite")
             redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
         
         return RedirectResponse(url=redirect_url, status_code=303)
