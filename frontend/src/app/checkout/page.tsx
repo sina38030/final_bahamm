@@ -1163,27 +1163,14 @@ function CheckoutPageContent() {
 
           if (data.success && data.payment_url) {
             console.log('✅ Redirecting to payment gateway (hybrid):', data.payment_url);
-            if (isJoiningGroup) {
-              try { localStorage.setItem('invited_payment', '1'); } catch {}
-              // Persist ship-to-leader intent for invitees when toggle is ON
-              if (greenToggle && !forceDisableConsolidation) {
-                try { localStorage.setItem('ship_to_leader_intent', '1'); } catch {}
-              }
-              try { document.cookie = 'payment_role=invitee; Path=/; Max-Age=1800; SameSite=Lax'; } catch {}
-            } else if (actualMode === 'group') {
-              try { document.cookie = 'payment_role=leader; Path=/; Max-Age=1800; SameSite=Lax'; } catch {}
-            } else if (actualMode === 'solo') {
-              try { document.cookie = 'payment_role=solo; Path=/; Max-Age=1800; SameSite=Lax'; } catch {}
+            
+            // Persist ship-to-leader intent for invitees when toggle is ON
+            if (isJoiningGroup && greenToggle && !forceDisableConsolidation) {
+              try { localStorage.setItem('ship_to_leader_intent', '1'); } catch {}
             }
             
-            // Check if this is a relative URL (like /invite?authority=...) or external URL (ZarinPal)
-            if (data.payment_url.startsWith('/')) {
-              // Relative URL - use router.push for internal navigation
-              router.push(data.payment_url);
-            } else {
-              // External URL - use window.location.href for payment gateway
-              window.location.href = data.payment_url;
-            }
+            // Redirect to payment gateway (will return to Telegram Mini App after payment)
+            window.location.href = data.payment_url;
           } else {
             console.error('❌ Hybrid payment failed:', data);
             alert(data.error || 'خطا در اتصال به درگاه پرداخت');
@@ -1281,24 +1268,8 @@ function CheckoutPageContent() {
       if (data.success && data.payment_url) {
         console.log('✅ Redirecting to payment gateway:', data.payment_url);
         
-        // Mark invited flow and redirect to ZarinPal payment gateway
-        if (isJoiningGroup) {
-          try { localStorage.setItem('invited_payment', '1'); } catch {}
-          try { document.cookie = 'payment_role=invitee; Path=/; Max-Age=1800; SameSite=Lax'; } catch {}
-        } else if (actualMode === 'group') {
-          try { document.cookie = 'payment_role=leader; Path=/; Max-Age=1800; SameSite=Lax'; } catch {}
-        } else if (actualMode === 'solo') {
-          try { document.cookie = 'payment_role=solo; Path=/; Max-Age=1800; SameSite=Lax'; } catch {}
-        }
-        
-        // Check if this is a relative URL (like /invite?authority=...) or external URL (ZarinPal)
-        if (data.payment_url.startsWith('/')) {
-          // Relative URL - use router.push for internal navigation
-          router.push(data.payment_url);
-        } else {
-          // External URL - use window.location.href for payment gateway
-          window.location.href = data.payment_url;
-        }
+        // Redirect to payment gateway (will return to Telegram Mini App after payment)
+        window.location.href = data.payment_url;
       } else {
         console.error('❌ Payment failed:', data);
         alert(data.error || 'خطا در اتصال به درگاه پرداخت');

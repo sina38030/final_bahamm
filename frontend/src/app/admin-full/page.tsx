@@ -25,6 +25,7 @@ import { toFa } from "@/utils/toFa";
 import SettlementsContent from "@/components/SettlementsContent";
 import Image from "next/image";
 import { API_BASE_URL } from "@/utils/api";
+import { syncTokenFromURL } from "@/utils/crossDomainAuth";
    
    /* --------------------------------------------------------------------------
       Config - Backend URL computed at runtime
@@ -269,6 +270,15 @@ import { API_BASE_URL } from "@/utils/api";
        null
      );
      const [dashError, setDashError] = useState<string | null>(null);
+   
+     /* ---------------- Cross-Domain Auth Sync */
+     useEffect(() => {
+       // Sync authentication token from URL if present (for cross-domain navigation)
+       const tokenSynced = syncTokenFromURL();
+       if (tokenSynced) {
+         console.log('[Admin-Full] Token synced from URL for cross-domain auth');
+       }
+     }, []);
    
      /* ---------------- Dashboard load */
      useEffect(() => {

@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import Vazir Font from CDN */
+@import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css');
+
 /* Override HeroUI primary color to #E31C5F */
 :root {
   --nextui-primary: 327 100% 55%; /* #E31C5F in HSL */
@@ -18,12 +21,12 @@
 }
 
 html {
-  font-family: var(--font-iransans), Tahoma, sans-serif;
+  font-family: Vazir, var(--font-iransans), Tahoma, sans-serif;
 }
 
 body {
   direction: rtl;
-  font-family: var(--font-iransans), Tahoma, sans-serif;
+  font-family: Vazir, var(--font-iransans), Tahoma, sans-serif;
   -moz-font-feature-settings: "ss02";
   -webkit-font-feature-settings: "ss02";
   font-feature-settings: "ss02";

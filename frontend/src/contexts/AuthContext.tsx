@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { useRouter, usePathname } from 'next/navigation';
 import { API_BASE_URL } from '../utils/api';
 import { apiClient } from '../utils/apiClient';
+import { syncTokenFromURL } from '../utils/crossDomainAuth';
 
 // Define user type
 export interface User {
@@ -158,6 +159,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const loadUserFromStorage = async () => {
       try {
+        // First, check if there's a token in the URL (cross-domain sync)
+        const tokenSyncedFromURL = syncTokenFromURL();
+        if (tokenSyncedFromURL) {
+          console.log('[AuthContext] Token synced from URL (cross-domain auth)');
+        }
+
         const storedToken = localStorage.getItem('auth_token');
         const storedUser = localStorage.getItem('user');
 
@@ -215,27 +222,72 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (startParam) {
         console.log('[AuthContext] Telegram start_param detected:', startParam);
         
-        // Parse parameter format: "order_123_group_456" or "order_123"
-        const match = startParam.match(/order_(\d+)(?:_group_(\d+))?/);
+        // Parse payment callback format: "payment_AUTHORITY_STATUS"
+        const paymentMatch = startParam.match(/payment_([A-Za-z0-9]+)_(OK|NOK|ERROR)/);
         
-        if (match) {
-          const orderId = match[1];
-          const groupId = match[2];
+        if (paymentMatch) {
+          const authority = paymentMatch[1];
+          const status = paymentMatch[2];
           
-          console.log('[AuthContext] Parsed payment return:', { orderId, groupId });
+          console.log('[AuthContext] Payment callback detected:', { authority, status });
           
-          // Show success notification
-          if (window.Telegram.WebApp.showAlert) {
-            window.Telegram.WebApp.showAlert('✅ پرداخت شما با موفقیت انجام شد!');
+          if (status === 'OK') {
+            // Payment successful
+            if (window.Telegram.WebApp.showAlert) {
+              window.Telegram.WebApp.showAlert('✅ پرداخت شما با موفقیت انجام شد!');
+            }
+            
+            // Get order details from backend using authority
+            fetch(`/api/payment/order/${authority}`)
+              .then(res => res.json())
+              .then(data => {
+                if (data.success && data.order) {
+                  const order = data.order;
+                  // Redirect to appropriate page based on order type
+                  setTimeout(() => {
+                    if (order.group_order_id) {
+                      // For group orders, redirect to tracking page
+                      router.push(`/track/${order.group_order_id}`);
+                    } else if (data.is_invited && data.group_buy?.invite_code) {
+                      // For invited users, redirect to invite page
+                      router.push(`/invite?invite=${data.group_buy.invite_code}`);
+                    } else {
+                      // Default: go to orders list
+                      router.push(`/orders`);
+                    }
+                  }, 500);
+                } else {
+                  // Fallback to orders page
+                  setTimeout(() => router.push('/orders'), 500);
+                }
+              })
+              .catch(err => {
+                console.error('[AuthContext] Error getting order:', err);
+                setTimeout(() => router.push('/orders'), 500);
+              });
+          } else {
+            // Payment failed
+            if (window.Telegram.WebApp.showAlert) {
+              window.Telegram.WebApp.showAlert('❌ پرداخت ناموفق بود. لطفاً مجدداً تلاش کنید.');
+            }
+            // Redirect to cart/orders
+            setTimeout(() => router.push('/cart'), 500);
           }
+          return;
+        }
+        
+        // Legacy format support: "order_123_group_456" or "order_123"
+        const orderMatch = startParam.match(/order_(\d+)(?:_group_(\d+))?/);
+        if (orderMatch) {
+          const orderId = orderMatch[1];
+          const groupId = orderMatch[2];
           
-          // Redirect to appropriate page after a short delay
+          console.log('[AuthContext] Legacy order deeplink:', { orderId, groupId });
+          
           setTimeout(() => {
             if (groupId) {
-              console.log('[AuthContext] Redirecting to group tracking page:', groupId);
               router.push(`/track/${groupId}`);
-            } else if (orderId) {
-              console.log('[AuthContext] Redirecting to order page:', orderId);
+            } else {
               router.push(`/orders/${orderId}`);
             }
           }, 500);

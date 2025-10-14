@@ -102,6 +102,7 @@ api_app.add_middleware(
         "http://127.0.0.1:8000",
         "https://bahamm.ir",  # Production domain (with nginx proxy)
         "http://bahamm.ir",
+        "https://app.bahamm.ir",  # Subdomain for mini app
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -137,6 +138,7 @@ app.add_middleware(
         "http://127.0.0.1:8000",
         "https://bahamm.ir",  # Production domain (with nginx proxy)
         "http://bahamm.ir",
+        "https://app.bahamm.ir",  # Subdomain for mini app
     ],
     allow_credentials=True,
     allow_methods=["*"],

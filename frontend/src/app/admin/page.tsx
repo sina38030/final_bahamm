@@ -18,6 +18,7 @@
    } from "react-icons/fa";
    import { toFa } from "@/utils/toFa";
    import { toTehranDate } from "@/utils/dateUtils";
+   import { syncTokenFromURL } from "@/utils/crossDomainAuth";
    
    /* --------------------------------------------------------------------------
       Config
@@ -188,6 +189,15 @@
        null
      );
      const [dashError, setDashError] = useState<string | null>(null);
+   
+     /* ---------------- Cross-Domain Auth Sync */
+     useEffect(() => {
+       // Sync authentication token from URL if present (for cross-domain navigation)
+       const tokenSynced = syncTokenFromURL();
+       if (tokenSynced) {
+         console.log('[Admin] Token synced from URL for cross-domain auth');
+       }
+     }, []);
    
      /* ---------------- Dashboard load */
      useEffect(() => {
