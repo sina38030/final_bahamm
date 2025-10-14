@@ -622,43 +622,27 @@ async def payment_callback(
     """
     Callback endpoint که زرین‌پال کاربر را به اینجا هدایت می‌کند
     """
+    from fastapi.responses import RedirectResponse
+    
     try:
         if Status == "OK" and Authority:
-            # پرداخت موفق - هدایت به صفحه تایید
+            # پرداخت موفق - هدایت به صفحه callback در frontend
             logger.info(f"Payment callback successful: Authority={Authority}, Status={Status}")
             
-            # Get order information for redirect
-            payment_service = PaymentService(db)
-            order = payment_service.get_order_by_authority(Authority)
-            
-            if order:
-                return {
-                    "message": "پرداخت با موفقیت انجام شد",
-                    "authority": Authority,
-                    "status": Status,
-                    "order_id": order.id,
-                    "redirect_url": f"{settings.FRONTEND_URL}/payment/success?authority={Authority}&order_id={order.id}"
-                }
-            else:
-                return {
-                    "message": "پرداخت با موفقیت انجام شد",
-                    "authority": Authority,
-                    "status": Status,
-                    "redirect_url": f"{settings.FRONTEND_URL}/payment/success?authority={Authority}"
-                }
+            # Redirect to frontend callback page (not success page directly)
+            redirect_url = f"{settings.FRONTEND_URL}/payment/callback?Authority={Authority}&Status={Status}"
+            return RedirectResponse(url=redirect_url, status_code=303)
         else:
             # پرداخت ناموفق
             logger.warning(f"Payment callback failed: Authority={Authority}, Status={Status}")
-            return {
-                "message": "پرداخت ناموفق",
-                "authority": Authority,
-                "status": Status,
-                "redirect_url": f"{settings.FRONTEND_URL}/payment/failed?authority={Authority}"
-            }
+            redirect_url = f"{settings.FRONTEND_URL}/payment/callback?Authority={Authority}&Status={Status or 'NOK'}"
+            return RedirectResponse(url=redirect_url, status_code=303)
             
     except Exception as e:
         logger.error(f"Payment callback error: {str(e)}")
-        raise HTTPException(status_code=500, detail="خطا در پردازش callback")
+        # Even on error, redirect to callback page with error status
+        redirect_url = f"{settings.FRONTEND_URL}/payment/callback?Status=ERROR"
+        return RedirectResponse(url=redirect_url, status_code=303)
 
 @router.get("/orders")
 async def get_user_payment_orders(
