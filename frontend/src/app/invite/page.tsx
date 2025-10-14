@@ -88,14 +88,9 @@ function InvitePageContent() {
   // Convert numbers to Persian digits
   const toFa = (n: number | string) => n.toString().replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[parseInt(d)]);
 
-  // Detect if user is leader based on payment role cookie
+  // Leader status is determined from order data
   useEffect(() => {
-    const soloCookie = typeof document !== 'undefined' ? document.cookie.split('; ').find(c => c.startsWith('payment_role=')) : null;
-    const paymentRole = soloCookie ? soloCookie.split('=')[1] : null;
-    const isLeaderUser = paymentRole === 'leader';
-    setIsLeader(isLeaderUser);
-    
-    console.log('[Invite] Detected user type:', { paymentRole, isLeaderUser });
+    setIsLeader(false);
   }, []);
 
   // Fetch order data with retry logic for fresh payments

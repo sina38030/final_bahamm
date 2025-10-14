@@ -234,7 +234,7 @@ class PaymentService:
             result = await zarinpal.request_payment(
                 amount=total_amount,
                 description=description,
-                callback_url=f"{settings.FRONTEND_URL}/payment/callback",
+                callback_url=f"{settings.FRONTEND_URL}/api/payment/callback",
                 mobile=mobile,
                 email=email
             )
@@ -505,7 +505,17 @@ class PaymentService:
                             # If not JSON, treat as regular delivery_slot
                             pass
                     
-                    if order.order_type == OrderType.ALONE and order_mode == 'group':
+                    # Also check if this is a leader order by checking if it's not an invited user
+                    # and has group-related characteristics
+                    is_invited_user = (
+                        hasattr(order, 'shipping_address') and 
+                        order.shipping_address and 
+                        (order.shipping_address.startswith('PENDING_INVITE:') or 
+                         order.shipping_address.startswith('PENDING_GROUP:'))
+                    )
+                    
+                    # If not invited user and order type is ALONE, this could be a leader
+                    if order.order_type == OrderType.ALONE and (order_mode == 'group' or not is_invited_user):
                         # This is a group buy leader payment - create GroupOrder now
                         try:
                             # Try to resolve leader user by order's user_id or create a minimal one

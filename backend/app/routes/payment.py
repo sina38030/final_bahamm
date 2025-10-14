@@ -317,7 +317,16 @@ async def create_payment_order_public(
                     # Leader initiating a new group buy
                     # If mode indicates group, create GroupOrder immediately so admin can see it
                     try:
-                        if (getattr(order_data, 'mode', None) or '').lower() == 'group' and not order.group_order_id:
+                        # Check if this is a leader order (not invited user)
+                        is_invited_user = (
+                            hasattr(order_data, 'shipping_address') and 
+                            order_data.shipping_address and 
+                            isinstance(order_data.shipping_address, str) and
+                            (order_data.shipping_address.startswith('PENDING_INVITE:') or 
+                             order_data.shipping_address.startswith('PENDING_GROUP:'))
+                        )
+                        
+                        if ((getattr(order_data, 'mode', None) or '').lower() == 'group' or not is_invited_user) and not order.group_order_id:
                             # Resolve leader user
                             leader_user = None
                             if order.user_id:
@@ -468,8 +477,8 @@ async def request_payment_public(
     درخواست پرداخت جدید (بدون احراز هویت)
     """
     try:
-        # آدرس بازگشت پس از پرداخت
-        callback_url = f"{settings.FRONTEND_URL}/payment/callback"
+        # آدرس بازگشت پس از پرداخت - به backend callback endpoint که سپس به Telegram Mini App redirect می‌کند
+        callback_url = f"{settings.FRONTEND_URL}/api/payment/callback"
         
         # درخواست پرداخت از زرین‌پال
         result = await zarinpal.request_payment(
@@ -505,8 +514,8 @@ async def request_payment(
     درخواست پرداخت جدید
     """
     try:
-        # آدرس بازگشت پس از پرداخت
-        callback_url = f"{settings.FRONTEND_URL}/payment/callback"
+        # آدرس بازگشت پس از پرداخت - به backend callback endpoint که سپس به Telegram Mini App redirect می‌کند
+        callback_url = f"{settings.FRONTEND_URL}/api/payment/callback"
         
         # درخواست پرداخت از زرین‌پال
         result = await zarinpal.request_payment(
@@ -621,27 +630,33 @@ async def payment_callback(
 ):
     """
     Callback endpoint که زرین‌پال کاربر را به اینجا هدایت می‌کند
+    بعد از پرداخت، کاربر را به Telegram Mini App برمی‌گرداند
     """
     from fastapi.responses import RedirectResponse
     
     try:
+        # Redirect back to Telegram Mini App with payment result
+        # Format: https://t.me/BOT_USERNAME/MINIAPP_NAME?startapp=payment_AUTHORITY_STATUS
+        bot_username = settings.TELEGRAM_BOT_USERNAME
+        miniapp_name = settings.TELEGRAM_MINIAPP_NAME
+        
         if Status == "OK" and Authority:
-            # پرداخت موفق - هدایت به صفحه callback در frontend
             logger.info(f"Payment callback successful: Authority={Authority}, Status={Status}")
-            
-            # Redirect to frontend callback page (not success page directly)
-            redirect_url = f"{settings.FRONTEND_URL}/payment/callback?Authority={Authority}&Status={Status}"
+            # Redirect to Telegram Mini App with success status
+            redirect_url = f"https://t.me/{bot_username}/{miniapp_name}?startapp=payment_{Authority}_OK"
             return RedirectResponse(url=redirect_url, status_code=303)
         else:
-            # پرداخت ناموفق
             logger.warning(f"Payment callback failed: Authority={Authority}, Status={Status}")
-            redirect_url = f"{settings.FRONTEND_URL}/payment/callback?Authority={Authority}&Status={Status or 'NOK'}"
+            # Redirect to Telegram Mini App with failed status
+            status_param = Status or 'NOK'
+            authority_param = Authority or 'UNKNOWN'
+            redirect_url = f"https://t.me/{bot_username}/{miniapp_name}?startapp=payment_{authority_param}_{status_param}"
             return RedirectResponse(url=redirect_url, status_code=303)
             
     except Exception as e:
         logger.error(f"Payment callback error: {str(e)}")
-        # Even on error, redirect to callback page with error status
-        redirect_url = f"{settings.FRONTEND_URL}/payment/callback?Status=ERROR"
+        # Even on error, redirect to Telegram Mini App with error status
+        redirect_url = f"https://t.me/{settings.TELEGRAM_BOT_USERNAME}/{settings.TELEGRAM_MINIAPP_NAME}?startapp=payment_ERROR_ERROR"
         return RedirectResponse(url=redirect_url, status_code=303)
 
 @router.get("/orders")
@@ -962,16 +977,19 @@ async def get_order_by_authority(
         }
         
         return {
-            "order_id": order.id,
-            "status": order.status,
-            "total_amount": order.total_amount,
-            "payment_authority": order.payment_authority,
-            "payment_ref_id": order.payment_ref_id,
-            "created_at": order.created_at.isoformat(),
-            "group_order_id": group_order_id,
-            "is_invited": is_invited,
-            "items": order_items,
-            "group_buy": group_buy
+            "success": True,
+            "order": {
+                "id": order.id,
+                "status": order.status,
+                "total_amount": order.total_amount,
+                "payment_authority": order.payment_authority,
+                "payment_ref_id": order.payment_ref_id,
+                "created_at": order.created_at.isoformat(),
+                "group_order_id": group_order_id,
+                "is_invited": is_invited,
+                "items": order_items,
+                "group_buy": group_buy
+            }
         }
         
     except HTTPException as e:
