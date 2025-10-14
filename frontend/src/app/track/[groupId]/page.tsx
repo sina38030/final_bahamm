@@ -485,8 +485,20 @@ export default function TrackPage() {
   const currentPricing = useMemo(() => {
     if (!data) return { originalTotal: 0, currentTotal: 0 };
 
+    const safeOriginal = Number(
+      (data as any)?.pricing?.originalTotal ??
+      (data as any)?.orderSummary?.originalPrice ??
+      (data as any)?.initialPayment ??
+      0
+    );
+    const safeCurrent = Number(
+      (data as any)?.pricing?.currentTotal ??
+      (data as any)?.orderSummary?.finalItemsPrice ??
+      safeOriginal
+    );
+
     if (isSecondaryGroup) {
-      const basketValue = data.pricing.originalTotal;
+      const basketValue = Number(safeOriginal || 0);
       const secondaryTotals = computeSecondaryTotals(nonLeaderPaid, basketValue);
       return {
         originalTotal: secondaryTotals.solo,
@@ -495,8 +507,8 @@ export default function TrackPage() {
     }
 
     return {
-      originalTotal: data.pricing.originalTotal,
-      currentTotal: data.pricing.currentTotal
+      originalTotal: Number(safeOriginal || 0),
+      currentTotal: Number(safeCurrent || 0)
     };
   }, [data, isSecondaryGroup, nonLeaderPaid]);
 
