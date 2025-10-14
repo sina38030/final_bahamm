@@ -4,8 +4,47 @@ import { useEffect, useState } from "react";
 import { FaExclamationTriangle } from "react-icons/fa";
 import { toFa } from "@/utils/toFa";
 
-const ADMIN_API_BASE_URL =
-  process.env.NEXT_PUBLIC_ADMIN_API_URL ?? "http://127.0.0.1:8001/api";
+// Auto-detect API base URL based on environment
+function getAdminApiBaseUrl(): string {
+  if (typeof window === 'undefined') {
+    return "http://localhost:8001/api";
+  }
+  
+  // Client-side: use env var or construct from current location
+  const envUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_ADMIN_API_URL;
+  let rawBase: string;
+  
+  if (envUrl) {
+    console.log('[SettlementsContent] Using env URL:', envUrl);
+    rawBase = envUrl;
+  } else {
+    // Auto-detect based on environment
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    
+    // Production: use nginx reverse proxy path
+    if (hostname === 'bahamm.ir' || hostname === 'www.bahamm.ir' || hostname === 'app.bahamm.ir') {
+      rawBase = `${protocol}//${hostname}`;
+      console.log('[SettlementsContent] Production URL (nginx proxy):', rawBase);
+    } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      // Development: direct connection to backend port
+      rawBase = `${protocol}//${hostname}:8001`;
+      console.log('[SettlementsContent] Development URL (direct):', rawBase);
+    } else {
+      // Unknown environment, try direct port access
+      rawBase = `${protocol}//${hostname}:8001`;
+      console.log('[SettlementsContent] Unknown env, trying port 8001:', rawBase);
+    }
+  }
+  
+  const trimmed = rawBase.replace(/\/+$/, "");
+  const apiUrl = /\/api$/i.test(trimmed) ? trimmed : `${trimmed}/api`;
+  
+  console.log('[SettlementsContent] Final API Base URL:', apiUrl);
+  return apiUrl;
+}
+
+const ADMIN_API_BASE_URL = getAdminApiBaseUrl();
 
 async function fetchJSON<T>(url: string, options?: RequestInit, signal?: AbortSignal): Promise<T> {
   const response = await fetch(url, {

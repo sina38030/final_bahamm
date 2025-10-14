@@ -4399,8 +4399,8 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
         try {
           setLoading(true);
           setError(null);
-          // Fetch secondary groups from admin API
-          const BASE = (process.env.NEXT_PUBLIC_ADMIN_API_URL ?? "http://127.0.0.1:8001/api").replace(/\/$/, "");
+          // Fetch secondary groups from admin API using auto-detected URL
+          const BASE = getAdminApiBaseUrl();
           const res = await fetch(`${BASE}/admin/secondary-groups?limit=1000`, { headers: { 'Accept': 'application/json' }, cache: 'no-store' });
           if (!res.ok) {
             if (res.status === 401 || res.status === 403) {
