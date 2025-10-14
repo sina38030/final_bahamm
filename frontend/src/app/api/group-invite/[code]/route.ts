@@ -10,7 +10,19 @@ export async function GET(
     
     // Fetch from backend server (route lives under /api/payment)
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8001';
-    const response = await fetch(`${backendUrl}/api/payment/group-invite/${code}`, { next: { revalidate: 30 } });
+    console.log('Backend URL:', backendUrl);
+    
+    // Handle case where backendUrl already includes /api
+    let baseUrl = backendUrl;
+    if (backendUrl.endsWith('/api')) {
+      baseUrl = backendUrl.replace('/api', '');
+    }
+    
+    const apiPath = `${baseUrl}/api/payment/group-invite/${code}`;
+    console.log('Fetching:', apiPath);
+    
+    const response = await fetch(apiPath, { next: { revalidate: 30 } });
+    console.log('Response status:', response.status);
     
     if (!response.ok) {
       return NextResponse.json(

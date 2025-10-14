@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const revalidate = 30;
 
-const BACKEND_BASE = process.env.NEXT_PUBLIC_ADMIN_API_URL || 'http://127.0.0.1:8001/api';
+// Handle backend URL configuration properly
+let backendBase = process.env.NEXT_PUBLIC_ADMIN_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8001/api';
+if (backendBase.endsWith('/api')) {
+  backendBase = backendBase.replace('/api', '') + '/api';
+}
+const BACKEND_BASE = backendBase;
 
 function normalizeDateString(input: any): string | null {
   if (!input) return null;
