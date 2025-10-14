@@ -27,7 +27,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ i
       }
     } catch {}
     try {
-      const grpRes = await fetch(`/api/groups/${encodeURIComponent(invite)}`, { next: { revalidate: 30 } });
+      // Use full backend URL for server-side fetch
+      const grpRes = await fetch(`${backendUrl}/api/admin/group-buys/${encodeURIComponent(invite)}`, { next: { revalidate: 30 } });
       if (grpRes.ok) {
         initialGroupMeta = await grpRes.json();
       }

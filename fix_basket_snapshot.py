@@ -87,15 +87,27 @@ def fix_group_basket_snapshots():
                     except:
                         pass
                 
+                # Determine unit_price: prefer product prices over item.base_price
+                unit_price = 0.0
+                if product and product.market_price and product.market_price > 0:
+                    unit_price = float(product.market_price)
+                elif product and product.solo_price and product.solo_price > 0:
+                    unit_price = float(product.solo_price)
+                elif product and product.friend_1_price and product.friend_1_price > 0:
+                    unit_price = float(product.friend_1_price)
+                elif item.base_price and item.base_price > 0:
+                    unit_price = float(item.base_price)
+                
                 basket_items.append({
                     "product_id": item.product_id,
                     "quantity": item.quantity,
-                    "unit_price": float(item.base_price) if item.base_price else 0.0,
+                    "unit_price": unit_price,
                     "product_name": product.name if product else f"محصول {item.product_id}",
                     "market_price": float(product.market_price) if product and product.market_price else None,
                     "friend_1_price": float(product.friend_1_price) if product and product.friend_1_price else None,
                     "friend_2_price": float(product.friend_2_price) if product and product.friend_2_price else None,
                     "friend_3_price": float(product.friend_3_price) if product and product.friend_3_price else None,
+                    "solo_price": float(product.solo_price) if product and product.solo_price else None,
                     "image": image_url,
                 })
             
