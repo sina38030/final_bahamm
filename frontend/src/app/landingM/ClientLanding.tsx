@@ -160,6 +160,9 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
     return { solo_price: 0, friend_1_price: 0, friend_2_price: 0, friend_3_price: 0, market_price: 0, base_price: 0 };
   };
 
+  const __DEV__ = process.env.NODE_ENV !== 'production';
+  const debugLog = (...args: any[]) => { if (__DEV__) console.log(...args); };
+
   const formatWeight = (weightGrams?: number, tolGrams?: number) => {
     const w = Number(weightGrams || 0);
     const t = typeof tolGrams === 'number' ? Number(tolGrams) : undefined;
@@ -177,8 +180,12 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
   };
 
   const selectionProducts: SelectionProduct[] = useMemo(() => {
-    if (!Array.isArray(productsData) || productsData.length === 0) return [];
-    return productsData.map((bp: any) => {
+    debugLog('📦 selectionProducts: productsData count=', productsData?.length || 0);
+    if (!Array.isArray(productsData) || productsData.length === 0) {
+      debugLog('⚠️ selectionProducts: productsData is empty or not an array');
+      return [];
+    }
+    const result = productsData.map((bp: any) => {
       const solo = Number(bp.solo_price ?? bp.market_price ?? bp.base_price ?? 0) || 0;
       const friend1 = Number(bp.friend_1_price ?? solo) || solo;
       const categoryRaw = String(bp.category || '').toLowerCase();
@@ -203,10 +210,19 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
         priceValue: friend1,
       } as SelectionProduct;
     });
+    debugLog('📦 selectionProducts: mapped count=', result.length);
+    return result;
   }, [productsData]);
 
   const referenceOrderItems = useMemo(() => {
+    debugLog('🔍 referenceOrderItems calculation:', {
+      hasGroupOrderData: !!groupOrderData,
+      hasItems: groupOrderData?.items ? `yes (${groupOrderData.items.length})` : 'no',
+      selectionProductsCount: selectionProducts.length
+    });
+    
     if (groupOrderData && Array.isArray(groupOrderData.items)) {
+      debugLog('✅ Using groupOrderData.items');
       return groupOrderData.items.map((item: any, index: number) => ({
         productId: Number(item.product_id ?? index),
         quantity: item.quantity || 1,
@@ -216,6 +232,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
       }));
     }
     if (selectionProducts.length) {
+      debugLog('⚠️ Fallback to selectionProducts (first 5)');
       return selectionProducts.slice(0, 5).map((sp, i) => ({
         productId: sp.id,
         quantity: i === 1 ? 2 : 1,
@@ -223,12 +240,15 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
         price: sp.priceValue,
       }));
     }
+    debugLog('❌ No referenceOrderItems available');
     return [] as any[];
   }, [groupOrderData, selectionProducts]);
 
   const productMap = useMemo(() => {
     const map: Record<number, any> = {};
     selectionProducts.forEach(sp => { map[sp.id] = sp; });
+    debugLog('📦 productMap: initial from selectionProducts:', Object.keys(map).length);
+    
     if (groupOrderData && Array.isArray(groupOrderData.items)) {
       groupOrderData.items.forEach((item: any, index: number) => {
         const productName = item.product_name || item.name || `محصول ${index + 1}`;
@@ -254,12 +274,11 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
           newPriceValue: productPrice,
         };
       });
+      debugLog('📦 productMap: after adding group items:', Object.keys(map).length);
     }
+    debugLog('📦 productMap final size:', Object.keys(map).length);
     return map;
   }, [selectionProducts, groupOrderData]);
-
-  const __DEV__ = process.env.NODE_ENV !== 'production';
-  const debugLog = (...args: any[]) => { if (__DEV__) console.log(...args); };
 
   useEffect(() => {
     if (Array.isArray(initialProducts) && initialProducts.length > 0) {
@@ -286,6 +305,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
     if (inviteCode) {
       if (initialGroupOrderData && initialGroupOrderData.success) {
         debugLog('🎯 Using server-provided initial group order data');
+        debugLog('📋 Group data items:', initialGroupOrderData.items?.length || 0);
         setGroupOrderData(initialGroupOrderData);
         const statusRaw = String(initialGroupOrderData?.status || '').toLowerCase();
         if (statusRaw.includes('final') || statusRaw.includes('success') || statusRaw.includes('موفق')) {
@@ -303,6 +323,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
         fetchJson(`/api/group-invite/${encodeURIComponent(inviteCode)}?t=${Date.now()}`)
           .then(data => {
             debugLog('📋 Raw response data:', data?.success ? 'success' : 'fail');
+            debugLog('📋 Group data items:', data?.items?.length || 0);
             if (data.success) {
               setGroupOrderData(data);
               const statusRaw2 = String(data?.status || '').toLowerCase();
