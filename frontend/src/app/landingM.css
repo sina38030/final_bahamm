@@ -11,15 +11,14 @@ header{display:flex;justify-content:center;align-items:center;padding:16px 0;bac
 
 /* ===== لینک مشاهده سبد گروهی ===== */
 .basket-head{margin:20px 12px;text-align:right}
-.view-full{font-weight:400;color:#2;text-decoration:none;font-size:.9rem;background:transparent;border:none;cursor:pointer;padding:0}
+.view-full{font-weight:400;color:#222;text-decoration:none;font-size:.9rem;background:transparent;border:none;cursor:pointer;padding:0}
 
 /* ===== اسلایدر ===== */
 .basket-carousel{display:flex;overflow-x:auto;padding:0 32px 20px 16px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;will-change:transform;contain:content}
 .basket-carousel::-webkit-scrollbar{display:none}
 .basket-item{min-width:90px;height:90px;margin-left:12px;position:relative;border-radius:6px;background:#ddd;scroll-snap-align:start}
 .basket-item:first-child{margin-right:12px}
-.basket-item img{width:100%;height:100%;object-fit:cover}
-.basket-item img{ border-radius:12px }
+.basket-item img{width:100%;height:100%;object-fit:cover;border-radius:12px}
 .qty{position:absolute;font-size:.7rem;font-weight:700;background:#fff;padding:2px 6px;border-radius:6px;top:-5px;right:2px;transform:translateX(50%)}
 .discount-badge{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);font-size:.6rem;font-weight:700;background:#e6005c;color:#fff;padding:2px 4px;border-radius:4px;white-space:nowrap;text-align:center}
 .off{bottom:3px;left:3px;color:#e6005c}
@@ -54,7 +53,7 @@ header{display:flex;justify-content:center;align-items:center;padding:16px 0;bac
 .green-box::before{content:"⬇";margin-left:5px;color:#2e8b57}
 
 /* ===== تب‌ها ===== */
-.tabs{display:flex;justify-content:space-around;margin:12px 0;font-size:.9rem;background:#fff;position:sticky;z-index:4;padding:8px 0;box-shadow:0 2px 4px rgba(0,0,0,.1)}
+.tabs{display:flex;justify-content:space-around;margin:12px 0;font-size:.9rem;background:#fff;position:sticky;top:0;z-index:4;padding:8px 0;box-shadow:0 2px 4px rgba(0,0,0,.1)}
 .tab{cursor:pointer;padding:4px 8px;font-weight:700;color:#555}
 .tab.active{color:#e6005c;text-decoration:underline;text-decoration-color:#e6005c;text-decoration-thickness:2px;text-underline-offset:6px}
 
