@@ -14,7 +14,7 @@ export async function PUT(
     const adminBase = getAdminApiBase();
     const token = request.cookies.get('auth_token')?.value;
 
-    console.log('Backend URL:', BACKEND_URL);
+    console.log('Backend URL:', adminBase);
     console.log('Token exists:', !!token);
 
     // Temporarily allow without token for testing
