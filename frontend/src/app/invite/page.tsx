@@ -87,7 +87,7 @@ function InvitePageContent() {
   // Convert numbers to Persian digits
   const toFa = (n: number | string) => n.toString().replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[parseInt(d)]);
 
-  // Fetch order data
+  // Fetch order data with retry logic for fresh payments
   useEffect(() => {
     const authority = searchParams.get('authority');
     
@@ -97,13 +97,14 @@ function InvitePageContent() {
       return;
     }
 
-    const fetchOrder = async () => {
+    const fetchOrder = async (retryCount = 0) => {
       try {
         const response = await fetch(`/api/payment/order/${authority}`);
         const data = await response.json();
 
         if (data.success) {
           setOrder(data.order);
+          setLoading(false);
           // Show success banner when returning from bank with ref_id or confirmed order
           const refIdParam = searchParams.get('ref_id');
           if (refIdParam || data.order?.payment_ref_id) {
@@ -113,11 +114,23 @@ function InvitePageContent() {
           
           // Time will be set from /api/groups/{inviteCode} below to persist across refreshes
         } else {
+          // If order not found yet and we haven't retried too many times, retry
+          if (retryCount < 3) {
+            console.log(`[Invite] Order not ready yet, retrying in ${1000 * (retryCount + 1)}ms (attempt ${retryCount + 1}/3)`);
+            setTimeout(() => fetchOrder(retryCount + 1), 1000 * (retryCount + 1));
+            return;
+          }
           setError(data.error || 'خطا در دریافت اطلاعات سفارش');
+          setLoading(false);
         }
       } catch (err) {
+        // On network error, retry once
+        if (retryCount < 1) {
+          console.log('[Invite] Network error, retrying once...');
+          setTimeout(() => fetchOrder(retryCount + 1), 1500);
+          return;
+        }
         setError('خطا در اتصال به سرور');
-      } finally {
         setLoading(false);
       }
     };
@@ -729,16 +742,23 @@ function InvitePageContent() {
   }
 
   if (error) {
-    // Redirect to checkout after a brief delay
-    setTimeout(() => {
-      router.push('/checkout');
-    }, 1000);
-    
+    // Show error message instead of redirecting to checkout
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse text-center">
-          <div className="w-12 h-12 bg-gray-300 rounded-full mx-auto mb-4"></div>
-          <p>در حال انتقال به صفحه پرداخت...</p>
+        <div className="text-center">
+          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-bold text-gray-900 mb-2">خطا در بارگذاری</h2>
+          <p className="text-gray-600 text-sm mb-4">{error}</p>
+          <button 
+            onClick={() => router.push('/checkout')}
+            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+          >
+            بازگشت به صفحه پرداخت
+          </button>
         </div>
       </div>
     );

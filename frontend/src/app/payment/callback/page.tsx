@@ -70,13 +70,15 @@ function PaymentCallbackContent() {
                 return;
               }
             } catch {}
-            const inviteTarget = `/invite?authority=${encodeURIComponent(authority)}`;
-            console.log('[PaymentCallback] Redirecting to invite page:', inviteTarget);
-            if (typeof window !== 'undefined') {
-              window.location.replace(inviteTarget);
-            } else {
-              router.replace(inviteTarget);
-            }
+            // For non-invited users (leaders), show success message instead of redirecting to invite
+            console.log('[PaymentCallback] Leader payment successful, showing success message');
+            setStatus('success');
+            setMessage('پرداخت با موفقیت انجام شد');
+            try {
+              const res = await fetch(`/api/payment/order/${authority}`);
+              const data = await res.json();
+              if (data?.success && data.order) setOrder(data.order);
+            } catch {}
             return;
           }
         }
@@ -287,20 +289,43 @@ function PaymentCallbackContent() {
             }
           } catch {}
 
-          // Otherwise keep original behavior: redirect to invite page
+          // Otherwise: verify payment FIRST, then redirect to invite page
+          console.log('[PaymentCallback] Leader flow - verifying payment before redirect');
+          try {
+            setVerifying(true);
+            // Verify payment
+            await fetch('/api/payment', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                authority, 
+                amount: amount ? parseInt(amount) : undefined 
+              }),
+            }).catch(() => {});
+            
+            // Wait a bit for backend to process
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            console.log('[PaymentCallback] Payment verified, redirecting to invite');
+          } catch (e) {
+            console.error('[PaymentCallback] Verification failed:', e);
+          } finally {
+            setVerifying(false);
+          }
+          
           const processedKey = `processed_${authority}`;
           const processedData = { isInvited: false, timestamp: Date.now() };
           try { localStorage.setItem(processedKey, JSON.stringify(processedData)); } catch {}
-          const inviteTarget = `/invite?authority=${encodeURIComponent(authority)}`;
+          
+          // For leaders, show success message instead of redirecting to invite page
+          console.log('[PaymentCallback] Leader payment verified, showing success message');
+          setStatus('success');
+          setMessage('پرداخت با موفقیت انجام شد');
           try {
-            if (typeof window !== 'undefined') {
-              window.location.replace(inviteTarget);
-            } else {
-              router.replace(inviteTarget);
-            }
-          } catch {
-            router.replace(inviteTarget);
-          }
+            const res = await fetch(`/api/payment/order/${authority}`);
+            const data = await res.json();
+            if (data?.success && data.order) setOrder(data.order);
+          } catch {}
           return;
         }
       } else {
@@ -308,9 +333,9 @@ function PaymentCallbackContent() {
         setStatus('failed');
         setMessage('پرداخت ناموفق یا لغو شده');
         
-        // Redirect to invite page anyway to let user recover
+        // For failed payments, redirect to checkout instead of invite page
         setTimeout(() => {
-          const target = `/invite${authority ? `?authority=${authority}` : ''}`;
+          const target = `/checkout`;
           try {
             if (typeof window !== 'undefined') {
               window.location.assign(target);

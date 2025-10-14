@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     # Payment Gateway Configuration (ZarinPal)
     ZARINPAL_MERCHANT_ID: str = "2cea1309-4a05-4f02-82ce-9a6d183db8a4"  # Real merchant ID
     ZARINPAL_SANDBOX: bool = False
-    FRONTEND_URL: str = "http://localhost:3000"
+    FRONTEND_URL: str = "https://bahamm.ir"  # Production domain for payment callbacks
     
     # Telegram Mini App Configuration
     # Required for verifying Telegram WebApp authentication
