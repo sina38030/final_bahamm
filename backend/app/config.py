@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # Telegram Mini App Configuration
     # Required for verifying Telegram WebApp authentication
     # Get your bot token from @BotFather on Telegram
-    TELEGRAM_BOT_TOKEN: str = "8413343514:AAFiyFNsJUSuEh0aLG9dZxSnSHwAyRPK09E"
+    TELEGRAM_BOT_TOKEN: str = "8401301600:AAESD_wvk1dw0O9HQT_jNkWIdlpCp5GNlwc"
     TELEGRAM_BOT_USERNAME: str = "bahamm_shop_bot"  # Your bot username (without @)
     TELEGRAM_MINIAPP_NAME: str = "shop"  # Your mini app name configured in BotFather
 
