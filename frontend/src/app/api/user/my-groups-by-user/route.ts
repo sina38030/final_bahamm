@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAdminApiBase } from '@/utils/serverBackend';
 
-const BACKEND_BASE = process.env.NEXT_PUBLIC_ADMIN_API_URL || 'http://127.0.0.1:8001/api';
+const BACKEND_BASE = getAdminApiBase();
 
 const isOngoing = (s: any): boolean => {
   try {
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
     const userId = url.searchParams.get('userId');
     if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
 
-    const res = await fetch(`${BACKEND_BASE}/admin/users/${encodeURIComponent(userId)}/group-buys`, { cache: 'no-store' });
+    const res = await fetch(`${BACKEND_BASE}/users/${encodeURIComponent(userId)}/group-buys`, { cache: 'no-store' });
     if (!res.ok) return NextResponse.json([], { status: 200 });
     const list: any[] = await res.json().catch(() => []);
     const ids = Array.isArray(list)

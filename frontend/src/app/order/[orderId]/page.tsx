@@ -143,7 +143,7 @@ export default function OrderTrackingPage() {
           if (needsDetails) {
             try {
               const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-              const backendUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8001').replace(/\/$/, '');
+              const backendUrl = typeof window !== 'undefined' ? window.location.origin.replace(/\/$/, '') : '';
               const adminRes = await fetch(`${backendUrl}/api/admin/orders/${encodeURIComponent(String(normalized.id))}`, {
                 method: 'GET',
                 headers: {

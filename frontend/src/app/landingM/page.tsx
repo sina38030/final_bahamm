@@ -1,4 +1,5 @@
 import { ProductModalProvider } from '@/hooks/useProductModal';
+import { getSiteOrigin } from '@/utils/serverBackend';
 import ClientLanding from './ClientLanding';
 
 export const revalidate = 60;
@@ -7,11 +8,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ i
   const params = await searchParams;
   const invite = params?.invite ?? '';
 
-  const backendUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8001').replace(/\/$/, '');
+  const origin = getSiteOrigin();
 
   let initialProducts: any[] = [];
   try {
-    const res = await fetch(`${backendUrl}/api/admin/products?order=landing`, { next: { revalidate: 60 } });
+    const res = await fetch(`${origin}/api/admin/products?order=landing`, { next: { revalidate: 60 } });
     if (res.ok) {
       initialProducts = await res.json();
     }
@@ -21,14 +22,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ i
   let initialGroupMeta: any | null = null;
   if (invite) {
     try {
-      const res = await fetch(`${backendUrl}/api/payment/group-invite/${encodeURIComponent(invite)}`, { next: { revalidate: 30 } });
+      const res = await fetch(`${origin}/api/group-invite/${encodeURIComponent(invite)}`, { next: { revalidate: 30 } });
       if (res.ok) {
         initialGroupOrderData = await res.json();
       }
     } catch {}
     try {
-      // Use full backend URL for server-side fetch
-      const grpRes = await fetch(`${backendUrl}/api/admin/group-buys/${encodeURIComponent(invite)}`, { next: { revalidate: 30 } });
+      const grpRes = await fetch(`${origin}/api/groups/${encodeURIComponent(invite)}`, { next: { revalidate: 30 } });
       if (grpRes.ok) {
         initialGroupMeta = await grpRes.json();
       }

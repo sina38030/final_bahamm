@@ -1,4 +1,5 @@
 import HomeClient from './HomeClient';
+import { getSiteOrigin } from '@/utils/serverBackend';
 
 export const revalidate = 60;
 
@@ -28,13 +29,13 @@ function mapProducts(items: any[]): any[] {
 }
 
 export default async function Home() {
-  const backendUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8001').replace(/\/$/, '');
+  const origin = getSiteOrigin();
 
   let initialProductsRaw: any[] = [];
   let initialBanners: any[] = [];
 
   try {
-    const res = await fetch(`${backendUrl}/api/admin/products?limit=20&skip=0&order=home`, { next: { revalidate: 60 } });
+    const res = await fetch(`${origin}/api/admin/products?limit=20&skip=0&order=home`, { next: { revalidate: 60 } });
     if (res.ok) {
       const items = await res.json();
       initialProductsRaw = mapProducts(items);
@@ -43,7 +44,7 @@ export default async function Home() {
 
   if (!initialProductsRaw.length) {
     try {
-      const res = await fetch(`${backendUrl}/api/products?page=1&limit=20`, { next: { revalidate: 60 } });
+      const res = await fetch(`${origin}/api/products?page=1&limit=20`, { next: { revalidate: 60 } });
       if (res.ok) {
         const items = await res.json();
         initialProductsRaw = mapProducts(items);
@@ -52,7 +53,7 @@ export default async function Home() {
   }
 
   try {
-    const bannersRes = await fetch(`${backendUrl}/api/banners`, { next: { revalidate: 300 } });
+    const bannersRes = await fetch(`${origin}/api/banners`, { next: { revalidate: 300 } });
     if (bannersRes.ok) {
       initialBanners = await bannersRes.json();
     }

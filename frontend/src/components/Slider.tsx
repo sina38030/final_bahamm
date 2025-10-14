@@ -10,7 +10,7 @@ type Banner = {
   description?: string | null;
 };
 
-const ADMIN_API_BASE_URL = process.env.NEXT_PUBLIC_ADMIN_API_URL ?? 'http://127.0.0.1:8001/api';
+const ADMIN_API_BASE_URL = '/api';
 
 const Slider = memo(function Slider({ initialBanners = [] as Banner[] }: { initialBanners?: Banner[] }) {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -21,7 +21,7 @@ const Slider = memo(function Slider({ initialBanners = [] as Banner[] }: { initi
   useEffect(() => {
     if (initialBanners && initialBanners.length) return; // داده سروری داریم
     // fetch active banners from backend public route
-    fetch(`${ADMIN_API_BASE_URL.replace(/\/api$/, '')}/api/banners`)
+    fetch(`${ADMIN_API_BASE_URL}/banners`)
       .then(r => r.json())
       .then((data) => {
         if (Array.isArray(data) && data.length && data[0].image_url) {

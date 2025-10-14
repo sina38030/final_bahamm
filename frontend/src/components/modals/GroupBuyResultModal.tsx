@@ -87,7 +87,7 @@ const GroupBuyResultModal: React.FC<GroupBuyResultModalProps> = ({
       const val = localStorage.getItem(key);
       setRefundSubmitted(!!val);
     } catch {}
-    const BACKEND_URL = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8001").replace(/\/$/, "");
+    const BACKEND_URL = (typeof window !== 'undefined' ? window.location.origin : '').replace(/\/$/, "");
     (async () => {
       try {
         const res = await fetch(`${BACKEND_URL}/api/group-orders/settlement-status/${groupId}`, {
@@ -190,8 +190,8 @@ const GroupBuyResultModal: React.FC<GroupBuyResultModalProps> = ({
         console.log(`Creating settlement payment for group ID: ${groupId}, delta: ${delta}, isAuthenticated: ${isAuthenticated}, token: ${token ? 'present' : 'missing'}`);
         
                  // Use direct backend call with simple endpoint
-         const BACKEND_URL = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8001").replace(/\/$/, "");
-         const res = await fetch(`${BACKEND_URL}/api/group-orders/create-settlement-payment-simple/${groupId}`, {
+         const BACKEND_URL = (typeof window !== 'undefined' ? window.location.origin : '').replace(/\/$/, "");
+         const res = await fetch(`${BACKEND_URL}/api/group-orders/create-settlement-payment/${groupId}`, {
           method: 'POST',
           headers: {
             'Accept': 'application/json',
@@ -245,7 +245,7 @@ const GroupBuyResultModal: React.FC<GroupBuyResultModalProps> = ({
     }
     try {
       setSubmittingCard(true);
-      const BACKEND_URL = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8001").replace(/\/$/, "");
+      const BACKEND_URL = (typeof window !== 'undefined' ? window.location.origin : '').replace(/\/$/, "");
       const res = await fetch(`${BACKEND_URL}/api/group-orders/submit-refund-card/${groupId}`, {
         method: 'POST',
         headers: {

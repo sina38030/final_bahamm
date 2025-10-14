@@ -24,7 +24,7 @@ interface GroupBuyResultProviderProps {
 export const GroupBuyResultProvider: React.FC<GroupBuyResultProviderProps> = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
   const [currentGroupBuyData, setCurrentGroupBuyData] = useState<any>(null);
-  const PUBLIC_API = process.env.NEXT_PUBLIC_ADMIN_API_URL || "http://127.0.0.1:8001/api";
+  const PUBLIC_API = '/api';
   const enableInviteFallback = (process.env.NEXT_PUBLIC_ENABLE_INVITE_FALLBACK || "0") === "1";
   // Guard to prevent duplicate runs in React StrictMode (dev) and excessive checks
   const didInitRef = useRef(false);

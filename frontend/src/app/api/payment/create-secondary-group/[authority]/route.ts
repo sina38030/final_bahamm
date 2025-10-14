@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAdminApiBase } from '@/utils/serverBackend';
 
-const BACKEND_BASE = process.env.NEXT_PUBLIC_ADMIN_API_URL || 'http://127.0.0.1:8001/api';
+const BACKEND_BASE = getAdminApiBase();
 
 export async function POST(
   req: NextRequest,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAdminApiBase, getBackendOrigin } from '@/utils/serverBackend';
 
 export async function GET(
   _request: NextRequest,
@@ -13,10 +14,11 @@ export async function GET(
       );
     }
 
-    const backendUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8001').replace(/\/$/, '');
+    const adminBase = getAdminApiBase();
+    const backendOrigin = getBackendOrigin();
 
     // Prefer admin details endpoint (includes shipping_address, shipping_details, delivery_slot)
-    let response = await fetch(`${backendUrl}/api/admin/orders/${encodeURIComponent(orderId)}`, {
+    let response = await fetch(`${adminBase}/admin/orders/${encodeURIComponent(orderId)}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       cache: 'no-store',
@@ -25,7 +27,7 @@ export async function GET(
     // Fallback to public orders endpoint
     if (!response.ok) {
       try {
-        const alt = await fetch(`${backendUrl}/api/orders/${encodeURIComponent(orderId)}`, {
+        const alt = await fetch(`${backendOrigin}/api/orders/${encodeURIComponent(orderId)}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',
@@ -37,7 +39,7 @@ export async function GET(
     // Optional fallback to quick_server on port 8000 for both endpoints
     if (!response.ok) {
       try {
-        const fallbackBase = backendUrl.replace('8001', '8000');
+        const fallbackBase = backendOrigin.replace('8001', '8000');
         let fb = await fetch(`${fallbackBase}/api/admin/orders/${encodeURIComponent(orderId)}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },

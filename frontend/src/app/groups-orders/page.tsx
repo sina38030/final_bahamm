@@ -110,12 +110,7 @@ function fireToast(detail: ToastDetail) {
 }
 
 function getBackendUrl(): string {
-  const fromEnv = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/$/, '');
-  if (fromEnv) return fromEnv;
-  if (process.env.NODE_ENV !== 'development') {
-    throw new Error('تنظیمات سرور یافت نشد. لطفاً متغیر NEXT_PUBLIC_BACKEND_URL را پیکربندی کنید.');
-  }
-  return 'http://127.0.0.1:8001';
+  return typeof window !== 'undefined' ? window.location.origin.replace(/\/$/, '') : '';
 }
 
 // Format delivery slot strings or embedded JSON to a human-friendly Persian string
@@ -1803,7 +1798,7 @@ function LazyTrackEmbed({
           }
 
           // Proceed to create settlement payment
-          const res = await fetch(`${BACKEND_URL}/api/group-orders/create-settlement-payment-simple/${gid}`, {
+          const res = await fetch(`${BACKEND_URL}/api/group-orders/create-settlement-payment/${gid}`, {
             method: 'POST',
             headers: {
               'Accept': 'application/json',
@@ -1993,7 +1988,7 @@ function LazyTrackEmbed({
                               onClick={async () => {
                                 try {
                                   setIsRefundingWallet(true);
-                                  const BACKEND_URL = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8001").replace(/\/$/, "");
+                                  const BACKEND_URL = typeof window !== 'undefined' ? window.location.origin.replace(/\/$/, '') : '';
                                   const res = await fetch(`${BACKEND_URL}/api/group-orders/secondary/refund-to-wallet/${gid}`, {
                                     method: 'POST',
                                     headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAdminApiBase } from '@/utils/serverBackend';
 
 export async function POST(
   request: NextRequest,
@@ -6,7 +7,7 @@ export async function POST(
 ) {
   try {
     const { groupId } = await params;
-    const backend = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8001').replace(/\/$/, '');
+    const backend = getAdminApiBase();
     // Forward client cookies/authorization to backend for session-based auth
     const cookieHeader = request.headers.get('cookie') || '';
     const authHeader = request.headers.get('authorization') || '';
@@ -15,7 +16,7 @@ export async function POST(
       authHeader: authHeader ? 'present' : 'missing' 
     });
     
-    const res = await fetch(`${backend}/api/group-orders/create-settlement-payment/${encodeURIComponent(groupId)}`, {
+    const res = await fetch(`${backend}/admin/group-orders/create-settlement-payment/${encodeURIComponent(groupId)}`, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',

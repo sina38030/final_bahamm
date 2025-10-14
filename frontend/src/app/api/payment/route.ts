@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8001';
+import { getBackendOrigin } from '@/utils/serverBackend';
 
 export async function POST(request: NextRequest) {
   try {
@@ -72,7 +71,7 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+    const response = await fetch(`${getBackendOrigin()}${endpoint}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -109,7 +108,8 @@ export async function PUT(request: NextRequest) {
     const token = null;
 
     // Try FastAPI first (port 8001)
-    let response = await fetch(`${BACKEND_URL}/api/payment`, {
+    const backendOrigin = getBackendOrigin();
+    let response = await fetch(`${backendOrigin}/api/payment`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -120,7 +120,7 @@ export async function PUT(request: NextRequest) {
     // If FastAPI fails, try quick_server (port 8000)
     if (!response.ok) {
       try {
-        const quickServerUrl = BACKEND_URL.replace('8001', '8000');
+        const quickServerUrl = backendOrigin.replace('8001', '8000');
         const fallback = await fetch(`${quickServerUrl}/api/payment/verify-public`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

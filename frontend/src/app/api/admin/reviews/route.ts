@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8001/api';
-console.log('🚀 Module loaded - API_BASE_URL:', API_BASE_URL);
+import { getBackendOrigin } from '@/utils/serverBackend';
+
+const API_BASE_URL = `${getBackendOrigin()}/api`;
 
 export async function POST(req: NextRequest) {
   // Handle review creation
   console.log('🔥 POST: Admin reviews API called');
-  console.log('🔥 API_BASE_URL:', API_BASE_URL);
   try {
     const body = await req.json().catch(() => ({}));
     console.log('Admin reviews API - received body:', body);
