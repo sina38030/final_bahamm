@@ -719,13 +719,13 @@ export default function TrackPage() {
                 </span>
               </button>
             ))}
-          {data.basket.length > 4 && (
+          {(data.basket || []).length > 4 && (
             <button
               type="button"
               className="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center text-xs"
               onClick={() => setShowBasket(true)}
             >
-              +{data.basket.length - 4}
+              +{(data.basket || []).length - 4}
             </button>
           )}
         </div>
@@ -810,12 +810,12 @@ export default function TrackPage() {
                 </div>
               ))}
             </div>
-          ) : data.participants.length === 0 ? (
+          ) : (data.participants || []).length === 0 ? (
             <div className="text-sm text-gray-500">
               هنوز کسی دعوت را نپذیرفته است.
             </div>
           ) : (
-            data.participants.map((m) => {
+            (data.participants || []).map((m) => {
             const displayName =
               (m.phone || "").trim() ||
               (m.username || "").trim() ||
@@ -849,7 +849,7 @@ export default function TrackPage() {
               جزئیات سبد
             </div>
             <div className="space-y-3">
-              {data.basket.map((it, idx) => (
+              {(data.basket || []).map((it, idx) => (
                 <div key={idx} className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-gray-100 rounded-xl overflow-hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
