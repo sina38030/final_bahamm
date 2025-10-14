@@ -5,8 +5,8 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from sqlalchemy.orm import Session
-from app.database import get_db, engine
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 from app.models import GroupOrder, Order, OrderItem, Product, ProductImage
 import json
 from datetime import datetime, timedelta, timezone
@@ -14,9 +14,12 @@ from datetime import datetime, timedelta, timezone
 # Tehran timezone: UTC+3:30
 TEHRAN_TZ = timezone(timedelta(hours=3, minutes=30))
 
-def fix_group_basket_snapshots():
+def fix_group_basket_snapshots(db_path: str):
     """پر کردن basket_snapshot برای گروه‌هایی که این فیلد را ندارند"""
-    db: Session = next(get_db())
+    # Create database connection
+    engine = create_engine(f'sqlite:///{db_path}')
+    SessionLocal = sessionmaker(bind=engine)
+    db: Session = SessionLocal()
     
     try:
         print("\n🔍 جستجوی گروه‌های فاقد basket_snapshot...")
@@ -91,10 +94,8 @@ def fix_group_basket_snapshots():
                 unit_price = 0.0
                 if product and product.market_price and product.market_price > 0:
                     unit_price = float(product.market_price)
-                elif product and product.solo_price and product.solo_price > 0:
-                    unit_price = float(product.solo_price)
-                elif product and product.friend_1_price and product.friend_1_price > 0:
-                    unit_price = float(product.friend_1_price)
+                elif product and product.base_price and product.base_price > 0:
+                    unit_price = float(product.base_price)
                 elif item.base_price and item.base_price > 0:
                     unit_price = float(item.base_price)
                 
@@ -104,10 +105,7 @@ def fix_group_basket_snapshots():
                     "unit_price": unit_price,
                     "product_name": product.name if product else f"محصول {item.product_id}",
                     "market_price": float(product.market_price) if product and product.market_price else None,
-                    "friend_1_price": float(product.friend_1_price) if product and product.friend_1_price else None,
-                    "friend_2_price": float(product.friend_2_price) if product and product.friend_2_price else None,
-                    "friend_3_price": float(product.friend_3_price) if product and product.friend_3_price else None,
-                    "solo_price": float(product.solo_price) if product and product.solo_price else None,
+                    "base_price": float(product.base_price) if product and product.base_price else None,
                     "image": image_url,
                 })
             
@@ -157,9 +155,12 @@ def fix_group_basket_snapshots():
         db.close()
 
 
-def check_basket_snapshots():
+def check_basket_snapshots(db_path: str):
     """بررسی وضعیت basket_snapshot در گروه‌ها"""
-    db: Session = next(get_db())
+    # Create database connection
+    engine = create_engine(f'sqlite:///{db_path}')
+    SessionLocal = sessionmaker(bind=engine)
+    db: Session = SessionLocal()
     
     try:
         print("\n📊 بررسی وضعیت basket_snapshot...")
@@ -202,22 +203,37 @@ def check_basket_snapshots():
 
 
 if __name__ == "__main__":
+    # Get database path from command line argument or use default
+    if len(sys.argv) >= 2:
+        db_path = sys.argv[1]
+    else:
+        # Default to the correct database
+        db_path = '/srv/app/bahamm1.db'
+    
+    # Check if database file exists
+    if not os.path.exists(db_path):
+        print(f"❌ Database file not found: {db_path}")
+        sys.exit(1)
+    
+    print(f"🔧 USING database: {db_path}")
+    print(f"Connecting to database with URL: sqlite:///{db_path}")
+    
     print("\n" + "="*60)
     print("🔧 ابزار تعمیر basket_snapshot")
     print("="*60)
     
     # ابتدا وضعیت فعلی را چک کنیم
-    check_basket_snapshots()
+    check_basket_snapshots(db_path)
     
     # سوال برای تایید
     print("\n⚠️  آیا می‌خواهید basket_snapshot گروه‌های خالی را پر کنید؟")
     response = input("   (y/n): ").strip().lower()
     
     if response == 'y' or response == 'yes':
-        fix_group_basket_snapshots()
+        fix_group_basket_snapshots(db_path)
         
         # دوباره چک کنیم
-        check_basket_snapshots()
+        check_basket_snapshots(db_path)
     else:
         print("\n❌ لغو شد")
 
