@@ -477,7 +477,7 @@ async def request_payment_public(
     درخواست پرداخت جدید (بدون احراز هویت)
     """
     try:
-        # آدرس بازگشت پس از پرداخت - به backend callback endpoint که سپس به Telegram Mini App redirect می‌کند
+        # آدرس بازگشت پس از پرداخت - به backend callback endpoint که سپس به سایت bahamm.ir redirect می‌کند
         callback_url = f"{settings.FRONTEND_URL}/api/payment/callback"
         
         # درخواست پرداخت از زرین‌پال
@@ -514,7 +514,7 @@ async def request_payment(
     درخواست پرداخت جدید
     """
     try:
-        # آدرس بازگشت پس از پرداخت - به backend callback endpoint که سپس به Telegram Mini App redirect می‌کند
+        # آدرس بازگشت پس از پرداخت - به backend callback endpoint که سپس به سایت bahamm.ir redirect می‌کند
         callback_url = f"{settings.FRONTEND_URL}/api/payment/callback"
         
         # درخواست پرداخت از زرین‌پال
@@ -630,33 +630,66 @@ async def payment_callback(
 ):
     """
     Callback endpoint که زرین‌پال کاربر را به اینجا هدایت می‌کند
-    بعد از پرداخت، کاربر را به Telegram Mini App برمی‌گرداند
+    بعد از پرداخت، کاربر را به سایت bahamm.ir برمی‌گرداند
+    
+    - کاربر لیدر گروه ➜ صفحه invite (برای دعوت دوستان)
+    - کاربر invited یا خرید solo ➜ صفحه success-buy (موفقیت پرداخت)
     """
     from fastapi.responses import RedirectResponse
     
     try:
-        # Redirect back to Telegram Mini App with payment result
-        # Format: https://t.me/BOT_USERNAME/MINIAPP_NAME?startapp=payment_AUTHORITY_STATUS
-        bot_username = settings.TELEGRAM_BOT_USERNAME
-        miniapp_name = settings.TELEGRAM_MINIAPP_NAME
-        
-        if Status == "OK" and Authority:
-            logger.info(f"Payment callback successful: Authority={Authority}, Status={Status}")
-            # Redirect to Telegram Mini App with success status
-            redirect_url = f"https://t.me/{bot_username}/{miniapp_name}?startapp=payment_{Authority}_OK"
-            return RedirectResponse(url=redirect_url, status_code=303)
-        else:
+        # For failed payments, redirect to cart with error
+        if Status != "OK" or not Authority:
             logger.warning(f"Payment callback failed: Authority={Authority}, Status={Status}")
-            # Redirect to Telegram Mini App with failed status
-            status_param = Status or 'NOK'
-            authority_param = Authority or 'UNKNOWN'
-            redirect_url = f"https://t.me/{bot_username}/{miniapp_name}?startapp=payment_{authority_param}_{status_param}"
+            redirect_url = f"{settings.FRONTEND_URL}/cart?payment_failed=true"
             return RedirectResponse(url=redirect_url, status_code=303)
+        
+        # Payment successful - determine redirect based on user type
+        logger.info(f"Payment callback successful: Authority={Authority}, Status={Status}")
+        
+        # Find order by payment authority
+        order = db.query(Order).filter(Order.payment_authority == Authority).first()
+        
+        if not order:
+            logger.warning(f"No order found for authority: {Authority}")
+            # Default to invite page if order not found
+            redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
+            return RedirectResponse(url=redirect_url, status_code=303)
+        
+        # Determine user type and redirect accordingly
+        is_leader = (order.order_type == OrderType.GROUP and order.group_order_id is None)
+        is_invited_or_solo = (order.group_order_id is not None or order.order_type == OrderType.ALONE)
+        
+        if is_leader:
+            # Leader of group order ➜ invite page to share with friends
+            logger.info(f"Leader order detected (order_id={order.id}) ➜ redirecting to /invite")
+            redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
+        elif is_invited_or_solo:
+            # Invited user or solo purchase ➜ success page
+            logger.info(f"Invited/Solo order detected (order_id={order.id}) ➜ redirecting to /success-buy")
+            # Get invite code if available for success page
+            invite_code = ""
+            if order.group_order_id:
+                group_order = db.query(GroupOrder).filter(GroupOrder.id == order.group_order_id).first()
+                if group_order:
+                    invite_code = group_order.invite_token
+            redirect_url = f"{settings.FRONTEND_URL}/success-buy?authority={Authority}"
+            if invite_code:
+                redirect_url += f"&inviteCode={invite_code}"
+        else:
+            # Fallback to invite page
+            logger.info(f"Unknown order type (order_id={order.id}) ➜ redirecting to /invite")
+            redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
+        
+        return RedirectResponse(url=redirect_url, status_code=303)
             
     except Exception as e:
         logger.error(f"Payment callback error: {str(e)}")
-        # Even on error, redirect to Telegram Mini App with error status
-        redirect_url = f"https://t.me/{settings.TELEGRAM_BOT_USERNAME}/{settings.TELEGRAM_MINIAPP_NAME}?startapp=payment_ERROR_ERROR"
+        # Even on error, try to redirect with authority if available
+        if Authority:
+            redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
+        else:
+            redirect_url = f"{settings.FRONTEND_URL}/cart?payment_error=true"
         return RedirectResponse(url=redirect_url, status_code=303)
 
 @router.get("/orders")
