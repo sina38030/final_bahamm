@@ -28,7 +28,11 @@ function PaymentCallbackContent() {
     const status = searchParams.get('Status') || searchParams.get('status');
     const amount = searchParams.get('amount'); // Optional amount parameter
     
-    console.log('[PaymentCallback] useEffect triggered with params:', { authority, status, amount });
+    // Detect payment role early for use throughout the function
+    const soloCookie = typeof document !== 'undefined' ? document.cookie.split('; ').find(c => c.startsWith('payment_role=')) : null;
+    const paymentRole = soloCookie ? soloCookie.split('=')[1] : null;
+    
+    console.log('[PaymentCallback] useEffect triggered with params:', { authority, status, amount, paymentRole });
 
     const processPayment = async () => {
       if (status === 'OK' && authority) {
@@ -98,9 +102,6 @@ function PaymentCallbackContent() {
         // Detect invited-user or settlement flows (flags set before redirecting to bank)
         const invitedFlag = typeof window !== 'undefined' ? localStorage.getItem('invited_payment') : null;
         const settlementFlag = typeof window !== 'undefined' ? localStorage.getItem('settlement_payment') : null;
-        // Detect solo flow via cookie set at checkout
-        const soloCookie = typeof document !== 'undefined' ? document.cookie.split('; ').find(c => c.startsWith('payment_role=')) : null;
-        const paymentRole = soloCookie ? soloCookie.split('=')[1] : null;
         const isInvitedFlow = !!invitedFlag;
         const isSettlementFlow = !!settlementFlag;
         setIsInvited(isInvitedFlow);
