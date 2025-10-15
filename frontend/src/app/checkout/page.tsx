@@ -721,19 +721,20 @@ function CheckoutPageContent() {
 
   // Simple toggle visibility logic
   // Show for leaders always. For invited users, only if leader enabled it AND this is not a secondary group
+  // FIX: For invited users, also check allowParam from URL as immediate source of truth
   const shouldShowToggle = actualMode === 'group' && (
-    !isInvitedUser || (leaderAllowsConsolidation && !forceDisableConsolidation)
+    !isInvitedUser || ((allowParam === '1' || leaderAllowsConsolidation) && !forceDisableConsolidation)
   );
 
   console.log('🧮 Toggle visibility decision:', {
     actualMode,
     isInvitedUser,
     isJoiningGroup,
+    allowParam,
     leaderAllowsConsolidation,
     forceDisableConsolidation,
     shouldShowToggle,
-    invitedParam,
-    inviteCodeParam
+    calculation: `!isInvitedUser(${!isInvitedUser}) || (allowParam==='1'(${allowParam === '1'}) || leaderAllow(${leaderAllowsConsolidation})) && !forceDisable(${!forceDisableConsolidation})`
   });
 
   // Calculations based on mode and cart context
