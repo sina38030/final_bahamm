@@ -320,7 +320,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
       } else {
         setLoading(true);
         debugLog('📡 Fetching group order data for:', inviteCode);
-        fetchJson(`/api/group-invite/${encodeURIComponent(inviteCode)}?t=${Date.now()}`)
+        fetchJson(`/api/payment/group-invite/${encodeURIComponent(inviteCode)}?t=${Date.now()}`)
           .then(data => {
             debugLog('📋 Raw response data:', data?.success ? 'success' : 'fail');
             debugLog('📋 Group data items:', data?.items?.length || 0);
