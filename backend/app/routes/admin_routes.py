@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, HTTPException, Form, Request
+from fastapi import APIRouter, Depends, Query, HTTPException, Form, Request, Response
 from fastapi import UploadFile
 from pathlib import Path
 import os
@@ -2239,9 +2239,15 @@ async def get_all_group_buys(
     skip: int = Query(0, ge=0),
     limit: int = Query(1000, ge=1, le=1000),
     status: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    response: Response = None
 ):
     """Get group buys list built off GroupOrder records (with fallbacks)."""
+    # Prevent caching to ensure fresh data in admin panel
+    if response:
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
     
     # Helper to resolve a user's phone number with fallbacks
     def resolve_phone(user_obj, user_id_val: int) -> str:
@@ -3665,12 +3671,18 @@ async def delete_review(
 async def get_secondary_groups(
     skip: int = Query(0, ge=0),
     limit: int = Query(1000, ge=1, le=1000),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    response: Response = None
 ):
     """Get secondary group buys list - groups created by invited users.
     Also include implicit secondary groups: leader was a follower in another group
     and this new group has at least one follower (non-leader member).
     """
+    # Prevent caching to ensure fresh data in admin panel
+    if response:
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
     
     try:
         logger.info("=== SECONDARY GROUPS LIST ENDPOINT CALLED ===")

@@ -3411,10 +3411,12 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
          try {
            setLoading(true);
            setError(null);
-          console.log('🔍 Fetching group buys from:', `${ADMIN_API_BASE_URL}/admin/group-buys?limit=1000`);
+          // Add timestamp to prevent browser caching
+          const timestamp = new Date().getTime();
+          console.log('🔍 Fetching group buys from:', `${ADMIN_API_BASE_URL}/admin/group-buys?limit=1000&_t=${timestamp}`);
           const data = await fetchJSON<any[]>(
-            `${ADMIN_API_BASE_URL}/admin/group-buys?limit=1000`,
-            undefined,
+            `${ADMIN_API_BASE_URL}/admin/group-buys?limit=1000&_t=${timestamp}`,
+            { cache: 'no-store' },
             ctrl.signal
           );
            if (!alive) return;
@@ -4401,7 +4403,9 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
           setError(null);
           // Fetch secondary groups from admin API using auto-detected URL
           const BASE = getAdminApiBaseUrl();
-          const res = await fetch(`${BASE}/admin/secondary-groups?limit=1000`, { headers: { 'Accept': 'application/json' }, cache: 'no-store' });
+          // Add timestamp to prevent browser caching
+          const timestamp = new Date().getTime();
+          const res = await fetch(`${BASE}/admin/secondary-groups?limit=1000&_t=${timestamp}`, { headers: { 'Accept': 'application/json' }, cache: 'no-store' });
           if (!res.ok) {
             if (res.status === 401 || res.status === 403) {
               // Fallback to payment orders (public) if auth blocked
