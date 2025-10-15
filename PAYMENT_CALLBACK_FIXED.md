@@ -11,8 +11,8 @@
 | نوع کاربر | شرط | Redirect به |
 |-----------|------|-------------|
 | **لیدر گروه** | `order_type=GROUP` و `group_order_id=NULL` | `/invite?authority=XXX` |
-| **کاربر Invited** | `group_order_id != NULL` | `/success-buy?authority=XXX&inviteCode=XXX` |
-| **خرید Solo** | `order_type=ALONE` | `/success-buy?authority=XXX` |
+| **کاربر Invited** | `group_order_id != NULL` | `/successpayment?authority=XXX&inviteCode=XXX` |
+| **خرید Solo** | `order_type=ALONE` | `/successpayment?authority=XXX` |
 | **پرداخت ناموفق** | `Status != OK` | `/cart?payment_failed=true` |
 | **خطا** | Exception | `/cart?payment_error=true` |
 
@@ -61,7 +61,7 @@ https://bahamm.ir/api/payment/callback?Authority=A000...&Status=OK
   ↓
 Backend: order.group_order_id = 123 ➜ invited هست!
   ↓
-https://bahamm.ir/success-buy?authority=A000...&inviteCode=ABC123 ✅
+https://bahamm.ir/successpayment?authority=A000...&inviteCode=ABC123 ✅
 ```
 
 ### مثال 3: خرید Solo
@@ -74,7 +74,7 @@ https://bahamm.ir/api/payment/callback?Authority=A000...&Status=OK
   ↓
 Backend: order.order_type = ALONE ➜ solo هست!
   ↓
-https://bahamm.ir/success-buy?authority=A000... ✅
+https://bahamm.ir/successpayment?authority=A000... ✅
 ```
 
 ## 📝 نکات مهم
@@ -97,13 +97,13 @@ https://bahamm.ir/success-buy?authority=A000... ✅
 2. **کاربر Invited**:
    - روی لینک دعوت کلیک کن
    - پرداخت رو انجام بده
-   - بعد از پرداخت باید بری `/success-buy` ✓
+   - بعد از پرداخت باید بری `/successpayment` ✓
 
 3. **خرید Solo**:
    - محصول به سبد اضافه کن
    - "خرید تکی" انتخاب کن
    - checkout کن
-   - بعد از پرداخت باید بری `/success-buy` ✓
+   - بعد از پرداخت باید بری `/successpayment` ✓
 
 ## ✅ مشکل حل شده!
 

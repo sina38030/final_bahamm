@@ -257,7 +257,6 @@ export default function BottomNavigation() {
         pathname.startsWith('/landingM') ||
         pathname.startsWith('/auth/login') ||
         pathname.startsWith('/auth/otp') ||
-        pathname.startsWith('/success-buy') ||
         pathname.startsWith('/three-lead-checkout') ||
         pathname.startsWith('/two-lead-checkout') ||
         pathname.startsWith('/orderinfo') ||
