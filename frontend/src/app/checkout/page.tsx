@@ -1465,14 +1465,39 @@ function CheckoutPageContent() {
         </div>
       </header>
 
-      {/* Invited User Indicator: removed */}
-      {false && (
-        <div />
+      {/* DEBUG: Show user type */}
+      {(isInvitedUser || isJoiningGroup) && (
+        <div style={{
+          background: isInvitedUser ? '#e3f2fd' : '#fff3e0',
+          padding: '12px',
+          margin: '8px',
+          borderRadius: '8px',
+          fontSize: '0.9rem',
+          fontWeight: 600,
+          textAlign: 'center',
+          border: `2px solid ${isInvitedUser ? '#2196f3' : '#ff9800'}`
+        }}>
+          {isInvitedUser ? '🎉 شما در حال پیوستن به گروه هستید (Invited User)' : '👥 حالت گروهی'}
+          <div style={{ fontSize: '0.75rem', marginTop: '4px', fontWeight: 400 }}>
+            Mode: {actualMode} | isJoiningGroup: {isJoiningGroup ? 'true' : 'false'} | Cart: {items.length} items
+          </div>
+        </div>
       )}
-
-      {/* Group Joining Indicator: removed */}
-      {false && (
-        <section />
+      
+      {/* DEBUG: Cart empty warning for invited users */}
+      {isInvitedUser && items.length === 0 && (
+        <div style={{
+          background: '#ffebee',
+          padding: '12px',
+          margin: '8px',
+          borderRadius: '8px',
+          fontSize: '0.85rem',
+          textAlign: 'center',
+          border: '2px solid #f44336',
+          color: '#c62828'
+        }}>
+          ⚠️ سبد خرید خالی است! محصولات از localStorage لود نشدند.
+        </div>
       )}
 
       {/* Address */}
