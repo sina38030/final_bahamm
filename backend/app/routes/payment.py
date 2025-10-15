@@ -633,7 +633,8 @@ async def payment_callback(
     بعد از پرداخت، کاربر را به سایت bahamm.ir برمی‌گرداند
     
     - کاربر لیدر گروه ➜ صفحه invite (برای دعوت دوستان)
-    - کاربر invited یا خرید solo ➜ صفحه successpayment (موفقیت پرداخت)
+    - کاربر invited ➜ صفحه orders (برای دیدن دکمه "مبلغ پرداختیت رو پس بگیر!")
+    - خرید solo ➜ صفحه successpayment (موفقیت پرداخت)
     """
     from fastapi.responses import RedirectResponse
     
@@ -673,13 +674,10 @@ async def payment_callback(
                 logger.info(f"Leader order detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /invite")
                 redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
             else:
-                # User is invited (follower) ➜ successpayment page
+                # User is invited (follower) ➜ orders page
                 is_invited = True
-                logger.info(f"Invited user order detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /successpayment")
-                invite_code = group_order.invite_token if group_order else ""
-                redirect_url = f"{settings.FRONTEND_URL}/successpayment?authority={Authority}"
-                if invite_code:
-                    redirect_url += f"&inviteCode={invite_code}"
+                logger.info(f"Invited user order detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /orders")
+                redirect_url = f"{settings.FRONTEND_URL}/orders"
         else:
             # Fallback: no group_order_id but order_type is GROUP (shouldn't happen but handle it)
             logger.warning(f"GROUP order without group_order_id (order_id={order.id}) ➜ redirecting to /invite")

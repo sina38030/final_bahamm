@@ -11,7 +11,7 @@
 | نوع کاربر | شرط | Redirect به |
 |-----------|------|-------------|
 | **لیدر گروه** | `order_type=GROUP` و `group_order_id=NULL` | `/invite?authority=XXX` |
-| **کاربر Invited** | `group_order_id != NULL` | `/successpayment?authority=XXX&inviteCode=XXX` |
+| **کاربر Invited** | `group_order_id != NULL` | `/orders` |
 | **خرید Solo** | `order_type=ALONE` | `/successpayment?authority=XXX` |
 | **پرداخت ناموفق** | `Status != OK` | `/cart?payment_failed=true` |
 | **خطا** | Exception | `/cart?payment_error=true` |
@@ -61,7 +61,8 @@ https://bahamm.ir/api/payment/callback?Authority=A000...&Status=OK
   ↓
 Backend: order.group_order_id = 123 ➜ invited هست!
   ↓
-https://bahamm.ir/successpayment?authority=A000...&inviteCode=ABC123 ✅
+https://bahamm.ir/orders ✅
+(در این صفحه دکمه "مبلغ پرداختیت رو پس بگیر!" با timer نمایش داده می‌شود)
 ```
 
 ### مثال 3: خرید Solo
@@ -97,7 +98,8 @@ https://bahamm.ir/successpayment?authority=A000... ✅
 2. **کاربر Invited**:
    - روی لینک دعوت کلیک کن
    - پرداخت رو انجام بده
-   - بعد از پرداخت باید بری `/successpayment` ✓
+   - بعد از پرداخت باید بری `/orders` ✓
+   - در این صفحه دکمه "مبلغ پرداختیت رو پس بگیر!" با timer دیده می‌شود
 
 3. **خرید Solo**:
    - محصول به سبد اضافه کن
