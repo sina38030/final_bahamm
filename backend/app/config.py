@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from typing import Optional
 
 class Settings(BaseSettings):
     # Use relative path from project root - works on both Windows and Linux
@@ -22,7 +23,7 @@ class Settings(BaseSettings):
     # Production: https://bahamm.ir/backend/api (nginx proxies to backend)
     # Local: http://localhost:8001/api (direct to backend)
     # Can be overridden via environment variable
-    PAYMENT_CALLBACK_BASE_URL: str = None  # Will be auto-detected if None
+    PAYMENT_CALLBACK_BASE_URL: Optional[str] = None  # Will be auto-detected if None
     
     @property
     def get_payment_callback_base_url(self) -> str:
