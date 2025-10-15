@@ -105,7 +105,8 @@ function CheckoutPageContent() {
 
   // State for group order joining
   const [groupOrderInfo, setGroupOrderInfo] = useState<any>(null);
-  const [isJoiningGroup, setIsJoiningGroup] = useState(false);
+  // FIX: Initialize isJoiningGroup from URL parameter immediately, not from localStorage
+  const [isJoiningGroup, setIsJoiningGroup] = useState(invitedParam === 'true');
   const [groupCartItems, setGroupCartItems] = useState<any[]>([]);
 
   // State
@@ -336,17 +337,55 @@ function CheckoutPageContent() {
       } catch (error) {
         console.error('Error parsing group order data:', error);
       }
-    } else if (invitedParam === 'true') {
+    } else if (invitedParam === 'true' && inviteCodeParam) {
       // FALLBACK: Even without localStorage, if URL says invited=true, treat as joining group
-      console.log('🎯 No localStorage but invited=true in URL, setting isJoiningGroup=true');
+      console.log('🎯 No localStorage but invited=true in URL, fetching group data from API...');
       setIsJoiningGroup(true);
-      if (inviteCodeParam) {
-        setGroupOrderInfo({
-          invite_code: inviteCodeParam,
-          is_joining_group: true,
-          allow_consolidation: allowParam === '1'
-        });
-      }
+      setGroupOrderInfo({
+        invite_code: inviteCodeParam,
+        is_joining_group: true,
+        allow_consolidation: allowParam === '1'
+      });
+      
+      // Fetch cart items from API
+      (async () => {
+        try {
+          const res = await fetch(`/api/group-invite/${encodeURIComponent(inviteCodeParam)}`);
+          if (res.ok) {
+            const data = await res.json();
+            console.log('📦 Fetched group data from API:', data);
+            
+            if (data.items && Array.isArray(data.items)) {
+              const cartItemsFromAPI = data.items.map((item: any) => ({
+                id: item.product_id || item.id,
+                name: item.product_name || item.name || 'محصول',
+                base_price: item.friend_1_price || item.base_price || 0,
+                market_price: item.solo_price || item.market_price || item.price || 0,
+                image: item.image || '/images/placeholder-300.svg',
+                quantity: item.quantity || 1,
+                solo_price: item.solo_price || 0,
+                friend_1_price: item.friend_1_price || 0,
+                friend_2_price: item.friend_2_price || 0,
+                friend_3_price: item.friend_3_price || 0
+              }));
+              
+              console.log('🛒 Setting cart items from API:', cartItemsFromAPI);
+              setGroupCartItems(cartItemsFromAPI);
+              
+              // Also update groupOrderInfo with fetched data
+              setGroupOrderInfo({
+                invite_code: inviteCodeParam,
+                leader_name: data.leader_name,
+                leader_phone: data.leader_phone,
+                is_joining_group: true,
+                allow_consolidation: data.allow_consolidation || allowParam === '1'
+              });
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error fetching group data from API:', error);
+        }
+      })();
     }
   }, [invitedParam, isInvitedUser, router, inviteCodeParam, allowParam]);
 
@@ -685,11 +724,15 @@ function CheckoutPageContent() {
     !isInvitedUser || (leaderAllowsConsolidation && !forceDisableConsolidation)
   );
 
-  console.log('🧮 Simple toggle decision:', {
+  console.log('🧮 Toggle visibility decision:', {
     actualMode,
     isInvitedUser,
+    isJoiningGroup,
     leaderAllowsConsolidation,
+    forceDisableConsolidation,
     shouldShowToggle,
+    invitedParam,
+    inviteCodeParam
   });
 
   // Calculations based on mode and cart context
