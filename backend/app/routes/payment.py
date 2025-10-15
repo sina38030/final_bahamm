@@ -647,8 +647,15 @@ async def payment_callback(
         
         # Payment successful - determine redirect based on user type
         logger.info(f"Payment callback successful: Authority={Authority}, Status={Status}")
+
+        # First, verify payment server-side to ensure group linking happens immediately
+        try:
+            payment_service = PaymentService(db)
+            _ = await payment_service.verify_and_complete_payment(authority=Authority, amount=None, user_id=None)
+        except Exception as _e:
+            logger.error(f"Callback verification error (continuing to redirect): {_e}")
         
-        # Find order by payment authority
+        # Find order by payment authority (reload after verification)
         order = db.query(Order).filter(Order.payment_authority == Authority).first()
         
         if not order:
