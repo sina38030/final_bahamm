@@ -7,7 +7,7 @@ export default function OrdersRedirectPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/profile');
+    router.replace('/groups-orders');
   }, [router]);
 
   return null;
