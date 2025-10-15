@@ -18,6 +18,24 @@ class Settings(BaseSettings):
     ZARINPAL_MERCHANT_ID: str = "2cea1309-4a05-4f02-82ce-9a6d183db8a4"  # Real merchant ID
     ZARINPAL_SANDBOX: bool = False
     FRONTEND_URL: str = "https://bahamm.ir"  # Production domain for payment callbacks
+    # Payment callback URL - must route to backend's /api/payment/callback
+    # Production: https://bahamm.ir/backend/api (nginx proxies to backend)
+    # Local: http://localhost:8001/api (direct to backend)
+    # Can be overridden via environment variable
+    PAYMENT_CALLBACK_BASE_URL: str = None  # Will be auto-detected if None
+    
+    @property
+    def get_payment_callback_base_url(self) -> str:
+        """Auto-detect callback URL based on FRONTEND_URL"""
+        if self.PAYMENT_CALLBACK_BASE_URL:
+            return self.PAYMENT_CALLBACK_BASE_URL
+        
+        # Auto-detect: if localhost, use direct backend URL
+        if "localhost" in self.FRONTEND_URL or "127.0.0.1" in self.FRONTEND_URL:
+            return "http://localhost:8001/api"
+        else:
+            # Production: use nginx proxy path
+            return f"{self.FRONTEND_URL}/backend/api"
     
     # Telegram Mini App Configuration
     # Required for verifying Telegram WebApp authentication

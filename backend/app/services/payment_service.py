@@ -234,7 +234,7 @@ class PaymentService:
             result = await zarinpal.request_payment(
                 amount=total_amount,
                 description=description,
-                callback_url=f"{settings.FRONTEND_URL}/api/payment/callback",
+                callback_url=f"{settings.get_payment_callback_base_url}/payment/callback",
                 mobile=mobile,
                 email=email
             )
@@ -887,7 +887,7 @@ class PaymentService:
             payment_result = await zarinpal.request_payment(
                 amount=amount_rial,
                 description=description,
-                callback_url=f"{settings.FRONTEND_URL}/api/payment/callback"
+                callback_url=f"{settings.get_payment_callback_base_url}/payment/callback"
             )
             
             logger.info(f"ZarinPal payment result: {payment_result}")
