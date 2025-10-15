@@ -184,7 +184,8 @@ function CheckoutPageContent() {
   
   // Map modal state
   const [showMapModal, setShowMapModal] = useState(false);
-  const [leaderAllowsConsolidation, setLeaderAllowsConsolidation] = useState<boolean>(false);
+  // FIX: Initialize leaderAllowsConsolidation from URL parameter immediately
+  const [leaderAllowsConsolidation, setLeaderAllowsConsolidation] = useState<boolean>(allowParam === '1');
   const normalizePhone = (p?: string) => {
     if (!p) return '';
     const toEn = (s: string) => s.replace(/[۰-۹]/g, d => '0123456789'["۰۱۲۳۴۵۶۷۸۹".indexOf(d)]);
