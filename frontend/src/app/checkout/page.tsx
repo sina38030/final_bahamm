@@ -78,19 +78,28 @@ function CheckoutPageContent() {
   const friendPriceParam = searchParams.get('friendPrice');
   // Expected friends passed from cart (leaders only)
   
-  // Debug logging
-  console.log('💳 Checkout received params:', {
-    paymentAmountParam,
-    paymentPercentageParam,
-    friendPriceParam,
-    mode,
-    friendsParam,
-    maxFriendsParam
-  });
   // Convert 'alone' to 'solo' for consistency
   const actualMode = mode === 'alone' ? 'solo' : mode;
   const isInvitedUser = invitedParam === 'true';
   const isLeaderGroup = actualMode === 'group' && !isInvitedUser;
+  
+  // Debug logging
+  console.log('💳 Checkout received params:', {
+    mode,
+    invitedParam,
+    inviteCodeParam,
+    allowParam,
+    friendsParam,
+    maxFriendsParam,
+    paymentAmountParam,
+    paymentPercentageParam,
+    friendPriceParam
+  });
+  console.log('💳 Checkout computed values:', {
+    actualMode,
+    isInvitedUser,
+    isLeaderGroup
+  });
   // Use admin-configured next-day delivery slots for invited users, solo purchases, and leaders
   const useAdminTomorrowSlots = isInvitedUser || actualMode === 'solo' || isLeaderGroup;
 
@@ -327,13 +336,24 @@ function CheckoutPageContent() {
       } catch (error) {
         console.error('Error parsing group order data:', error);
       }
+    } else if (invitedParam === 'true') {
+      // FALLBACK: Even without localStorage, if URL says invited=true, treat as joining group
+      console.log('🎯 No localStorage but invited=true in URL, setting isJoiningGroup=true');
+      setIsJoiningGroup(true);
+      if (inviteCodeParam) {
+        setGroupOrderInfo({
+          invite_code: inviteCodeParam,
+          is_joining_group: true,
+          allow_consolidation: allowParam === '1'
+        });
+      }
     }
-  }, [invitedParam, isInvitedUser, router, inviteCodeParam]);
+  }, [invitedParam, isInvitedUser, router, inviteCodeParam, allowParam]);
 
   // Load group cart items into cart context
   useEffect(() => {
     if (groupCartItems.length > 0 && addItem) {
-      console.log('🔄 Loading group cart items into cart context...');
+      console.log('🔄 Loading group cart items into cart context...', { count: groupCartItems.length, items: groupCartItems });
       try {
         // Prevent duplication when navigating back and forth
         clearCart && clearCart();
@@ -674,30 +694,38 @@ function CheckoutPageContent() {
 
   // Calculations based on mode and cart context
   const calculations = useMemo(() => {
+    console.log('💰 Price calculation started:', { actualMode, isJoiningGroup, isInvitedUser, itemsCount: items.length });
+    
     // For invited users joining a group, originalPrice should be solo_price (market_price)
     // For regular users, originalPrice should be base_price
     let originalPrice: number;
     if (isJoiningGroup) {
       // For group joining users, use market_price as original (solo_price)
       originalPrice = items.reduce((s, p) => s + (p.market_price || p.base_price) * p.quantity, 0);
+      console.log('💰 Original price (joining group):', originalPrice);
     } else {
       // For regular users, use base_price as original
       originalPrice = getSingleBuyTotal();
+      console.log('💰 Original price (regular):', originalPrice);
     }
     
     // Use appropriate price based on actualMode and cart context
     let currentPrice: number;
     if (actualMode === 'solo') {
       currentPrice = getSingleBuyTotal();
+      console.log('💰 Using SOLO price:', currentPrice);
     } else {
       // For group mode, check if we have flexible payment parameters
       if (paymentAmountParam && paymentPercentageParam && friendPriceParam) {
         // Use the flexible payment amount from cart
         currentPrice = parseInt(paymentAmountParam);
+        console.log('💰 Using flexible payment:', currentPrice);
       } else if (isJoiningGroup) {
         // For invited users joining a group, use base_price (friend_1_price)
         currentPrice = getSingleBuyTotal(); // This uses base_price which is friend_1_price
+        console.log('💰 Using GROUP price (invited):', currentPrice);
       } else {
+        console.log('💰 Using leader pricing logic');
         // Use the same logic as cart for backward compatibility
         let friends = friendsParam ? parseInt(friendsParam) : 1; // default to 1 friend if not specified
         // Clamp 0-friends to 1-friend for group pricing
