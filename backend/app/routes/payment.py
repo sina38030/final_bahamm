@@ -633,8 +633,8 @@ async def payment_callback(
     بعد از پرداخت، کاربر را به سایت bahamm.ir برمی‌گرداند
     
     - کاربر لیدر گروه ➜ صفحه invite (برای دعوت دوستان)
-    - کاربر invited ➜ صفحه orders (برای دیدن دکمه "مبلغ پرداختیت رو پس بگیر!")
-    - خرید solo ➜ صفحه orders (لیست سفارشات)
+    - کاربر invited ➜ صفحه success (پیگیری سفارش + مبلغ پرداختیت رو پس بگیر!)
+    - خرید solo ➜ صفحه success (موفقیت پرداخت)
     """
     from fastapi.responses import RedirectResponse
     
@@ -662,9 +662,9 @@ async def payment_callback(
         is_invited = False
         
         if order.order_type == OrderType.ALONE:
-            # Solo purchase ➜ orders page
-            logger.info(f"Solo order detected (order_id={order.id}) ➜ redirecting to /orders")
-            redirect_url = f"{settings.FRONTEND_URL}/orders"
+            # Solo purchase ➜ success page
+            logger.info(f"Solo order detected (order_id={order.id}) ➜ redirecting to /success")
+            redirect_url = f"{settings.FRONTEND_URL}/success"
         elif order.group_order_id:
             # Group order - check if user is leader or invited
             group_order = db.query(GroupOrder).filter(GroupOrder.id == order.group_order_id).first()
@@ -674,10 +674,10 @@ async def payment_callback(
                 logger.info(f"Leader order detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /invite")
                 redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
             else:
-                # User is invited (follower) ➜ orders page
+                # User is invited (follower) ➜ success page
                 is_invited = True
-                logger.info(f"Invited user order detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /orders")
-                redirect_url = f"{settings.FRONTEND_URL}/orders"
+                logger.info(f"Invited user order detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /success")
+                redirect_url = f"{settings.FRONTEND_URL}/success"
         else:
             # Fallback: no group_order_id but order_type is GROUP (shouldn't happen but handle it)
             logger.warning(f"GROUP order without group_order_id (order_id={order.id}) ➜ redirecting to /invite")
