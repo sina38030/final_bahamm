@@ -279,7 +279,8 @@ function CheckoutPageContent() {
           }
         } catch {}
         setGroupOrderInfo(parsedGroupInfo);
-        setIsJoiningGroup(parsedGroupInfo.is_joining_group || false);
+        // FIX: Use invitedParam from URL as the source of truth, fallback to localStorage
+        setIsJoiningGroup(invitedParam === 'true' || parsedGroupInfo.is_joining_group || false);
         // RULE: If this checkout is for invited-led secondary group, force disable consolidation
         try {
           const kind = String(parsedGroupInfo?.kind || '').toLowerCase();
@@ -327,7 +328,7 @@ function CheckoutPageContent() {
         console.error('Error parsing group order data:', error);
       }
     }
-  }, []);
+  }, [invitedParam, isInvitedUser, router, inviteCodeParam]);
 
   // Load group cart items into cart context
   useEffect(() => {
