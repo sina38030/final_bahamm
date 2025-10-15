@@ -1,40 +1,64 @@
 #!/usr/bin/env python3
-
+"""Test direct database connection"""
+import sqlite3
 import sys
-import os
-sys.path.append('backend')
+import io
 
-# Force reload the module to get latest changes
-import importlib
-if 'app.database' in sys.modules:
-    importlib.reload(sys.modules['app.database'])
+# Fix encoding for Windows
+if sys.platform == 'win32':
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    except:
+        pass
 
-from app.database import get_db, engine
-from sqlalchemy import text
+db_path = "C:/Projects/final_bahamm/bahamm1.db"
 
-print('Testing database connection...')
-print(f'Database URL from config: {engine.url}')
+print(f"Testing connection to: {db_path}")
+
 try:
-    with engine.connect() as conn:
-        result = conn.execute(text('SELECT COUNT(*) FROM users'))
-        count = result.fetchone()[0]
-        print(f'✅ Database connected! Users count: {count}')
-
-        # Test user lookup
-        result = conn.execute(text("SELECT id, phone_number FROM users WHERE phone_number LIKE '%23123%'"))
-        users = result.fetchall()
-        print(f'📱 Found {len(users)} users with phone containing 23123:')
-        for user in users:
-            print(f'   User ID: {user[0]}, Phone: {user[1]}')
-
-        # Check all users
-        result = conn.execute(text('SELECT id, phone_number FROM users LIMIT 10'))
-        all_users = result.fetchall()
-        print(f'📋 First 10 users:')
-        for user in all_users:
-            print(f'   User ID: {user[0]}, Phone: {user[1]}')
-
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    
+    # Test query
+    c.execute("SELECT COUNT(*) FROM products WHERE is_active = 1")
+    count = c.fetchone()[0]
+    
+    print(f"✅ Successfully connected!")
+    print(f"✅ Found {count} active products")
+    
+    # Get first product
+    c.execute("SELECT id, name, base_price FROM products LIMIT 1")
+    product = c.fetchone()
+    
+    if product:
+        print(f"\nFirst product:")
+        print(f"  ID: {product[0]}")
+        print(f"  Name: {product[1]}")
+        print(f"  Price: {product[2]}")
+    
+    conn.close()
+    
+    print("\n✅ Database is working correctly!")
+    print("\nNow testing with SQLAlchemy...")
+    
+    # Test with SQLAlchemy (like backend does)
+    from sqlalchemy import create_engine
+    
+    db_url = f"sqlite:///{db_path}"
+    print(f"\nDatabase URL: {db_url}")
+    
+    engine = create_engine(db_url)
+    connection = engine.connect()
+    
+    result = connection.execute("SELECT COUNT(*) FROM products WHERE is_active = 1")
+    count = result.fetchone()[0]
+    
+    print(f"✅ SQLAlchemy connection successful!")
+    print(f"✅ Found {count} active products via SQLAlchemy")
+    
+    connection.close()
+    
 except Exception as e:
-    print(f'❌ Database connection failed: {e}')
-    print(f'Current working directory: {os.getcwd()}')
-    print(f'Database URL: {os.environ.get("DATABASE_URL", "Not set")}')
+    print(f"❌ Error: {e}")
+    import traceback
+    traceback.print_exc()

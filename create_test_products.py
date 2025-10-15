@@ -222,7 +222,7 @@ def create_test_products():
         user_id,
         invite_token,
         datetime.now() + timedelta(days=7),
-        'active',
+        'GROUP_FORMING',
         1,
         basket_snapshot
     ))

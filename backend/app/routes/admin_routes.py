@@ -468,8 +468,8 @@ async def get_all_products(
             "weight_grams": getattr(product, 'weight_grams', None),
             "weight_tolerance_grams": getattr(product, 'weight_tolerance_grams', None),
             # Sales display = seed_offset + (real - baseline) - now using bulk data
-            "display_sales": (getattr(product, 'sales_seed_offset', 0) + (
-                sales_data.get(product.id, 0) - getattr(product, 'sales_seed_baseline', 0)
+            "display_sales": ((getattr(product, 'sales_seed_offset', None) or 0) + (
+                sales_data.get(product.id, 0) - (getattr(product, 'sales_seed_baseline', None) or 0)
             )),
             "sales_seed_offset": getattr(product, 'sales_seed_offset', 0),
             "sales_seed_baseline": getattr(product, 'sales_seed_baseline', 0),
@@ -477,16 +477,16 @@ async def get_all_products(
             "display_rating": (lambda: (
                 lambda s, c: (round(s / c, 2) if c > 0 else 0)
             ))()(
-                getattr(product, 'rating_seed_sum', 0) + (
-                    ratings_data.get(product.id, 0) - getattr(product, 'rating_baseline_sum', 0)
+                (getattr(product, 'rating_seed_sum', None) or 0) + (
+                    ratings_data.get(product.id, 0) - (getattr(product, 'rating_baseline_sum', None) or 0)
                 ),
                 1 + (
-                    ratings_count.get(product.id, 0) - getattr(product, 'rating_baseline_count', 0)
+                    ratings_count.get(product.id, 0) - (getattr(product, 'rating_baseline_count', None) or 0)
                 )
             ),
-            "rating_seed_sum": getattr(product, 'rating_seed_sum', 0),
-            "rating_baseline_sum": getattr(product, 'rating_baseline_sum', 0),
-            "rating_baseline_count": getattr(product, 'rating_baseline_count', 0),
+            "rating_seed_sum": (getattr(product, 'rating_seed_sum', None) or 0),
+            "rating_baseline_sum": (getattr(product, 'rating_baseline_sum', None) or 0),
+            "rating_baseline_count": (getattr(product, 'rating_baseline_count', None) or 0),
             # Include image URLs if available (main image first)
             "images": (
                 [

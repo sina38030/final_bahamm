@@ -68,3 +68,6 @@
 2025-10-05 17:56:03,017 - sms - INFO - C:\Projects\final_bahamm\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
 2025-10-05 17:56:03,018 - sms - INFO - C:\Projects\final_bahamm\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
 2025-10-05 17:56:03,018 - sms - INFO - C:\Projects\final_bahamm\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
+2025-10-14 10:59:04,446 - sms - INFO - C:\Projects\final_bahamm\backend\app\services\sms.py:18 - Initializing SMS service with provider: melipayamak
+2025-10-14 10:59:04,446 - sms - INFO - C:\Projects\final_bahamm\backend\app\services\sms.py:28 - Using Melipayamak API key: 60292d2280404143914d559366fa43f9
+2025-10-14 10:59:04,447 - sms - INFO - C:\Projects\final_bahamm\backend\app\services\sms.py:34 - Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/60292d2280404143914d559366fa43f9
