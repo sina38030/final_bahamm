@@ -634,7 +634,7 @@ async def payment_callback(
     
     - کاربر لیدر گروه ➜ صفحه invite (برای دعوت دوستان)
     - کاربر invited ➜ صفحه orders (برای دیدن دکمه "مبلغ پرداختیت رو پس بگیر!")
-    - خرید solo ➜ صفحه successpayment (موفقیت پرداخت)
+    - خرید solo ➜ صفحه orders (لیست سفارشات)
     """
     from fastapi.responses import RedirectResponse
     
@@ -662,9 +662,9 @@ async def payment_callback(
         is_invited = False
         
         if order.order_type == OrderType.ALONE:
-            # Solo purchase ➜ successpayment page
-            logger.info(f"Solo order detected (order_id={order.id}) ➜ redirecting to /successpayment")
-            redirect_url = f"{settings.FRONTEND_URL}/successpayment?authority={Authority}"
+            # Solo purchase ➜ orders page
+            logger.info(f"Solo order detected (order_id={order.id}) ➜ redirecting to /orders")
+            redirect_url = f"{settings.FRONTEND_URL}/orders"
         elif order.group_order_id:
             # Group order - check if user is leader or invited
             group_order = db.query(GroupOrder).filter(GroupOrder.id == order.group_order_id).first()

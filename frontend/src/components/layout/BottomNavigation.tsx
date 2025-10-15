@@ -260,7 +260,6 @@ export default function BottomNavigation() {
         pathname.startsWith('/three-lead-checkout') ||
         pathname.startsWith('/two-lead-checkout') ||
         pathname.startsWith('/orderinfo') ||
-        pathname.startsWith('/successpayment') ||
         pathname.startsWith('/tracking') ||
         pathname.startsWith('/track') ||
         pathname === '/cart'
