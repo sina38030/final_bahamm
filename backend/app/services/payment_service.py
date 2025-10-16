@@ -227,7 +227,8 @@ class PaymentService:
                 return {
                     "success": True,
                     "authority": authority,
-                    "payment_url": f"/invite?authority={authority}",
+                    # Send free/synthetic orders directly to success page; the page will resolve by authority
+                    "payment_url": f"/payment/success/invitee?authority={authority}",
                 }
 
             # Otherwise, continue to gateway via zarinpal service
