@@ -660,8 +660,8 @@ async def payment_callback(
         
         if not order:
             logger.warning(f"No order found for authority: {Authority}")
-            # Default to invite page if order not found
-            redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
+            # Default to success page if order not found (client can resolve by authority)
+            redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}"
             return RedirectResponse(url=redirect_url, status_code=303)
         
         # Determine user type based on GroupOrder.leader_id
@@ -693,8 +693,8 @@ async def payment_callback(
                 )
         else:
             # Fallback: no group_order_id but order_type is GROUP (shouldn't happen but handle it)
-            logger.warning(f"GROUP order without group_order_id (order_id={order.id}) ➜ redirecting to /invite")
-            redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
+            logger.warning(f"GROUP order without group_order_id (order_id={order.id}) ➜ redirecting to success page")
+            redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}&orderId={order.id}"
         
         return RedirectResponse(url=redirect_url, status_code=303)
             
@@ -702,7 +702,7 @@ async def payment_callback(
         logger.error(f"Payment callback error: {str(e)}")
         # Even on error, try to redirect with authority if available
         if Authority:
-            redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
+            redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}"
         else:
             redirect_url = f"{settings.FRONTEND_URL}/cart?payment_error=true"
         return RedirectResponse(url=redirect_url, status_code=303)
