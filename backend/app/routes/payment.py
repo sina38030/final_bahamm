@@ -312,6 +312,7 @@ async def create_payment_order_public(
                     # Defer linking until verification by storing the invite token.
                     original_address = order.shipping_address or ""
                     order.shipping_address = f"PENDING_INVITE:{order_data.invite_code}|{original_address}"
+                    logger.info(f"🎯 Set PENDING_INVITE for order {order.id}: invite_code={order_data.invite_code}")
                     db.commit()
                 else:
                     # Leader initiating a new group buy
