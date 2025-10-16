@@ -335,7 +335,6 @@ class PaymentService:
                         parts = order.shipping_address.split("|", 1)
                         invite_token = parts[0].replace("PENDING_INVITE:", "")
                         original_address = parts[1] if len(parts) > 1 else ""
-                        logger.info(f"🔍 Processing PENDING_INVITE for order {order.id}: invite_token={invite_token}")
                         # Invite token format: GB{order_id}{authority_prefix}
                         raw = invite_token[2:] if invite_token.startswith("GB") else invite_token
                         digits = ''
@@ -368,7 +367,7 @@ class PaymentService:
                             order.group_order_id = pending_group_id
                             order.order_type = OrderType.GROUP
                             order.shipping_address = original_address
-                            logger.info(f"✅ SUCCESSFULLY linked paid order {order.id} to group {pending_group_id} via invite token {invite_token}")
+                            logger.info(f"Linked paid order {order.id} to group {pending_group_id} via invite token")
                         else:
                             logger.warning(f"Could not resolve group for invite token {invite_token} on order {order.id}")
                     except Exception as e:
