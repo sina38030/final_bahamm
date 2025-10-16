@@ -245,12 +245,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   const order = data.order;
                   // Redirect to appropriate page based on order type
                   setTimeout(() => {
-                    if (order.group_order_id) {
-                      // For group orders, redirect to tracking page
+                    if (data.is_invited) {
+                      // Invited users should go to the dedicated success page
+                      const orderId = order.id;
+                      const groupId = order.group_order_id;
+                      const target = `/payment/success/invitee?orderId=${orderId}${groupId ? `&groupId=${groupId}` : ''}`;
+                      router.push(target);
+                    } else if (order.group_order_id) {
+                      // For group leaders, redirect to tracking page
                       router.push(`/track/${order.group_order_id}`);
-                    } else if (data.is_invited && data.group_buy?.invite_code) {
-                      // For invited users, redirect to invite page
-                      router.push(`/invite?invite=${data.group_buy.invite_code}`);
                     } else {
                       // Default: go to orders list
                       router.push(`/orders`);
