@@ -155,14 +155,8 @@ function PaymentCallbackContent() {
               
               console.log('[PaymentCallback] Redirecting invited user to:', target);
               
-              // Use history.replaceState to completely replace current entry
-              if (typeof window !== 'undefined') {
-                // Clear any payment-related parameters from history
-                window.history.replaceState(null, '', target);
-                window.location.href = target;
-              } else {
-                router.replace(target);
-              }
+              // Use router.replace to avoid reload (which would lose invited parameter)
+              router.replace(target);
               return;
             }
           } catch {}
