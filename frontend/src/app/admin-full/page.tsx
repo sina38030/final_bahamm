@@ -3518,14 +3518,31 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
                            )}
                          </div>
                        </td>
-                        <td className="px-6 py-4">
-                          <div>{g.creator_phone || g.leader_username || "—"}</div>
-                          {g.creator_name && g.creator_name !== "کاربر ناشناس" ? (
-                            <div className="text-sm text-gray-500">{g.creator_name}</div>
-                          ) : (g.leader_username && g.leader_username !== "کاربر ناشناس" ? (
-                            <div className="text-sm text-gray-500">{g.leader_username}</div>
-                          ) : null)}
-                        </td>
+                       <td className="px-6 py-4">
+                         {(() => {
+                           const isTelegramUser = g.creator_phone && (g.creator_phone.startsWith('@') || g.creator_phone.startsWith('TG:'));
+                           
+                           if (isTelegramUser) {
+                             // For Telegram users: show name first, username/ID second
+                             return (
+                               <>
+                                 <div>{g.creator_name || "کاربر تلگرام"}</div>
+                                 <div className="text-sm text-gray-500">{g.creator_phone}</div>
+                               </>
+                             );
+                           } else {
+                             // For phone users: show phone first, name second
+                             return (
+                               <>
+                                 <div>{g.creator_phone || g.leader_username || "—"}</div>
+                                 {g.creator_name && g.creator_name !== "کاربر ناشناس" && (
+                                   <div className="text-sm text-gray-500">{g.creator_name}</div>
+                                 )}
+                               </>
+                             );
+                           }
+                         })()}
+                       </td>
                         <td className="px-6 py-4">
                           {(() => {
                             const href = g.invite_link || (g.invite_code ? `/landingM?invite=${g.invite_code}` : "#");
@@ -3643,14 +3660,14 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
                <>
                  <div className="grid md:grid-cols-2 gap-6 mb-6">
                    <div>
-                     <h3 className="font-semibold mb-3">اطلاعات ایجادکننده</h3>
-                     <div className="bg-gray-50 p-4 rounded">
-                       <p>
-                         <strong>نام:</strong> {data.creator_name}
-                       </p>
-                       <p>
-                         <strong>تلفن:</strong> {data.creator_phone}
-                       </p>
+                    <h3 className="font-semibold mb-3">اطلاعات ایجادکننده</h3>
+                    <div className="bg-gray-50 p-4 rounded">
+                      <p>
+                        <strong>نام:</strong> {data.creator_name || "—"}
+                      </p>
+                      <p>
+                        <strong>{data.creator_phone && (data.creator_phone.startsWith('@') || data.creator_phone.startsWith('TG:')) ? 'شناسه تلگرام:' : 'تلفن:'}</strong> {data.creator_phone || "—"}
+                      </p>
                        {data.creator_email && (
                          <p>
                            <strong>ایمیل:</strong> {data.creator_email}

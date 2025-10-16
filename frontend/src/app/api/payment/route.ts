@@ -21,8 +21,9 @@ export async function POST(request: NextRequest) {
       expected_friends,
     } = body;
 
-    // Authentication disabled for now
-    const token = null;
+    // Extract authentication token from request headers or cookies
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '') || request.cookies.get('auth_token')?.value || null;
 
     // Choose endpoint based on whether items are provided
     let endpoint = '/api/payment/request-public';
@@ -71,11 +72,21 @@ export async function POST(request: NextRequest) {
       };
     }
 
+    // Prepare headers with optional authentication
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+      console.log('[Payment API] Forwarding auth token to backend');
+    } else {
+      console.log('[Payment API] No auth token found, proceeding as guest');
+    }
+
     const response = await fetch(`${getBackendOrigin()}${endpoint}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(requestBody),
     });
 

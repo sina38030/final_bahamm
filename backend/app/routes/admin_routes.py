@@ -20,6 +20,36 @@ logger = get_logger("admin_routes")
 # Tehran timezone: UTC+3:30
 TEHRAN_TZ = timezone(timedelta(hours=3, minutes=30))
 
+def get_user_display_info(user) -> tuple[str, str]:
+    """
+    Get display name and identifier for a user.
+    Returns (display_name, identifier) where:
+    - For Telegram users: (name, @username or TG:telegram_id)
+    - For Phone users: (name or phone, phone)
+    """
+    if not user:
+        return ("کاربر مهمان", "")
+    
+    telegram_id = getattr(user, 'telegram_id', None)
+    telegram_username = getattr(user, 'telegram_username', None)
+    
+    display_name = f"{getattr(user, 'first_name', '') or ''} {getattr(user, 'last_name', '') or ''}".strip()
+    
+    if telegram_id:
+        # Telegram user
+        identifier = f"@{telegram_username}" if telegram_username else f"TG:{telegram_id}"
+        if not display_name:
+            display_name = identifier
+        return (display_name, identifier)
+    else:
+        # Phone user
+        phone = getattr(user, 'phone_number', '') or ""
+        if phone.startswith('guest_'):
+            phone = ""
+        if not display_name:
+            display_name = phone or "کاربر مهمان"
+        return (display_name, phone)
+
 # Ensure new nullable columns exist in SQLite without requiring manual migration
 def _ensure_product_position_columns(db: Session):
     try:
@@ -2438,17 +2468,12 @@ async def get_all_group_buys(
                         except Exception:
                             leader_phone = ""
                 
-                logger.info(f"DEBUG: Group {g.id}, leader_id={g.leader_id}, leader_phone='{leader_phone}'")
+                logger.info(f"DEBUG: Group {g.id}, leader_id={g.leader_id}, identifier='{leader_phone}', name='{leader_phone}'")
 
-                # Display name prefers real name, then phone
-                if leader:
-                    display_name = f"{leader.first_name or ''} {leader.last_name or ''}".strip()
-                    if not display_name:
-                        display_name = leader_phone or "کاربر مهمان"
-                else:
-                    display_name = leader_phone or "کاربر مهمان"
+                # Use get_user_display_info helper to determine display name and identifier
+                display_name, identifier = get_user_display_info(leader)
                 
-                logger.info(f"DEBUG: Final creator_phone={leader_phone}, creator_name={display_name}")
+                logger.info(f"DEBUG: Group {g.id}, leader_id={g.leader_id}, identifier='{identifier}', name='{display_name}'")
                 # Determine expected_friends if available on GroupOrder; fallback to 1
                 try:
                     expected_friends_val = int(getattr(g, 'expected_friends', None) or 1)
@@ -2462,7 +2487,7 @@ async def get_all_group_buys(
                     "invite_link": f"/landingM?invite={g.invite_token}",
                     # Frontend (admin-full) expected fields
                     "creator_name": display_name,
-                    "creator_phone": leader_phone,
+                    "creator_phone": identifier,
                     "invite_code": g.invite_token,
                     "product_name": (
                         (basket_items[0].get("product_name") if basket_items and len(basket_items) > 0 and basket_items[0].get("product_name") else f"محصول {basket_items[0].get('product_id', 'نامشخص')}")
@@ -2770,14 +2795,17 @@ async def get_group_buy_details(
         
         
     
+        # Use get_user_display_info helper to determine display name and identifier
+        display_name, identifier = get_user_display_info(leader) if leader else ("کاربر حذف شده", f"ID: {group_buy.leader_id}")
+        
         payload = {
         "id": group_buy.id,
             "leader_id": group_buy.leader_id,
-            "leader_name": f"{leader.first_name or ''} {leader.last_name or ''}".strip() if leader else f"کاربر حذف شده (ID: {group_buy.leader_id})",
-            "leader_phone": leader.phone_number if leader else "",
+            "leader_name": display_name,
+            "leader_phone": identifier,
             # Add creator fields for frontend compatibility
-            "creator_name": (f"{leader.first_name or ''} {leader.last_name or ''}".strip() or leader.phone_number) if leader else f"کاربر حذف شده (ID: {group_buy.leader_id})",
-            "creator_phone": leader.phone_number if leader else "",
+            "creator_name": display_name,
+            "creator_phone": identifier,
             "invite_token": group_buy.invite_token,
             "status": group_buy.status.value if hasattr(group_buy.status, 'value') else str(group_buy.status),
             "allow_consolidation": group_buy.allow_consolidation,
@@ -3774,19 +3802,13 @@ async def get_secondary_groups(
                 else:
                     status_value = "ثانویه"
             
-            # Leader info
-            leader_phone = ""
-            leader_name = ""
-            if leader:
-                leader_phone = getattr(leader, 'phone_number', '')
-                if leader_phone and leader_phone.startswith('guest_'):
-                    leader_phone = ""
-                leader_name = f"{getattr(leader, 'first_name', '')} {getattr(leader, 'last_name', '')}".strip()
+            # Leader info using get_user_display_info helper
+            leader_name, leader_phone = get_user_display_info(leader) if leader else ("نامشخص", "")
             
             rows.append({
                 "id": g.id,
                 "leader_phone": leader_phone,
-                "leader_name": leader_name or "نامشخص",
+                "leader_name": leader_name,
                 "participants": participants_count,
                 "paid": paid_count,
                 "status": status_value,

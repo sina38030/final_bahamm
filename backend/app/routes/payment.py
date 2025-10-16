@@ -4,7 +4,7 @@ from app.database import get_db
 from app.schemas import PaymentRequest, PaymentResponse, PaymentVerification, PaymentVerificationResponse
 from app.payment import zarinpal
 from app.utils.logging import get_logger
-from app.utils.security import get_current_user
+from app.utils.security import get_current_user, get_current_user_optional
 from app.models import User, Order, OrderType, GroupOrder, GroupOrderStatus
 from sqlalchemy import or_, func
 from app.config import get_settings
@@ -77,7 +77,8 @@ class FrontendPaymentRequest(BaseModel):
 @router.post("", response_model=PaymentResponse)
 async def process_payment(
     payment_data: FrontendPaymentRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
 ):
     """
     Main payment endpoint that handles frontend payment requests
@@ -102,7 +103,7 @@ async def process_payment(
                 max_friends=payment_data.max_friends,
                 expected_friends=payment_data.expected_friends,
             )
-            return await create_payment_order_public(order_request, db)
+            return await create_payment_order_public(order_request, db, current_user)
         else:
             # If no items, just request payment
             payment_request = PaymentRequest(
@@ -160,10 +161,11 @@ async def verify_payment_main(
 @router.post("/create-order-public", response_model=PaymentResponse)
 async def create_payment_order_public(
     order_data: PaymentOrderRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
 ):
     """
-    ایجاد سفارش جدید و درخواست پرداخت (بدون احراز هویت)
+    ایجاد سفارش جدید و درخواست پرداخت (با احراز هویت اختیاری)
     """
     try:
         payment_service = PaymentService(db)
@@ -277,9 +279,9 @@ async def create_payment_order_public(
 
         # Leader flow previously created as regular order; let it proceed to payment order creation
 
-        # Create payment order without user (for testing)
+        # Create payment order with optional user authentication
         result = await payment_service.create_payment_order(
-            user_id=None,  # No user authentication
+            user_id=current_user.id if current_user else None,
             items=items,
             total_amount=total_amount_rial,
             description=order_data.description,

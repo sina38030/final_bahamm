@@ -1064,11 +1064,17 @@ function CheckoutPageContent() {
           friend_1_price: item.friend_1_price
         }));
         
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        
         const response = await fetch('/api/payment', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify({
             amount: 0,
             description: `سفارش رایگان - ${items.length} کالا`,
@@ -1220,11 +1226,17 @@ function CheckoutPageContent() {
             } as any;
           };
 
+          const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+          };
+          
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+          
           const response = await fetch('/api/payment', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers,
             body: JSON.stringify({
               ...(await inviteAwareBody()),
               // Leaders hybrid flow: forward expected friends if present
@@ -1305,11 +1317,17 @@ function CheckoutPageContent() {
         };
       });
       
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch('/api/payment', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           amount: amountInRial,
           description: `پرداخت سفارش - ${items.length} کالا`,

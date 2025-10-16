@@ -14,6 +14,7 @@ from app.utils.logging import get_logger
 logger = get_logger("security")
 settings = get_settings()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/verify")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="auth/verify", auto_error=False)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -64,4 +65,44 @@ async def get_current_user(
         raise credentials_exception
     
     logger.debug(f"User authenticated: ID={user.id}, type={user.user_type}")
-    return user 
+    return user
+
+async def get_current_user_optional(
+    token: Optional[str] = Depends(oauth2_scheme_optional),
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    """
+    Optional authentication: returns User if valid token provided, None otherwise.
+    Does not raise an exception if token is missing or invalid.
+    """
+    if not token:
+        logger.debug("No token provided for optional authentication")
+        return None
+    
+    try:
+        logger.debug(f"Decoding optional token")
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            logger.warning("Optional token missing 'sub' claim")
+            return None
+            
+        user_type = payload.get("user_type")
+        logger.debug(f"Optional token payload: user_id={user_id}, user_type={user_type}")
+        
+        token_data = TokenData(
+            user_id=int(user_id),
+            phone_number=payload.get("phone_number"),
+            user_type=user_type
+        )
+    except JWTError as e:
+        logger.error(f"Optional JWT decode error: {str(e)}")
+        return None
+    
+    user = db.query(User).filter(User.id == token_data.user_id).first()
+    if user is None:
+        logger.warning(f"Optional auth: User not found for ID: {token_data.user_id}")
+        return None
+    
+    logger.debug(f"Optional auth: User authenticated: ID={user.id}, type={user.user_type}")
+    return user
