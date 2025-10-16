@@ -82,6 +82,8 @@ function InviteeSuccessContent() {
       // OVERRIDE any navigation attempts to invite page only (allow same-page reload)
       const originalPushState = window.history.pushState;
       const originalReplaceState = window.history.replaceState;
+      const originalLocationAssign = window.location.assign.bind(window.location);
+      const originalLocationReplace = window.location.replace.bind(window.location);
       
       window.history.pushState = function(state, title, url) {
         if (typeof url === 'string' && url.includes('/invite')) {
@@ -98,6 +100,28 @@ function InviteeSuccessContent() {
         }
         return originalReplaceState.call(this, state, title, url);
       };
+
+      // Also block direct location redirects to invite (assign/replace)
+      try {
+        // @ts-ignore
+        window.location.assign = (url: string | URL) => {
+          const s = String(url);
+          if (s.includes('/invite')) {
+            console.warn('[InviteeSuccess] BLOCKED window.location.assign to invite:', s);
+            return;
+          }
+          return originalLocationAssign(url);
+        };
+        // @ts-ignore
+        window.location.replace = (url: string) => {
+          const s = String(url);
+          if (s.includes('/invite')) {
+            console.warn('[InviteeSuccess] BLOCKED window.location.replace to invite:', s);
+            return;
+          }
+          return originalLocationReplace(url);
+        };
+      } catch {}
       
       // Do not override window.location.href entirely; allow reloads to work normally
       
@@ -105,6 +129,8 @@ function InviteeSuccessContent() {
       return () => {
         window.history.pushState = originalPushState;
         window.history.replaceState = originalReplaceState;
+        try { window.location.assign = originalLocationAssign; } catch {}
+        try { window.location.replace = originalLocationReplace; } catch {}
       };
     }
   }, []);
