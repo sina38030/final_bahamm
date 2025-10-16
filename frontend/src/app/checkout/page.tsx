@@ -1093,14 +1093,14 @@ function CheckoutPageContent() {
             expected_friends: (!isInvitedUser && expectedFriendsParam) ? parseInt(expectedFriendsParam) : undefined,
             // Ensure invite linking for invited users
             invite_code: inviteCodeParam || groupOrderInfo?.invite_code || undefined,
-          });
-          
-          console.log('🚀 Sending payment request with:', {
-            isInvitedUser,
-            invite_code: inviteCodeParam || groupOrderInfo?.invite_code,
-            allow_consolidation: (forceDisableConsolidation ? false : greenToggle),
-            amount: calculations.total * 10
-          });
+          })
+        });
+        
+        console.log('🚀 Sending payment request with:', {
+          isInvitedUser,
+          invite_code: inviteCodeParam || groupOrderInfo?.invite_code,
+          allow_consolidation: (forceDisableConsolidation ? false : greenToggle),
+          amount: calculations.total * 10
         });
 
         const data = await response.json();
