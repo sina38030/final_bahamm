@@ -1,0 +1,95 @@
+================================================
+دستورات Deploy Frontend به Production
+================================================
+
+این دستورات را در ترمینال PowerShell خودتان اجرا کنید:
+
+================================================
+دستور 1: اتصال به سرور
+================================================
+
+ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+
+
+بعد از اتصال، این دستورات را یکی یکی اجرا کنید:
+================================================
+
+# رفتن به پوشه اصلی پروژه
+cd /srv/app
+
+# Pull کردن تغییرات جدید
+git pull origin main
+
+# رفتن به پوشه frontend
+cd frontend
+
+# حذف build قدیمی (خیلی مهم!)
+rm -rf .next
+rm -rf node_modules/.cache
+
+# Build جدید (این 2-5 دقیقه طول می‌کشد)
+npm run build
+
+# بعد از تمام شدن build، چک کنید که frontend با چه سرویسی اجرا می‌شود:
+pm2 list
+
+# اگر خروجی داشت و frontend را دیدید:
+pm2 restart frontend
+pm2 status
+
+# اگر pm2 command not found گفت، از systemctl استفاده کنید:
+sudo systemctl restart frontend
+# یا
+sudo systemctl restart bahamm-frontend
+
+# چک کردن وضعیت:
+sudo systemctl status frontend
+# یا
+sudo systemctl status bahamm-frontend
+
+================================================
+تست کردن
+================================================
+
+1. یک کاربر invited در سایت ایجاد کنید
+2. پرداخت کنید
+3. باید به این آدرس redirect شود:
+   https://bahamm.ir/payment/success/invitee?orderId=XXX
+
+4. نباید به /success برود!
+
+================================================
+اگر هنوز به /success می‌رود:
+================================================
+
+# روی سرور این دستورات را اجرا کنید:
+cd /srv/app/frontend
+
+# Hard clean
+rm -rf .next
+rm -rf node_modules/.cache
+rm -rf .next/cache
+
+# Build مجدد
+npm run build
+
+# اگر از PM2 استفاده می‌کنید:
+pm2 delete frontend
+pm2 start npm --name "frontend" -- start
+
+# اگر از systemd استفاده می‌کنید:
+sudo systemctl stop frontend
+sudo systemctl start frontend
+
+================================================
+چک کردن که فایل قدیمی حذف شده:
+================================================
+
+# این باید بگوید: No such file or directory
+ls -la /srv/app/frontend/src/app/success/
+
+# این باید فایل page.tsx را نشان دهد
+ls -la /srv/app/frontend/src/app/payment/success/invitee/
+
+================================================
+

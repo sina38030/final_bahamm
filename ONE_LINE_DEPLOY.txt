@@ -1,0 +1,30 @@
+================================================
+دستور تک خطی برای Deploy سریع
+================================================
+
+این دستور را در PowerShell کپی کنید و اجرا کنید:
+
+
+ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "cd /srv/app && git pull && cd frontend && rm -rf .next && npm run build && pm2 restart frontend"
+
+
+اگر با PM2 کار نمی‌کند، این را امتحان کنید:
+
+
+ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "cd /srv/app && git pull && cd frontend && rm -rf .next && npm run build && sudo systemctl restart frontend"
+
+
+================================================
+
+این دستور:
+1. به سرور وصل می‌شود
+2. Git pull می‌کند
+3. به پوشه frontend می‌رود
+4. Build قدیمی را حذف می‌کند
+5. Build جدید می‌سازد
+6. Frontend را restart می‌کند
+
+همه کارها یکجا! ⏱️ زمان: 3-5 دقیقه
+
+================================================
+
