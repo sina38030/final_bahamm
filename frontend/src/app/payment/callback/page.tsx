@@ -40,7 +40,7 @@ function PaymentCallbackContent() {
           const processedData = JSON.parse(alreadyProcessed);
           
           if (processedData.isInvited && processedData.orderId) {
-            // Redirect to success page instead of re-processing
+            // Redirect to success page instead of re-processing (preserve invited parameter)
             const target = `/payment/success/invitee?orderId=${processedData.orderId}${processedData.groupId ? `&groupId=${processedData.groupId}` : ''}`;
             console.log('[PaymentCallback] Redirecting to success page:', target);
             if (typeof window !== 'undefined') {
@@ -80,18 +80,21 @@ function PaymentCallbackContent() {
           }
         }
         
-        // Detect invited-user or settlement flows (flags set before redirecting to bank)
-        const invitedFlag = typeof window !== 'undefined' ? localStorage.getItem('invited_payment') : null;
+        // Detect invited-user from URL parameter (Backend adds &invited=1 for invited users)
+        const invitedParam = searchParams.get('invited');
+        const isInvitedFlow = invitedParam === '1';
+        
+        // Detect settlement flow (flag set before redirecting to bank)
         const settlementFlag = typeof window !== 'undefined' ? localStorage.getItem('settlement_payment') : null;
+        const isSettlementFlow = !!settlementFlag;
+        
         // Detect solo flow via cookie set at checkout
         const soloCookie = typeof document !== 'undefined' ? document.cookie.split('; ').find(c => c.startsWith('payment_role=')) : null;
         const paymentRole = soloCookie ? soloCookie.split('=')[1] : null;
-        const isInvitedFlow = !!invitedFlag;
-        const isSettlementFlow = !!settlementFlag;
         setIsInvited(isInvitedFlow);
         
         console.log('[PaymentCallback] Processing payment with flags:', {
-          invitedFlag,
+          invitedParam,
           settlementFlag,
           paymentRole,
           isInvitedFlow,
@@ -105,12 +108,6 @@ function PaymentCallbackContent() {
           setMessage('پرداخت با موفقیت انجام شد');
           
           console.log('[PaymentCallback] Processing invited payment for authority:', authority);
-          
-          // Clear the invited_payment flag BEFORE redirect to prevent re-processing
-          try { 
-            localStorage.removeItem('invited_payment'); 
-            console.log('[PaymentCallback] Cleared invited_payment flag');
-          } catch {}
 
           // Verify and load order
           try {

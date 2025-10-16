@@ -684,7 +684,7 @@ async def payment_callback(
                 # User is invited (follower) ➜ payment callback page
                 is_invited = True
                 logger.info(f"Invited user order detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /payment/callback")
-                redirect_url = f"{settings.FRONTEND_URL}/payment/callback?Authority={Authority}&Status=OK"
+                redirect_url = f"{settings.FRONTEND_URL}/payment/callback?Authority={Authority}&Status=OK&invited=1"
         else:
             # Fallback: no group_order_id but order_type is GROUP (shouldn't happen but handle it)
             logger.warning(f"GROUP order without group_order_id (order_id={order.id}) ➜ redirecting to /invite")

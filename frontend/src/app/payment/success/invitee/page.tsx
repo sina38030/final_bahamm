@@ -74,15 +74,6 @@ function InviteeSuccessContent() {
       
       console.log('[InviteeSuccess] Current path:', currentPath, 'Full URL:', currentUrl);
       
-      // Clear any payment callback flags that might cause issues on refresh
-      try {
-        const invitedFlag = localStorage.getItem('invited_payment');
-        if (invitedFlag) {
-          console.log('[InviteeSuccess] Clearing stale invited_payment flag on success page');
-          localStorage.removeItem('invited_payment');
-        }
-      } catch {}
-      
       // Set a flag to indicate we've successfully reached the success page
       try {
         localStorage.setItem('payment_success_reached', 'true');
