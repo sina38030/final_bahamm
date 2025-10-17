@@ -654,8 +654,6 @@ async def payment_callback(
         try:
             payment_service = PaymentService(db)
             _ = await payment_service.verify_and_complete_payment(authority=Authority, amount=None, user_id=None)
-            # ✅ CRITICAL: Refresh the session to get the updated group_order_id
-            db.expire_all()  # Clear all cached objects to force fresh queries
         except Exception as _e:
             logger.error(f"Callback verification error (continuing to redirect): {_e}")
         
@@ -672,8 +670,6 @@ async def payment_callback(
         is_leader = False
         is_invited = False
         
-        logger.info(f"✅ Order after verification: id={order.id}, group_order_id={order.group_order_id}, user_id={order.user_id}, order_type={order.order_type}")
-
         if order.order_type == OrderType.ALONE:
             # Solo purchase ➜ payment callback page
             logger.info(f"Solo order detected (order_id={order.id}) ➜ redirecting to /payment/callback")
@@ -702,17 +698,66 @@ async def payment_callback(
             logger.warning(f"GROUP order without group_order_id (order_id={order.id}) ➜ redirecting to success page")
             redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}&orderId={order.id}"
         
-        return RedirectResponse(url=redirect_url, status_code=303)
+        # ✅ Return HTML response with Telegram deep link support
+        from fastapi.responses import HTMLResponse
+        
+        telegram_bot_username = settings.TELEGRAM_BOT_USERNAME
+        telegram_deeplink = f"https://t.me/{telegram_bot_username}?start=payment_{Authority}_OK"
+        html_response = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Processing...</title>
+            <script>
+                if (window.Telegram && window.Telegram.WebApp) {{
+                    window.Telegram.WebApp.openLink('{telegram_deeplink}', true);
+                }} else {{
+                    window.location.href = '{redirect_url}';
+                }}
+                setTimeout(function() {{
+                    window.location.href = '{redirect_url}';
+                }}, 1000);
+            </script>
+        </head>
+        <body><p>درحال پردازش...</p></body>
+        </html>
+        """
+        return HTMLResponse(content=html_response)
             
     except Exception as e:
         logger.error(f"Payment callback error: {str(e)}")
         # Even on error, try to redirect with authority if available
         if Authority:
             redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}"
+            error_start = f"payment_{Authority}_ERROR"
         else:
             redirect_url = f"{settings.FRONTEND_URL}/cart?payment_error=true"
+            error_start = "error_payment"
         
-        return RedirectResponse(url=redirect_url, status_code=303)
+        # ✅ Return HTML response with Telegram deep link support
+        from fastapi.responses import HTMLResponse
+        telegram_bot_username = settings.TELEGRAM_BOT_USERNAME
+        telegram_deeplink = f"https://t.me/{telegram_bot_username}?start={error_start}"
+        html_response = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Error...</title>
+            <script>
+                if (window.Telegram && window.Telegram.WebApp) {{
+                    window.Telegram.WebApp.openLink('{telegram_deeplink}', true);
+                }} else {{
+                    window.location.href = '{redirect_url}';
+                }}
+                setTimeout(function() {{
+                    window.location.href = '{redirect_url}';
+                }}, 1000);
+            </script>
+        </head>
+        <body><p>خطا...</p></body>
+        </html>
+        """
+        return HTMLResponse(content=html_response)
 
 @router.get("/orders")
 async def get_user_payment_orders(
