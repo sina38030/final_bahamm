@@ -677,16 +677,20 @@ async def payment_callback(
         elif order.group_order_id:
             # Group order - check if user is leader or invited
             group_order = db.query(GroupOrder).filter(GroupOrder.id == order.group_order_id).first()
-            if group_order and group_order.leader_id == order.user_id:
+            # CRITICAL: Both IDs must be non-None to properly identify leader vs invited user
+            if (group_order and 
+                group_order.leader_id is not None and 
+                order.user_id is not None and 
+                group_order.leader_id == order.user_id):
                 # User is the leader ➜ invite page
                 is_leader = True
-                logger.info(f"Leader order detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /invite")
+                logger.info(f"Leader order detected (order_id={order.id}, group_id={order.group_order_id}, user_id={order.user_id}, leader_id={group_order.leader_id}) ➜ redirecting to /invite")
                 redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
             else:
                 # User is invited (follower) ➜ redirect directly to success page
                 is_invited = True
                 logger.info(
-                    f"Invited user order detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /payment/success/invitee"
+                    f"Invited user order detected (order_id={order.id}, group_id={order.group_order_id}, user_id={order.user_id}, leader_id={group_order.leader_id if group_order else 'N/A'}) ➜ redirecting to /payment/success/invitee"
                 )
                 # Pass authority for frontend to resolve group invite/refund timer; include orderId/groupId for UX
                 group_part = f"&groupId={order.group_order_id}" if getattr(order, 'group_order_id', None) else ""

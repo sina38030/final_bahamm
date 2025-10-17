@@ -283,6 +283,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // This handles sharing links from the invite page
         if (startParam.length > 0 && !paymentMatch) {
           console.log('[AuthContext] Invite code detected in start_param:', startParam);
+          
+          // DON'T redirect if we're already on a payment success page or invite page
+          // This prevents the redirect loop for invited users after successful payment
+          const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+          const isOnPaymentSuccessPage = currentPath.includes('/payment/success');
+          const isOnInvitePage = currentPath.includes('/invite');
+          const isOnLandingPage = currentPath.includes('/landingM');
+          
+          if (isOnPaymentSuccessPage || isOnInvitePage || isOnLandingPage) {
+            console.log('[AuthContext] Already on payment/invite/landing page, skipping redirect');
+            return;
+          }
+          
           // Redirect to landing page with invite code
           setTimeout(() => {
             router.push(`/landingM?invite=${startParam}`);
