@@ -48,8 +48,9 @@ export async function GET(
       );
     }
 
-    // Normalize response to the shape the frontend expects
-    return NextResponse.json({ success: true, order: data });
+    // ✅ FIX: Backend returns {success: true, order: {...}}
+    // Don't double-wrap - just return the backend response directly
+    return NextResponse.json(data);
 
   } catch (error) {
     console.error('Error fetching order:', error);
