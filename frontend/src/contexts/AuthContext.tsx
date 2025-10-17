@@ -245,18 +245,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   const order = data.order;
                   // Redirect to appropriate page based on order type
                   setTimeout(() => {
-                    if (data.is_invited) {
-                      // Invited users should go to the dedicated success page
+                    // ✅ CHECK is_invited FIRST - this is the specific condition for invited users
+                    if (order.is_invited) {
+                      console.log('[AuthContext] Invited user detected - going to SUCCESS page only');
                       const orderId = order.id;
                       const groupId = order.group_order_id;
-                      const target = `/payment/success/invitee?orderId=${orderId}${groupId ? `&groupId=${groupId}` : ''}`;
+                      const target = `/payment/success/invitee?orderId=${orderId}${groupId ? `&groupId=${groupId}` : ''}&authority=${encodeURIComponent(authority)}`;
                       router.push(target);
                     } else if (order.group_order_id) {
-                      // For group leaders, redirect to tracking page
-                      router.push(`/track/${order.group_order_id}`);
+                      // For group leaders (NOT invited), redirect to invite page
+                      console.log('[AuthContext] Group leader detected - going to INVITE page');
+                      router.push(`/invite?authority=${encodeURIComponent(authority)}`);
                     } else {
                       // Default: go to orders list
-                      router.push(`/orders`);
+                      console.log('[AuthContext] Solo order detected - going to ORDERS page');
+                      router.push('/orders');
                     }
                   }, 500);
                 } else {
@@ -276,6 +279,53 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // Redirect to cart/orders
             setTimeout(() => router.push('/cart'), 500);
           }
+          return;
+        }
+        
+        // ✅ NEW: Check if start_param might be a payment authority (not just invite code)
+        // This handles Telegram mini app payment returns where start_param is the authority
+        if (startParam.length > 0 && !paymentMatch && startParam.length > 5) {
+          console.log('[AuthContext] Attempting to resolve start_param as payment authority...');
+          
+          fetch(`/api/payment/order/${encodeURIComponent(startParam)}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data.success && data.order) {
+                console.log('[AuthContext] Found order by authority - processing payment return');
+                const order = data.order;
+                setTimeout(() => {
+                  // ✅ CHECK is_invited FIRST
+                  if (order.is_invited) {
+                    console.log('[AuthContext] Payment return: Invited user - going to SUCCESS page');
+                    const orderId = order.id;
+                    const groupId = order.group_order_id;
+                    const target = `/payment/success/invitee?orderId=${orderId}${groupId ? `&groupId=${groupId}` : ''}&authority=${encodeURIComponent(startParam)}`;
+                    router.push(target);
+                  } else if (order.group_order_id) {
+                    console.log('[AuthContext] Payment return: Group leader - going to INVITE page');
+                    router.push(`/invite?authority=${encodeURIComponent(startParam)}`);
+                  } else {
+                    console.log('[AuthContext] Payment return: Solo order - going to ORDERS page');
+                    router.push('/orders');
+                  }
+                }, 500);
+                return;
+              }
+              
+              // Not a valid order - treat as invite code
+              console.log('[AuthContext] Not a valid authority, treating as invite code');
+              setTimeout(() => {
+                router.push(`/landingM?invite=${startParam}`);
+              }, 500);
+            })
+            .catch(err => {
+              console.error('[AuthContext] Error checking authority:', err);
+              // Fallback: treat as invite code
+              console.log('[AuthContext] Error on authority check - falling back to invite code');
+              setTimeout(() => {
+                router.push(`/landingM?invite=${startParam}`);
+              }, 500);
+            });
           return;
         }
         
