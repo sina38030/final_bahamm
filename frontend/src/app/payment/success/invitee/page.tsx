@@ -68,6 +68,7 @@ function InviteeSuccessContent() {
       const currentUrl = window.location.href;
       
       console.log('[InviteeSuccess] LOCKED ON PAGE:', currentPath, currentUrl);
+      console.log('[InviteeSuccess] ⛔ PAGE IS LOCKED - ALL REDIRECTS BLOCKED ⛔');
       
       // Set a flag to indicate we've successfully reached the success page
       try {
@@ -83,7 +84,8 @@ function InviteeSuccessContent() {
       window.history.pushState = function(state, title, url) {
         const urlStr = String(url);
         if (urlStr !== currentPath && urlStr !== currentUrl) {
-          console.warn('[InviteeSuccess] ❌ BLOCKED navigation attempt to:', urlStr);
+          console.error('[InviteeSuccess] ❌ BLOCKED navigation attempt to:', urlStr);
+          console.trace('[InviteeSuccess] Navigation attempt stack trace:');
           return;
         }
         return originalPushState.call(this, state, title, url);
@@ -92,7 +94,8 @@ function InviteeSuccessContent() {
       window.history.replaceState = function(state, title, url) {
         const urlStr = String(url);
         if (urlStr !== currentPath && urlStr !== currentUrl) {
-          console.warn('[InviteeSuccess] ❌ BLOCKED redirect attempt to:', urlStr);
+          console.error('[InviteeSuccess] ❌ BLOCKED redirect attempt to:', urlStr);
+          console.trace('[InviteeSuccess] Redirect attempt stack trace:');
           return;
         }
         return originalReplaceState.call(this, state, title, url);
@@ -104,7 +107,8 @@ function InviteeSuccessContent() {
         window.location.assign = (url: string | URL) => {
           const s = String(url);
           if (!s.includes(currentPath)) {
-            console.warn('[InviteeSuccess] ❌ BLOCKED location.assign to:', s);
+            console.error('[InviteeSuccess] ❌ BLOCKED location.assign to:', s);
+            console.trace('[InviteeSuccess] location.assign stack trace:');
             return;
           }
           return originalLocationAssign(url);
@@ -113,7 +117,8 @@ function InviteeSuccessContent() {
         window.location.replace = (url: string) => {
           const s = String(url);
           if (!s.includes(currentPath)) {
-            console.warn('[InviteeSuccess] ❌ BLOCKED location.replace to:', s);
+            console.error('[InviteeSuccess] ❌ BLOCKED location.replace to:', s);
+            console.trace('[InviteeSuccess] location.replace stack trace:');
             return;
           }
           return originalLocationReplace(url);
