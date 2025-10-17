@@ -3765,6 +3765,8 @@ async def get_secondary_groups(
             except Exception:
                 kind = "primary"
             
+            logger.info(f"SecondaryGroups check - Group {g.id}: kind={kind}, leader_id={g.leader_id}, snapshot={getattr(g, 'basket_snapshot', None)[:100] if getattr(g, 'basket_snapshot', None) else 'None'}")
+            
             leader = db.query(User).filter(User.id == g.leader_id).first()
             
             # Orders in this group (exclude settlement)
@@ -3782,6 +3784,7 @@ async def get_secondary_groups(
             
             # Include only explicit secondary groups (explicit kind == "secondary")
             if kind != "secondary":
+                logger.info(f"SecondaryGroups: Skipping group {g.id} - kind is '{kind}', not 'secondary'")
                 continue
             
             participants_count = len(group_orders) if group_orders else 1
