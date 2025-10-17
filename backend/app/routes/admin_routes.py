@@ -3776,29 +3776,12 @@ async def get_secondary_groups(
             # Followers are non-leader members
             followers_count = sum(1 for o in group_orders if getattr(o, 'user_id', None) != getattr(g, 'leader_id', None))
             
-            # Detect implicit-secondary: leader has been a follower in some other group
-            is_implicit_secondary = False
-            if kind != "secondary" and followers_count >= 1 and g.leader_id:
-                try:
-                    from sqlalchemy.orm import aliased
-                    OtherGroup = aliased(GroupOrder)
-                    other_participation = (
-                        db.query(Order)
-                        .join(OtherGroup, Order.group_order_id == OtherGroup.id)
-                        .filter(
-                            Order.user_id == g.leader_id,
-                            Order.group_order_id != g.id,
-                            Order.is_settlement_payment == False,
-                            OtherGroup.leader_id != g.leader_id,
-                        )
-                        ).first()
-                    is_implicit_secondary = other_participation is not None
-                except Exception as _e:
-                    logger.warning(f"implicit-secondary check failed for group {g.id}: {_e}")
-                    is_implicit_secondary = False
+            # REMOVED: Implicit-secondary detection was incorrectly marking regular groups as secondary
+            # Only explicit secondary groups (with kind="secondary" in basket_snapshot) should be shown here
+            # This was causing regular primary groups with Telegram user leaders to incorrectly appear in secondary list
             
-            # Include only explicit secondary OR implicit secondary
-            if not (kind == "secondary" or is_implicit_secondary):
+            # Include only explicit secondary groups (explicit kind == "secondary")
+            if kind != "secondary":
                 continue
             
             participants_count = len(group_orders) if group_orders else 1
