@@ -1006,14 +1006,17 @@ async def get_order_by_authority(
         
         # Leader/invitee hints
         group_order_id = getattr(order, "group_order_id", None)
-        # If shipping_address contains PENDING_ markers, the buyer is an invitee joining a leader
-        shipping_address = getattr(order, "shipping_address", "") or ""
         is_invited = False
-        try:
-            if isinstance(shipping_address, str) and (shipping_address.startswith("PENDING_GROUP:") or shipping_address.startswith("PENDING_INVITE:")):
-                is_invited = True
-        except Exception:
-            is_invited = False
+        
+        # ✅ CORRECT: Check if user is invited (has group_order_id but is NOT the leader)
+        if group_order_id:
+            try:
+                group_order = db.query(GroupOrder).filter(GroupOrder.id == group_order_id).first()
+                if group_order and group_order.leader_id != order.user_id:
+                    # User is NOT the leader, so they are invited
+                    is_invited = True
+            except Exception:
+                is_invited = False
 
         # Always provide a synthetic group-buy payload for sharing (even before verification)
         front_base = (settings.FRONTEND_URL or "").rstrip("/")
