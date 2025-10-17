@@ -166,18 +166,36 @@ function InviteeSuccessContent() {
 
       if (!resolvedOrderId) {
         console.error('[InviteeSuccess] No orderId found, showing error');
+        // Instead of showing error, try to redirect to landingM if we have a group ID
+        // This helps invited users who might have a group invite but no direct order link
+        if (resolvedGroupId) {
+          console.log('[InviteeSuccess] No orderId but have groupId, redirecting to landingM');
+          try {
+            window.location.href = `/landingM?invite=${encodeURIComponent(resolvedGroupId)}`;
+            return;
+          } catch (e) {
+            console.error('Failed to redirect to landingM:', e);
+          }
+        }
         setError("شناسه سفارش یافت نشد");
         setLoading(false);
         return;
       }
 
       try {
-        // Load all data in parallel
-        const [order, maybeGroup, pricingTiers] = await Promise.all([
-          orderApi.getOrder(resolvedOrderId),
-          resolvedGroupId ? groupApi.getGroup(resolvedGroupId) : Promise.resolve(null as any),
-          pricingApi.getSecondaryPricingTiers(resolvedOrderId),
-        ]);
+        // Load all data in parallel with timeout
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Data loading timeout')), 8000)
+        );
+        
+        const [order, maybeGroup, pricingTiers] = await Promise.race([
+          Promise.all([
+            orderApi.getOrder(resolvedOrderId),
+            resolvedGroupId ? groupApi.getGroup(resolvedGroupId) : Promise.resolve(null as any),
+            pricingApi.getSecondaryPricingTiers(resolvedOrderId),
+          ]),
+          timeoutPromise
+        ]) as any;
 
         // Validate order status (case-insensitive) or presence of paid markers
         const isPaid =
@@ -193,8 +211,20 @@ function InviteeSuccessContent() {
         setData({ order, group, pricingTiers });
       } catch (err) {
         console.error("Failed to load data:", err);
-        // Ensure we stay on success page even on error - don't redirect to invite
-        setError(err instanceof Error ? err.message : "خطا در بارگذاری اطلاعات");
+        // On timeout or error, try to redirect to landingM if we have authority
+        const errorMsg = err instanceof Error ? err.message : "خطا در بارگذاری اطلاعات";
+        if (errorMsg.includes('timeout') && authorityParam && resolvedGroupId) {
+          console.log('[InviteeSuccess] Data loading timeout, redirecting to landingM with group invite');
+          try {
+            // Try to redirect to landingM to allow user to continue
+            window.location.href = `/landingM?invite=${encodeURIComponent(resolvedGroupId)}`;
+            return;
+          } catch (e) {
+            console.error('Failed to redirect:', e);
+          }
+        }
+        // Otherwise show error
+        setError(errorMsg);
         console.log('[InviteeSuccess] Error occurred but staying on success page');
       } finally {
         setLoading(false);
