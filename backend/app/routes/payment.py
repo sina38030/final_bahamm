@@ -700,6 +700,7 @@ async def payment_callback(
         
         # ✅ Return HTML response with Telegram deep link support
         from fastapi.responses import HTMLResponse
+        
         telegram_bot_username = settings.TELEGRAM_BOT_USERNAME
         telegram_deeplink = f"https://t.me/{telegram_bot_username}?start=payment_{Authority}_OK"
         html_response = f"""
