@@ -319,6 +319,7 @@ class PaymentService:
                 # Check if this order has a pending group join that should be activated now
                 if order.shipping_address and order.shipping_address.startswith("PENDING_GROUP:"):
                     try:
+                        logger.info(f"🔍 Found PENDING_GROUP for order {order.id}: {order.shipping_address}")
                         parts = order.shipping_address.split("|", 1)
                         pending_group_id = int(parts[0].replace("PENDING_GROUP:", ""))
                         original_address = parts[1] if len(parts) > 1 else ""
@@ -327,7 +328,7 @@ class PaymentService:
                         order.group_order_id = pending_group_id
                         order.order_type = OrderType.GROUP
                         order.shipping_address = original_address
-                        logger.info(f"Linked paid order {order.id} to group {pending_group_id}")
+                        logger.info(f"✅ Linked paid order {order.id} to group {pending_group_id} - NOW is_invited should be TRUE")
                     except Exception as e:
                         logger.error(f"Error processing pending group join for order {order.id}: {e}")
                 elif order.shipping_address and order.shipping_address.startswith("PENDING_INVITE:"):
