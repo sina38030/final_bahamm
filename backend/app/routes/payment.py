@@ -698,66 +698,17 @@ async def payment_callback(
             logger.warning(f"GROUP order without group_order_id (order_id={order.id}) ➜ redirecting to success page")
             redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}&orderId={order.id}"
         
-        # ✅ Return HTML response with Telegram deep link support
-        from fastapi.responses import HTMLResponse
-        
-        telegram_bot_username = settings.TELEGRAM_BOT_USERNAME
-        telegram_deeplink = f"https://t.me/{telegram_bot_username}?start=payment_{Authority}_OK"
-        html_response = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Processing...</title>
-            <script>
-                if (window.Telegram && window.Telegram.WebApp) {{
-                    window.Telegram.WebApp.openLink('{telegram_deeplink}', true);
-                }} else {{
-                    window.location.href = '{redirect_url}';
-                }}
-                setTimeout(function() {{
-                    window.location.href = '{redirect_url}';
-                }}, 1000);
-            </script>
-        </head>
-        <body><p>درحال پردازش...</p></body>
-        </html>
-        """
-        return HTMLResponse(content=html_response)
+        return RedirectResponse(url=redirect_url, status_code=303)
             
     except Exception as e:
         logger.error(f"Payment callback error: {str(e)}")
         # Even on error, try to redirect with authority if available
         if Authority:
             redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}"
-            error_start = f"payment_{Authority}_ERROR"
         else:
             redirect_url = f"{settings.FRONTEND_URL}/cart?payment_error=true"
-            error_start = "error_payment"
         
-        # ✅ Return HTML response with Telegram deep link support
-        from fastapi.responses import HTMLResponse
-        telegram_bot_username = settings.TELEGRAM_BOT_USERNAME
-        telegram_deeplink = f"https://t.me/{telegram_bot_username}?start={error_start}"
-        html_response = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Error...</title>
-            <script>
-                if (window.Telegram && window.Telegram.WebApp) {{
-                    window.Telegram.WebApp.openLink('{telegram_deeplink}', true);
-                }} else {{
-                    window.location.href = '{redirect_url}';
-                }}
-                setTimeout(function() {{
-                    window.location.href = '{redirect_url}';
-                }}, 1000);
-            </script>
-        </head>
-        <body><p>خطا...</p></body>
-        </html>
-        """
-        return HTMLResponse(content=html_response)
+        return RedirectResponse(url=redirect_url, status_code=303)
 
 @router.get("/orders")
 async def get_user_payment_orders(
