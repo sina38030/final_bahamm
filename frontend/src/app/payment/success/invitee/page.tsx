@@ -210,6 +210,13 @@ function InviteeSuccessContent() {
     if (!data?.order?.id) return;
     if (typeof window === 'undefined') return;
     try {
+      // First try to get from URL if available
+      const urlAuth = authorityParam;
+      if (urlAuth) {
+        setInviteAuthority(urlAuth);
+        return;
+      }
+      
       const prefix = 'processed_';
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -228,7 +235,7 @@ function InviteeSuccessContent() {
         } catch {}
       }
     } catch {}
-  }, [data?.order?.id, inviteAuthority]);
+  }, [data?.order?.id, inviteAuthority, authorityParam]);
 
   // const handleCountdownExpired = () => {
   //   setIsCountdownExpired(true);

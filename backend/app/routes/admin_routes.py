@@ -1348,6 +1348,10 @@ async def get_all_orders(
     # SIMPLIFIED FILTER: Show all non-settlement orders, plus leader orders from finalized groups
     
     # Query 1: Regular orders with payment (including both group and non-group orders)
+    # IMPORTANT: This should NOT include invited followers from non-finalized groups
+    # Followers should only appear:
+    # 1. After group finalization (handled in Query 2 + consolidation logic below)
+    # 2. Or if they opted for custom address (handled in Query 3)
     regular_orders_query = (
         db.query(Order)
         .filter(
@@ -1361,6 +1365,27 @@ async def get_all_orders(
             Order.status != "در انتظار تسویه"
         )
     )
+    
+    # Sub-filter: exclude invited followers from non-finalized groups
+    # (they should only appear after finalization or with custom address consolidation)
+    try:
+        # Get IDs of followers in non-finalized groups to exclude from regular_orders_query
+        non_finalized_group_followers = (
+            db.query(Order.id)
+            .join(GroupOrder, Order.group_order_id == GroupOrder.id)
+            .filter(
+                Order.user_id != GroupOrder.leader_id,  # Is a follower
+                GroupOrder.finalized_at.isnull(True)  # Group NOT finalized
+            )
+            .all()
+        )
+        follower_ids_to_exclude = [row[0] for row in non_finalized_group_followers]
+        if follower_ids_to_exclude:
+            regular_orders_query = regular_orders_query.filter(
+                Order.id.notin_(follower_ids_to_exclude)
+            )
+    except Exception as e:
+        logger.warning(f"Error filtering non-finalized group followers: {e}")
     
     # Query 2: Leader orders from finalized groups that are settled (regardless of initial payment status)
     leader_orders_query = (
@@ -1381,14 +1406,14 @@ async def get_all_orders(
     
     # Query 3: Follower orders with custom addresses from groups with consolidation enabled
     # These should always be shown regardless of group finalization status
+    # IMPORTANT: Custom address followers always appear in admin because they need independent processing
     custom_address_orders_query = (
         db.query(Order)
         .join(GroupOrder, Order.group_order_id == GroupOrder.id)
         .filter(
             Order.is_settlement_payment == False,
-            Order.user_id != GroupOrder.leader_id,  # Not leader
-            Order.ship_to_leader_address == False,  # Custom address
-            GroupOrder.allow_consolidation == True,  # Group has consolidation enabled
+            Order.user_id != GroupOrder.leader_id,  # Not leader (is a follower)
+            Order.ship_to_leader_address == False,  # Has custom address (not shipping to leader)
             or_(
                 Order.payment_ref_id.isnot(None),
                 Order.paid_at.isnot(None),
