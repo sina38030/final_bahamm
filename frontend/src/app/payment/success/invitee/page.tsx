@@ -32,27 +32,25 @@ function InviteeSuccessContent() {
   const authorityParam = searchParams.get("authority") || searchParams.get("Authority");
   const [inviteAuthority, setInviteAuthority] = useState<string | null>(authorityParam || null);
   
-  // OVERRIDE Next.js router to prevent invite redirects
+  // OVERRIDE Next.js router to prevent ANY redirects away from this page
   useEffect(() => {
     const originalPush = router.push;
     const originalReplace = router.replace;
     
     // @ts-ignore
     router.push = function(href, options) {
-      if (typeof href === 'string' && href.includes('/invite')) {
-        console.warn('[InviteeSuccess] BLOCKED Next.js router.push to invite page:', href);
-        return Promise.resolve(true);
-      }
-      return originalPush.call(this, href, options);
+      const hrefStr = String(href);
+      console.warn('[InviteeSuccess] ⚠️ router.push blocked:', hrefStr);
+      console.log('[InviteeSuccess] User should stay on success page');
+      return Promise.resolve(true);
     };
     
     // @ts-ignore
     router.replace = function(href, options) {
-      if (typeof href === 'string' && href.includes('/invite')) {
-        console.warn('[InviteeSuccess] BLOCKED Next.js router.replace to invite page:', href);
-        return Promise.resolve(true);
-      }
-      return originalReplace.call(this, href, options);
+      const hrefStr = String(href);
+      console.warn('[InviteeSuccess] ⚠️ router.replace blocked:', hrefStr);
+      console.log('[InviteeSuccess] User should stay on success page');
+      return Promise.resolve(true);
     };
     
     return () => {
@@ -63,51 +61,50 @@ function InviteeSuccessContent() {
     };
   }, [router]);
 
-  // NOTE: Previously this page redirected to `/invite`. We keep users here with a
-  // dedicated, polished success experience and clear next actions.
-
-  // FORCE STAY ON SUCCESS PAGE - Prevent any redirects
+  // FORCE STAY ON SUCCESS PAGE - Prevent any redirects to other pages
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const currentPath = window.location.pathname;
       const currentUrl = window.location.href;
       
-      console.log('[InviteeSuccess] Current path:', currentPath, 'Full URL:', currentUrl);
+      console.log('[InviteeSuccess] LOCKED ON PAGE:', currentPath, currentUrl);
       
       // Set a flag to indicate we've successfully reached the success page
       try {
         localStorage.setItem('payment_success_reached', 'true');
       } catch {}
       
-      // OVERRIDE any navigation attempts to invite page only (allow same-page reload)
+      // BLOCK ALL navigation attempts to any page
       const originalPushState = window.history.pushState;
       const originalReplaceState = window.history.replaceState;
       const originalLocationAssign = window.location.assign.bind(window.location);
       const originalLocationReplace = window.location.replace.bind(window.location);
       
       window.history.pushState = function(state, title, url) {
-        if (typeof url === 'string' && url.includes('/invite')) {
-          console.warn('[InviteeSuccess] BLOCKED redirect to invite page:', url);
+        const urlStr = String(url);
+        if (urlStr !== currentPath && urlStr !== currentUrl) {
+          console.warn('[InviteeSuccess] ❌ BLOCKED navigation attempt to:', urlStr);
           return;
         }
         return originalPushState.call(this, state, title, url);
       };
       
       window.history.replaceState = function(state, title, url) {
-        if (typeof url === 'string' && url.includes('/invite')) {
-          console.warn('[InviteeSuccess] BLOCKED redirect to invite page:', url);
+        const urlStr = String(url);
+        if (urlStr !== currentPath && urlStr !== currentUrl) {
+          console.warn('[InviteeSuccess] ❌ BLOCKED redirect attempt to:', urlStr);
           return;
         }
         return originalReplaceState.call(this, state, title, url);
       };
 
-      // Also block direct location redirects to invite (assign/replace)
+      // Also block direct location redirects (except refresh/reload)
       try {
         // @ts-ignore
         window.location.assign = (url: string | URL) => {
           const s = String(url);
-          if (s.includes('/invite')) {
-            console.warn('[InviteeSuccess] BLOCKED window.location.assign to invite:', s);
+          if (!s.includes(currentPath)) {
+            console.warn('[InviteeSuccess] ❌ BLOCKED location.assign to:', s);
             return;
           }
           return originalLocationAssign(url);
@@ -115,15 +112,13 @@ function InviteeSuccessContent() {
         // @ts-ignore
         window.location.replace = (url: string) => {
           const s = String(url);
-          if (s.includes('/invite')) {
-            console.warn('[InviteeSuccess] BLOCKED window.location.replace to invite:', s);
+          if (!s.includes(currentPath)) {
+            console.warn('[InviteeSuccess] ❌ BLOCKED location.replace to:', s);
             return;
           }
           return originalLocationReplace(url);
         };
       } catch {}
-      
-      // Do not override window.location.href entirely; allow reloads to work normally
       
       // Cleanup function to restore original methods
       return () => {
