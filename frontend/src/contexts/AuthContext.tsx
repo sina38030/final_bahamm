@@ -222,6 +222,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (startParam) {
         console.log('[AuthContext] Telegram start_param detected:', startParam);
         
+        // ✅ CRITICAL FIX: Check if we're already on a payment success page
+        // This prevents redirecting away from success pages when start_param is an invite code
+        const currentPath = window.location.pathname;
+        const isOnPaymentSuccess = currentPath.includes('/payment/success/');
+        
+        if (isOnPaymentSuccess) {
+          console.log('[AuthContext] Already on payment success page, skipping start_param processing');
+          return;
+        }
+        
         // Parse payment callback format: "payment_AUTHORITY_STATUS"
         const paymentMatch = startParam.match(/payment_([A-Za-z0-9]+)_(OK|NOK|ERROR)/);
         
