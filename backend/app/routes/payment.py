@@ -675,6 +675,50 @@ async def payment_callback(
         
         logger.info(f"✅ Order after verification: id={order.id}, group_order_id={order.group_order_id}, user_id={order.user_id}, order_type={order.order_type}")
 
+        # ✅ FIX: Extract pending group_order_id from shipping_address for invitees
+        if not order.group_order_id and order.shipping_address:
+            try:
+                if order.shipping_address.startswith('PENDING_GROUP:'):
+                    parts = order.shipping_address.split('|', 1)
+                    pending_group_id = int(parts[0].replace('PENDING_GROUP:', ''))
+                    original_address = parts[1] if len(parts) > 1 else ''
+                    
+                    # Verify the group exists before linking
+                    group_order = db.query(GroupOrder).filter(GroupOrder.id == pending_group_id).first()
+                    if group_order:
+                        order.group_order_id = pending_group_id
+                        order.shipping_address = original_address
+                        db.commit()
+                        logger.info(f"✅ Extracted group_order_id={pending_group_id} from PENDING_GROUP for order {order.id}")
+                    else:
+                        logger.error(f"❌ PENDING_GROUP:{pending_group_id} not found for order {order.id}")
+                
+                elif order.shipping_address.startswith('PENDING_INVITE:'):
+                    # Handle PENDING_INVITE: similar logic
+                    parts = order.shipping_address.split('|', 1)
+                    invite_code = parts[0].replace('PENDING_INVITE:', '')
+                    original_address = parts[1] if len(parts) > 1 else ''
+                    
+                    # Try to find the group by invite_code
+                    group_order = db.query(GroupOrder).filter(
+                        func.lower(GroupOrder.invite_token) == invite_code.lower()
+                    ).order_by(GroupOrder.created_at.desc()).first()
+                    
+                    if group_order:
+                        order.group_order_id = group_order.id
+                        order.shipping_address = original_address
+                        db.commit()
+                        logger.info(f"✅ Resolved PENDING_INVITE:{invite_code} to group_order_id={group_order.id} for order {order.id}")
+                    else:
+                        logger.error(f"❌ PENDING_INVITE:{invite_code} not found for order {order.id}")
+            
+            except Exception as e:
+                logger.error(f"❌ Failed to extract pending group info for order {order.id}: {e}")
+        
+        # Re-fetch order to ensure we have the updated group_order_id
+        db.refresh(order)
+        logger.info(f"✅ Order after pending extraction: id={order.id}, group_order_id={order.group_order_id}, user_id={order.user_id}, order_type={order.order_type}")
+
         if order.order_type == OrderType.ALONE:
             # Solo purchase ➜ payment callback page
             logger.info(f"Solo order detected (order_id={order.id}) ➜ redirecting to /payment/callback")
