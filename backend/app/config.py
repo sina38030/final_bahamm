@@ -31,12 +31,8 @@ class Settings(BaseSettings):
         if self.PAYMENT_CALLBACK_BASE_URL:
             return self.PAYMENT_CALLBACK_BASE_URL
         
-        # Auto-detect: if localhost, use direct backend URL
-        if "localhost" in self.FRONTEND_URL or "127.0.0.1" in self.FRONTEND_URL:
-            return "http://localhost:8001/api"
-        else:
-            # Production: use nginx proxy path
-            return f"{self.FRONTEND_URL}/backend/api"
+        # Return frontend URL directly since payment callback is a frontend page
+        return self.FRONTEND_URL
     
     # Telegram Mini App Configuration
     # Required for verifying Telegram WebApp authentication
