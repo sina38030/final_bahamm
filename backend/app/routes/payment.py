@@ -479,8 +479,8 @@ async def request_payment_public(
     درخواست پرداخت جدید (بدون احراز هویت)
     """
     try:
-        # آدرس بازگشت پس از پرداخت - به backend callback endpoint که سپس به سایت bahamm.ir redirect می‌کند
-        callback_url = f"{settings.FRONTEND_URL}/api/payment/callback"
+        # آدرس بازگشت پس از پرداخت - به frontend payment callback page
+        callback_url = f"{settings.FRONTEND_URL}/payment/callback"
         
         # درخواست پرداخت از زرین‌پال
         result = await zarinpal.request_payment(
@@ -516,8 +516,8 @@ async def request_payment(
     درخواست پرداخت جدید
     """
     try:
-        # آدرس بازگشت پس از پرداخت - به backend callback endpoint که سپس به سایت bahamm.ir redirect می‌کند
-        callback_url = f"{settings.FRONTEND_URL}/api/payment/callback"
+        # آدرس بازگشت پس از پرداخت - به frontend payment callback page
+        callback_url = f"{settings.FRONTEND_URL}/payment/callback"
         
         # درخواست پرداخت از زرین‌پال
         result = await zarinpal.request_payment(

@@ -19,9 +19,9 @@ class Settings(BaseSettings):
     ZARINPAL_MERCHANT_ID: str = "2cea1309-4a05-4f02-82ce-9a6d183db8a4"  # Real merchant ID
     ZARINPAL_SANDBOX: bool = False
     FRONTEND_URL: str = "https://bahamm.ir"  # Production domain for payment callbacks
-    # Payment callback URL - must route to backend's /api/payment/callback
-    # Production: https://bahamm.ir/backend/api (nginx proxies to backend)
-    # Local: http://localhost:8001/api (direct to backend)
+    # Payment callback URL - must route to frontend's /payment/callback page
+    # Production: https://bahamm.ir/payment/callback
+    # Local: http://localhost:3000/payment/callback
     # Can be overridden via environment variable
     PAYMENT_CALLBACK_BASE_URL: Optional[str] = None  # Will be auto-detected if None
     
