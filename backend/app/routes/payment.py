@@ -730,38 +730,29 @@ async def payment_callback(
             group_order = db.query(GroupOrder).filter(GroupOrder.id == order.group_order_id).first()
             
             if not group_order:
-                # Group order not found - this shouldn't happen, but handle gracefully
-                logger.error(f"GroupOrder {order.group_order_id} not found for order {order.id}! Defaulting to invite page for GROUP orders.")
-                # For GROUP order type without group_order found, assume leader and redirect to invite
-                if order.order_type == OrderType.GROUP:
-                    redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
-                else:
-                    redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}&orderId={order.id}"
+                # ❌ This is a DATA INTEGRITY ERROR - log it and redirect to error page
+                logger.error(f"❌ CRITICAL: GroupOrder {order.group_order_id} not found for order {order.id}! Redirecting to error page.")
+                redirect_url = f"{settings.FRONTEND_URL}/cart?payment_error=group_not_found"
             elif group_order.leader_id == order.user_id:
-                # User is the leader ➜ invite page
+                # ✅ User is the leader → invite page
                 is_leader = True
-                logger.info(f"✅ Leader order detected (order_id={order.id}, group_id={order.group_order_id}, user_id={order.user_id}) ➜ redirecting to /invite")
+                logger.info(f"✅ Leader order detected (order_id={order.id}, group_id={order.group_order_id}, user_id={order.user_id}) → redirecting to /invite")
                 redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
             else:
-                # User is invited (follower) ➜ redirect directly to success page
+                # ✅ User is invited (follower) → success page
                 is_invited = True
-                logger.info(
-                    f"✅ Invited user order detected (order_id={order.id}, group_id={order.group_order_id}, user_id={order.user_id}, leader_id={group_order.leader_id}) ➜ redirecting to /payment/success/invitee"
-                )
-                # Pass authority for frontend to resolve group invite/refund timer; include orderId/groupId for UX
+                logger.info(f"✅ Invited user order detected (order_id={order.id}, group_id={order.group_order_id}, user_id={order.user_id}, leader_id={group_order.leader_id}) → redirecting to /payment/success/invitee")
                 group_part = f"&groupId={order.group_order_id}" if getattr(order, 'group_order_id', None) else ""
-                redirect_url = (
-                    f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}&orderId={order.id}{group_part}"
-                )
+                redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}&orderId={order.id}{group_part}"
         else:
-            # Fallback: no group_order_id but order_type is GROUP (shouldn't happen but handle it)
-            # For GROUP orders, default to invite page (safer for leaders)
+            # ❌ No group_order_id - treat as error if order_type is GROUP
             if order.order_type == OrderType.GROUP:
-                logger.warning(f"GROUP order without group_order_id (order_id={order.id}) ➜ redirecting to invite page")
-                redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
+                logger.error(f"❌ CRITICAL: GROUP order without group_order_id (order_id={order.id})! Redirecting to error page.")
+                redirect_url = f"{settings.FRONTEND_URL}/cart?payment_error=group_missing"
             else:
-                logger.warning(f"Order without group_order_id and not GROUP type (order_id={order.id}) ➜ redirecting to success page")
-                redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}&orderId={order.id}"
+                # Shouldn't reach here for ALONE orders (handled earlier), but just in case
+                logger.warning(f"⚠️ Unexpected: Non-GROUP order without group_order_id (order_id={order.id}) → redirecting to callback")
+                redirect_url = f"{settings.FRONTEND_URL}/payment/callback?Authority={Authority}&Status=OK"
         
         return RedirectResponse(url=redirect_url, status_code=303)
             
