@@ -245,9 +245,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   const order = data.order;
                   // Redirect to appropriate page based on order type
                   setTimeout(() => {
-                    // ✅ CHECK is_invited FIRST - this is the specific condition for invited users
-                    if (order.is_invited) {
-                      console.log('[AuthContext] Invited user detected - going to SUCCESS page only');
+                    // ✅ Prefer success page for any follower (or when follower cannot be confidently determined)
+                    const isInvited = order.is_invited === true || (order.group_order_id && order.is_invited == null);
+                    if (isInvited) {
+                      console.log('[AuthContext] Invited (or unknown follower) detected - going to SUCCESS page only');
                       const orderId = order.id;
                       const groupId = order.group_order_id;
                       const target = `/payment/success/invitee?orderId=${orderId}${groupId ? `&groupId=${groupId}` : ''}&authority=${encodeURIComponent(authority)}`;
@@ -294,9 +295,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 console.log('[AuthContext] Found order by authority - processing payment return');
                 const order = data.order;
                 setTimeout(() => {
-                  // ✅ CHECK is_invited FIRST
-                  if (order.is_invited) {
-                    console.log('[AuthContext] Payment return: Invited user - going to SUCCESS page');
+                  // ✅ Prefer success page for any follower (or when follower cannot be confidently determined)
+                  const isInvited = order.is_invited === true || (order.group_order_id && order.is_invited == null);
+                  if (isInvited) {
+                    console.log('[AuthContext] Payment return: Invited (or unknown follower) - going to SUCCESS page');
                     const orderId = order.id;
                     const groupId = order.group_order_id;
                     const target = `/payment/success/invitee?orderId=${orderId}${groupId ? `&groupId=${groupId}` : ''}&authority=${encodeURIComponent(startParam)}`;

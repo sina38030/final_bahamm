@@ -1,5 +1,9 @@
 "use client";
 
+// Ensure this page is always treated as dynamic and not statically cached
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -32,6 +36,47 @@ function InviteeSuccessContent() {
   const authorityParam = searchParams.get("authority") || searchParams.get("Authority");
   const [inviteAuthority, setInviteAuthority] = useState<string | null>(authorityParam || null);
   
+  // Self-heal if Next.js chunks fail to load (e.g., after a fresh deploy and stale HTML)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const url = new URL(window.location.href);
+    const alreadyBusted = url.searchParams.has("v");
+
+    const reloadWithBuster = () => {
+      if (alreadyBusted) return; // avoid loops
+      try {
+        const logs = JSON.parse(localStorage.getItem('payment_success_debug') || '[]');
+        logs.push({ timestamp: new Date().toISOString(), event: 'RELOAD_DUE_TO_CHUNK_ERROR', url: window.location.href });
+        localStorage.setItem('payment_success_debug', JSON.stringify(logs.slice(-50)));
+      } catch {}
+      url.searchParams.set("v", String(Date.now()));
+      window.location.replace(url.toString());
+    };
+
+    const onResourceError = (e: any) => {
+      const target = e?.target as any;
+      const src: string = (target && (target.src || target.href)) || "";
+      if (src.includes("/_next/static/")) {
+        reloadWithBuster();
+      }
+    };
+
+    const onUnhandledRejection = (e: PromiseRejectionEvent) => {
+      const reason = String((e && (e.reason?.message || e.reason)) || "");
+      if (reason.includes("Loading chunk") || reason.includes("/_next/static/")) {
+        reloadWithBuster();
+      }
+    };
+
+    window.addEventListener("error", onResourceError, true);
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+    return () => {
+      window.removeEventListener("error", onResourceError, true);
+      window.removeEventListener("unhandledrejection", onUnhandledRejection);
+    };
+  }, []);
+
   // OVERRIDE Next.js router to prevent ANY redirects away from this page
   useEffect(() => {
     const originalPush = router.push;
