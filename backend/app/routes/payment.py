@@ -1078,8 +1078,8 @@ async def get_order_by_authority(
                     leader_id = group_order.leader_id
                     user_id = order.user_id
                     if not (leader_id is not None and user_id is not None and leader_id == user_id):
-                    # User is NOT the leader, so they are invited
-                    is_invited = True
+                        # User is NOT the leader, so they are invited
+                        is_invited = True
             except Exception:
                 is_invited = False
 
