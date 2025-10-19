@@ -73,7 +73,7 @@ export async function GET(
     // If groupId is not numeric, try to resolve from list by invite_code
     if (!/^\d+$/.test(groupId)) {
       try {
-        const res = await fetch(`${BACKEND_BASE}/group-buys`, { cache: 'no-store' });
+        const res = await fetch(`${BACKEND_BASE}/admin/group-buys`, { cache: 'no-store' });
         if (res.ok) {
           const list: any[] = await res.json().catch(() => []);
           const byExact = list.find((r: any) => String(r.invite_code || '').trim() === groupId.trim());
@@ -107,8 +107,8 @@ export async function GET(
   };
 
   const [detailsRes, listRes] = await Promise.allSettled([
-    fetchWithTimeout(`${BACKEND_BASE}/group-buys/${groupId}`, 3000),
-    fetchWithTimeout(`${BACKEND_BASE}/group-buys`, 2500),
+    fetchWithTimeout(`${BACKEND_BASE}/admin/group-buys/${groupId}`, 3000),
+    fetchWithTimeout(`${BACKEND_BASE}/admin/group-buys`, 2500),
   ]);
 
   let details: any | null = null;
@@ -585,7 +585,7 @@ export async function POST(
     // Allow calling with invite_code by resolving it to numeric id (same as GET)
     if (!/^\d+$/.test(groupId)) {
       try {
-    const res = await fetch(`${BACKEND_BASE}/group-buys`, { cache: 'no-store' });
+    const res = await fetch(`${BACKEND_BASE}/admin/group-buys`, { cache: 'no-store' });
         if (res.ok) {
           const list: any[] = await res.json().catch(() => []);
           const byExact = list.find((r: any) => String(r.invite_code || '').trim() === groupId.trim());
@@ -603,7 +603,7 @@ export async function POST(
       return NextResponse.json({ ok: false, message: 'confirm=true required' }, { status: 400 });
     }
     console.log(`[DEBUG] Finalizing group ${groupId}`);
-    const res = await fetch(`${BACKEND_BASE}/group-buys/${groupId}/finalize`, {
+    const res = await fetch(`${BACKEND_BASE}/admin/group-buys/${groupId}/finalize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ confirm: true }),
