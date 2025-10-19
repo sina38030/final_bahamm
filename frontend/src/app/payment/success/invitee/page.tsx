@@ -259,9 +259,8 @@ function InviteeSuccessContent() {
       }
 
       if (!resolvedOrderId) {
-        console.error('[InviteeSuccess] No orderId found, showing error');
-        // Show error instead of redirecting - user can retry or go back
-        setError("شناسه سفارش یافت نشد");
+        console.warn('[InviteeSuccess] No orderId from authority; proceeding with soft error state');
+        setError("سفارش پیدا نشد. اگر مبلغ کم شد، کمی بعد دوباره امتحان کنید.");
         setLoading(false);
         return;
       }
@@ -288,10 +287,9 @@ function InviteeSuccessContent() {
         setData({ order, group, pricingTiers });
       } catch (err) {
         console.error("Failed to load data:", err);
-        // Only show error if data truly fails - don't redirect automatically
-        const errorMsg = err instanceof Error ? err.message : "خطا در بارگذاری اطلاعات";
+        // Soft error: keep page with message
+        const errorMsg = err instanceof Error ? err.message : "سرور موقتا در دسترس نیست";
         setError(errorMsg);
-        console.log('[InviteeSuccess] Error occurred, showing error message');
       } finally {
         setLoading(false);
       }
