@@ -94,6 +94,31 @@ function InvitePageContent() {
     setIsLeader(false);
   }, []);
 
+  // Guard: If opened with a payment authority that belongs to an invited order, redirect to success page (Telegram mini app safety)
+  useEffect(() => {
+    const authority = searchParams.get('authority');
+    if (!authority) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/payment/order/${encodeURIComponent(authority)}`);
+        const data = await res.json();
+        if (cancelled) return;
+        if (data?.success && data.order) {
+          const order = data.order;
+          const looksInvited = order.is_invited === true || (order.group_order_id && order.is_invited == null);
+          if (looksInvited) {
+            const orderId = order.id;
+            const groupId = order.group_order_id;
+            const target = `/payment/success/invitee?orderId=${orderId}${groupId ? `&groupId=${groupId}` : ''}&authority=${encodeURIComponent(authority)}`;
+            try { router.replace(target); } catch { router.push(target); }
+          }
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [searchParams, router]);
+
   // Fetch order data with retry logic for fresh payments
   useEffect(() => {
     const authority = searchParams.get('authority');

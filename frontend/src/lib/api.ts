@@ -6,8 +6,23 @@ export function withIdempotency(headers: HeadersInit = {}): HeadersInit {
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `HTTP ${res.status}`);
+    // Soft-fail for 5xx/HTML responses in production
+    try {
+      const ct = res.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) {
+        throw new Error('سرور موقتا در دسترس نیست');
+      }
+      const j = await res.json();
+      // @ts-ignore
+      if (j && j.success === false) {
+        throw new Error(j.error || 'در دسترس نیست');
+      }
+      // Re-throw as stringified json
+      throw new Error(JSON.stringify(j));
+    } catch (e: any) {
+      const msg = e?.message || `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
   }
   return res.json();
 }
