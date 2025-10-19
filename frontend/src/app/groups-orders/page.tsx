@@ -411,9 +411,14 @@ export default function GroupsOrdersPage() {
       const res = await apiClient.get('/group-orders/my-groups-and-orders');
       if (!res.ok) {
         const text = await res.text().catch(() => '');
-        throw new Error(text || `HTTP ${res.status}`);
+        const looksLikeHtml = text.startsWith('<!DOCTYPE') || text.includes('<html');
+        const msg = looksLikeHtml ? 'سرور در دسترس نیست یا پاسخ نامعتبر برگرداند. لطفاً بعداً دوباره تلاش کنید.' : (text || `HTTP ${res.status}`);
+        throw new Error(msg);
       }
-      
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error('سرور پاسخ نامعتبر برگرداند. آیا بک‌اند اجراست؟');
+      }
       const data = await res.json();
 
       // فقط گروه‌هایی که کاربر لیدر آن‌هاست در تب «گروه‌ها» نمایش داده شوند
