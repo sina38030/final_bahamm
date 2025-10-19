@@ -328,7 +328,8 @@ async def create_payment_order_public(
                              order_data.shipping_address.startswith('PENDING_GROUP:'))
                         )
                         
-                        if ((getattr(order_data, 'mode', None) or '').lower() == 'group' or not is_invited_user) and not order.group_order_id:
+                        # Only create GroupOrder if mode is explicitly 'group' AND user is not invited
+                        if ((getattr(order_data, 'mode', None) or '').lower() == 'group' and not is_invited_user) and not order.group_order_id:
                             # Resolve leader user
                             leader_user = None
                             if order.user_id:
@@ -681,16 +682,25 @@ async def payment_callback(
         elif order.group_order_id:
             # Group order - check if user is leader or invited
             group_order = db.query(GroupOrder).filter(GroupOrder.id == order.group_order_id).first()
-            if group_order and group_order.leader_id == order.user_id:
+            
+            if not group_order:
+                # Group order not found - this shouldn't happen, but handle gracefully
+                logger.error(f"GroupOrder {order.group_order_id} not found for order {order.id}! Defaulting to invite page for GROUP orders.")
+                # For GROUP order type without group_order found, assume leader and redirect to invite
+                if order.order_type == OrderType.GROUP:
+                    redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
+                else:
+                    redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}&orderId={order.id}"
+            elif group_order.leader_id == order.user_id:
                 # User is the leader ➜ invite page
                 is_leader = True
-                logger.info(f"Leader order detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /invite")
+                logger.info(f"✅ Leader order detected (order_id={order.id}, group_id={order.group_order_id}, user_id={order.user_id}) ➜ redirecting to /invite")
                 redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
             else:
                 # User is invited (follower) ➜ redirect directly to success page
                 is_invited = True
                 logger.info(
-                    f"Invited user order detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /payment/success/invitee"
+                    f"✅ Invited user order detected (order_id={order.id}, group_id={order.group_order_id}, user_id={order.user_id}, leader_id={group_order.leader_id}) ➜ redirecting to /payment/success/invitee"
                 )
                 # Pass authority for frontend to resolve group invite/refund timer; include orderId/groupId for UX
                 group_part = f"&groupId={order.group_order_id}" if getattr(order, 'group_order_id', None) else ""
@@ -699,8 +709,13 @@ async def payment_callback(
                 )
         else:
             # Fallback: no group_order_id but order_type is GROUP (shouldn't happen but handle it)
-            logger.warning(f"GROUP order without group_order_id (order_id={order.id}) ➜ redirecting to success page")
-            redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}&orderId={order.id}"
+            # For GROUP orders, default to invite page (safer for leaders)
+            if order.order_type == OrderType.GROUP:
+                logger.warning(f"GROUP order without group_order_id (order_id={order.id}) ➜ redirecting to invite page")
+                redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
+            else:
+                logger.warning(f"Order without group_order_id and not GROUP type (order_id={order.id}) ➜ redirecting to success page")
+                redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}&orderId={order.id}"
         
         return RedirectResponse(url=redirect_url, status_code=303)
             
