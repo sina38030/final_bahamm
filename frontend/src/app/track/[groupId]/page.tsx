@@ -7,6 +7,10 @@ import { useGroupBuyResult } from "@/components/providers/GroupBuyResultProvider
 import { generateInviteLink, generateShareUrl, extractInviteCode } from "@/utils/linkGenerator";
 // Removed auth requirement for public access
 
+// Force dynamic rendering to always fetch fresh data
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 type GroupStatus = "ongoing" | "success" | "failed";
 interface Participant {
   id: string;
