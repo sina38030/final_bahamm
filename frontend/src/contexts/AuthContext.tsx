@@ -298,28 +298,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (startParam.length > 0 && !paymentMatch && startParam.length > 5) {
           console.log('[AuthContext] Attempting to resolve start_param as payment authority...');
           
+          // ✅ Skip redirect if already on payment-related pages (backend already handled it)
+          const isOnPaymentPage = pathname.includes('/invite') || 
+                                  pathname.includes('/payment/success') || 
+                                  pathname.includes('/payment/callback');
+          
+          if (isOnPaymentPage) {
+            console.log('[AuthContext] Already on payment page, skipping redirect:', pathname);
+            return;
+          }
+          
           fetch(`/api/payment/order/${encodeURIComponent(startParam)}`)
             .then(res => res.json())
             .then(data => {
               if (data.success && data.order) {
-                console.log('[AuthContext] Found order by authority - processing payment return');
+                console.log('[AuthContext] Found order by authority - Let backend handle redirect via callback');
                 const order = data.order;
+                
+                // Instead of deciding here, let the backend handle the redirect
+                // by going through the callback endpoint which has the correct logic
                 setTimeout(() => {
-                  // ✅ Prefer success page for any follower (or when follower cannot be confidently determined)
-                  const isInvited = order.is_invited === true || (order.group_order_id && order.is_invited == null);
-                  if (isInvited) {
-                    console.log('[AuthContext] Payment return: Invited (or unknown follower) - going to SUCCESS page');
-                    const orderId = order.id;
-                    const groupId = order.group_order_id;
-                    const target = `/payment/success/invitee?orderId=${orderId}${groupId ? `&groupId=${groupId}` : ''}&authority=${encodeURIComponent(startParam)}`;
-                    router.push(target);
-                  } else if (order.group_order_id) {
-                    console.log('[AuthContext] Payment return: Group leader - going to INVITE page');
-                    router.push(`/invite?authority=${encodeURIComponent(startParam)}`);
-                  } else {
-                    console.log('[AuthContext] Payment return: Solo order - going to ORDERS page');
-                    router.push('/orders');
-                  }
+                  console.log('[AuthContext] Redirecting to backend callback to handle leader/invitee logic');
+                  window.location.href = `/api/payment/callback?Authority=${encodeURIComponent(startParam)}&Status=OK`;
                 }, 500);
                 return;
               }
