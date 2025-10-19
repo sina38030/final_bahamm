@@ -687,6 +687,7 @@ async def payment_callback(
                     group_order = db.query(GroupOrder).filter(GroupOrder.id == pending_group_id).first()
                     if group_order:
                         order.group_order_id = pending_group_id
+                        order.order_type = OrderType.GROUP  # ✅ Set order_type to GROUP
                         order.shipping_address = original_address
                         db.commit()
                         logger.info(f"✅ Extracted group_order_id={pending_group_id} from PENDING_GROUP for order {order.id}")
@@ -706,6 +707,7 @@ async def payment_callback(
                     
                     if group_order:
                         order.group_order_id = group_order.id
+                        order.order_type = OrderType.GROUP  # ✅ Set order_type to GROUP
                         order.shipping_address = original_address
                         db.commit()
                         logger.info(f"✅ Resolved PENDING_INVITE:{invite_code} to group_order_id={group_order.id} for order {order.id}")
