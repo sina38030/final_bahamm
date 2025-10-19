@@ -1105,8 +1105,8 @@ function CheckoutPageContent() {
         const data = await response.json();
 
         if (data.success && data.authority) {
-          // Redirect to invite page with authority
-          router.push(`/invite?authority=${data.authority}`);
+          // Let backend handle the redirect through callback endpoint (leader → invite, invitee → success)
+          window.location.href = `/api/payment/callback?Authority=${data.authority}&Status=OK`;
         } else {
           alert('خطا در ثبت سفارش رایگان');
         }
@@ -1168,8 +1168,8 @@ function CheckoutPageContent() {
           const data = await response.json();
 
           if (data.success && data.authority) {
-            // Redirect to invite page with authority
-            router.push(`/invite?authority=${data.authority}`);
+            // Let backend handle the redirect through callback endpoint (leader → invite, invitee → success)
+            window.location.href = `/api/payment/callback?Authority=${data.authority}&Status=OK`;
           } else {
             alert('خطا در ثبت سفارش با کیف پول');
           }

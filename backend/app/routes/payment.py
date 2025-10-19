@@ -368,6 +368,8 @@ async def create_payment_order_public(
                                 invite_token=invite_token,
                                 status=GroupOrderStatus.GROUP_FORMING,
                                 created_at=datetime.now(TEHRAN_TZ),
+                                leader_paid_at=datetime.now(TEHRAN_TZ),
+                                expires_at=datetime.now(TEHRAN_TZ) + timedelta(hours=24),
                                 basket_snapshot=snapshot_json,
                                 allow_consolidation=allow_consolidation_value,
                                 expected_friends=getattr(order_data, 'expected_friends', None) or getattr(order_data, 'friends', None) or getattr(order_data, 'max_friends', None)
