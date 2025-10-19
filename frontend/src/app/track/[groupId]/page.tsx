@@ -190,6 +190,13 @@ export default function TrackPage() {
       const res = await fetchWithTimeout(`/api/groups/${groupId}`, 2500);
       if (!res.ok) throw new Error(await res.text());
       const j: GroupTrack = await res.json();
+      console.log('[TRACK] API Response:', {
+        id: j.id,
+        basketCount: j.basket?.length || 0,
+        originalTotal: j.pricing?.originalTotal,
+        currentTotal: j.pricing?.currentTotal,
+        fullBasket: j.basket
+      });
       setData(j);
       try {
         const gidStr = String(j.id || groupId || '').trim();
