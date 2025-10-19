@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminApiBase } from '@/utils/serverBackend';
 
-export const revalidate = 30;
+export const revalidate = 0;
 
 const BACKEND_BASE = getAdminApiBase();
 
