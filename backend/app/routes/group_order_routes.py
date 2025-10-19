@@ -656,7 +656,9 @@ async def get_user_groups_and_orders(
                 ),
                 # فیلدهای جدید برای تشخیص رهبر
                 "is_leader_order": (
-                    order.group_order.leader_id == order.user_id 
+                    (order.group_order.leader_id is not None and 
+                     order.user_id is not None and 
+                     order.group_order.leader_id == order.user_id)
                     if order.group_order else False
                 ),
                 "group_status": group_status,

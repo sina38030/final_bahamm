@@ -735,8 +735,10 @@ async def payment_callback(
                 # ❌ This is a DATA INTEGRITY ERROR - log it and redirect to error page
                 logger.error(f"❌ CRITICAL: GroupOrder {order.group_order_id} not found for order {order.id}! Redirecting to error page.")
                 redirect_url = f"{settings.FRONTEND_URL}/cart?payment_error=group_not_found"
-            elif group_order.leader_id == order.user_id:
-                # ✅ User is the leader → invite page
+            elif (group_order.leader_id is not None and 
+                  order.user_id is not None and 
+                  group_order.leader_id == order.user_id):
+                # ✅ User is the leader → invite page (NULL-safe comparison)
                 is_leader = True
                 logger.info(f"✅ Leader order detected (order_id={order.id}, group_id={order.group_order_id}, user_id={order.user_id}) → redirecting to /invite")
                 redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
@@ -1071,7 +1073,11 @@ async def get_order_by_authority(
         if group_order_id:
             try:
                 group_order = db.query(GroupOrder).filter(GroupOrder.id == group_order_id).first()
-                if group_order and group_order.leader_id != order.user_id:
+                if group_order:
+                    # NULL-safe check: User is invited if they are NOT the leader
+                    leader_id = group_order.leader_id
+                    user_id = order.user_id
+                    if not (leader_id is not None and user_id is not None and leader_id == user_id):
                     # User is NOT the leader, so they are invited
                     is_invited = True
             except Exception:
