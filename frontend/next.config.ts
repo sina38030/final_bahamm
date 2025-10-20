@@ -69,10 +69,39 @@ const nextConfig: NextConfig = {
                 ...config.resolve.alias,
                 'matter-js': false,
                 'leaflet': false,
+                'react-leaflet': false,
+                'react-custom-roulette': false,
             };
+            
+            // Add Node.js polyfill for self - inject at the top of server bundle
+            const webpack = require('webpack');
+            config.plugins.push(
+                new webpack.BannerPlugin({
+                    banner: 'if (typeof self === "undefined") { globalThis.self = globalThis; }',
+                    raw: true,
+                    entryOnly: false,
+                })
+            );
         }
         
-        if (!dev) {
+        // Add fallbacks for browser-only modules
+        config.resolve.fallback = {
+            ...config.resolve.fallback,
+            fs: false,
+            net: false,
+            tls: false,
+            crypto: false,
+            stream: false,
+            url: false,
+            zlib: false,
+            http: false,
+            https: false,
+            assert: false,
+            os: false,
+            path: false,
+        };
+        
+        if (!dev && !isServer) {
             config.optimization.splitChunks = {
                 chunks: 'all',
                 cacheGroups: {
@@ -84,6 +113,11 @@ const nextConfig: NextConfig = {
                     }
                 }
             };
+        }
+        
+        // Disable chunking for server builds to avoid self reference issues
+        if (isServer) {
+            config.optimization.splitChunks = false;
         }
         return config;
     }
