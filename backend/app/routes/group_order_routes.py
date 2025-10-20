@@ -2,7 +2,7 @@
 Group Order Routes - API endpoints for group buying functionality
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Form, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from datetime import datetime, timedelta, timezone
@@ -143,125 +143,6 @@ async def create_group_order(
         status_code=status.HTTP_410_GONE,
         detail="This endpoint is deprecated. Use the payment flow to create groups with proper basket data."
     )
-
-@router.post("/create-secondary")
-async def create_secondary_group(
-    source_order_id: int = Body(...),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Create a secondary group for an invitee who wants to invite their own friends.
-    This is called when the invitee clicks the "مبلغ پرداختیت رو پس بگیر!" button.
-    """
-    import secrets, string
-    from datetime import timedelta
-    import json
-
-    # Get the source order
-    source_order = db.query(Order).filter(Order.id == source_order_id).first()
-    if not source_order:
-        raise HTTPException(status_code=404, detail="Source order not found")
-    
-    # Verify the current user owns this order
-    if source_order.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="You don't own this order")
-    
-    # Verify the order is paid
-    if not source_order.paid_at:
-        raise HTTPException(status_code=400, detail="Order must be paid before creating secondary group")
-    
-    # Check if a secondary group already exists for this order
-    existing_groups = (
-        db.query(GroupOrder)
-        .filter(GroupOrder.leader_id == current_user.id)
-        .order_by(GroupOrder.created_at.desc())
-        .all()
-    )
-    
-    for g in existing_groups:
-        try:
-            meta = json.loads(getattr(g, 'basket_snapshot', '') or '{}')
-            if (isinstance(meta, dict) and 
-                str(meta.get('kind', '')).lower() == 'secondary' and 
-                int(meta.get('source_order_id', 0)) == int(source_order_id)):
-                # Secondary group already exists, return it
-                logger.info(f"✅ Secondary group {g.id} already exists for order {source_order_id}")
-                return {
-                    "success": True,
-                    "group_order_id": g.id,
-                    "invite_token": g.invite_token,
-                    "expires_at": tz(g.expires_at) if g.expires_at else None,
-                    "already_exists": True
-                }
-        except Exception:
-            continue
-    
-    # Generate unique invite token
-    def _gen_token(length: int = 12) -> str:
-        alphabet = string.ascii_letters + string.digits
-        return ''.join(secrets.choice(alphabet) for _ in range(length))
-
-    token = _gen_token()
-    while db.query(GroupOrder).filter(func.lower(GroupOrder.invite_token) == token.lower()).first():
-        token = _gen_token()
-
-    # Set expiry 24 hours from now
-    paid_at = source_order.paid_at or source_order.created_at or datetime.now(TEHRAN_TZ)
-    if getattr(paid_at, 'tzinfo', None) is None:
-        paid_at = paid_at.replace(tzinfo=TEHRAN_TZ)
-    expires_at = datetime.now(TEHRAN_TZ) + timedelta(hours=24)
-
-    # Build items snapshot from the source order
-    items = []
-    try:
-        for it in source_order.items:
-            product = getattr(it, 'product', None)
-            items.append({
-                'product_id': it.product_id,
-                'quantity': it.quantity,
-                'unit_price': it.base_price,
-                'product_name': getattr(product, 'name', None) if product else f"محصول {it.product_id}",
-            })
-    except Exception as e:
-        logger.error(f"Error building items for secondary group: {e}")
-        items = []
-
-    # Create metadata for secondary group
-    meta = {
-        'kind': 'secondary',
-        'source_group_id': source_order.group_order_id,
-        'source_order_id': source_order.id,
-        'items': items,
-        'hidden': False,  # Visible once created by button click
-    }
-    snap_json = json.dumps(meta, ensure_ascii=False)
-
-    # Create the new secondary group
-    new_group = GroupOrder(
-        leader_id=current_user.id,
-        invite_token=token,
-        status=GroupOrderStatus.GROUP_FORMING,
-        created_at=datetime.now(TEHRAN_TZ),
-        leader_paid_at=paid_at,
-        expires_at=expires_at,
-        basket_snapshot=snap_json,
-        allow_consolidation=False,  # Secondary groups don't consolidate
-    )
-    
-    db.add(new_group)
-    db.commit()
-    db.refresh(new_group)
-    
-    logger.info(f"✅ Created secondary group {new_group.id} for user {current_user.id} from order {source_order_id}")
-    
-    return {
-        "success": True,
-        "group_order_id": new_group.id,
-        "invite_token": new_group.invite_token,
-        "expires_at": tz(new_group.expires_at) if new_group.expires_at else None,
-        "already_exists": False
-    }
 
 @router.get("/info/{invite_token}")
 async def get_group_order_info(
@@ -775,9 +656,7 @@ async def get_user_groups_and_orders(
                 ),
                 # فیلدهای جدید برای تشخیص رهبر
                 "is_leader_order": (
-                    (order.group_order.leader_id is not None and 
-                     order.user_id is not None and 
-                     order.group_order.leader_id == order.user_id)
+                    order.group_order.leader_id == order.user_id 
                     if order.group_order else False
                 ),
                 "group_status": group_status,

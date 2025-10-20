@@ -36,17 +36,22 @@ export default function InviteCta({
       setIsCreating(true);
       setError(null);
 
-      // Call the new simplified API that only needs the order ID
-      // Backend handles all the logic (expiry, token generation, etc.)
-      const result = await groupApi.createSecondaryGroup(order.id);
+      // Calculate expiry time (24h from payment time)
+      const paymentTime = new Date(order.paidAt);
+      const expiryTime = new Date(paymentTime.getTime() + 24 * 60 * 60 * 1000);
 
-      // Convert result to Group format for compatibility
-      const newGroup = {
-        id: result.group_order_id,
-        invite_token: result.invite_token,
-        expires_at: result.expires_at,
-        // Add other required Group fields as needed
-      } as any;
+      const groupData = {
+        kind: "secondary" as const,
+        source_group_id: group.id,
+        source_order_id: order.id,
+        expires_at: expiryTime.toISOString(),
+      };
+
+      // Create group with idempotency key
+      const newGroup = await groupApi.createSecondaryGroup(
+        groupData,
+        withIdempotency()
+      );
 
       setCreatedGroup(newGroup);
       setIsShareModalOpen(true);

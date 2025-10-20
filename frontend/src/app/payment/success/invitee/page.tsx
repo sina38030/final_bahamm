@@ -1,9 +1,5 @@
 "use client";
 
-// Ensure this page is always treated as dynamic and not statically cached
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -36,47 +32,6 @@ function InviteeSuccessContent() {
   const authorityParam = searchParams.get("authority") || searchParams.get("Authority");
   const [inviteAuthority, setInviteAuthority] = useState<string | null>(authorityParam || null);
   
-  // Self-heal if Next.js chunks fail to load (e.g., after a fresh deploy and stale HTML)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const url = new URL(window.location.href);
-    const alreadyBusted = url.searchParams.has("v");
-
-    const reloadWithBuster = () => {
-      if (alreadyBusted) return; // avoid loops
-      try {
-        const logs = JSON.parse(localStorage.getItem('payment_success_debug') || '[]');
-        logs.push({ timestamp: new Date().toISOString(), event: 'RELOAD_DUE_TO_CHUNK_ERROR', url: window.location.href });
-        localStorage.setItem('payment_success_debug', JSON.stringify(logs.slice(-50)));
-      } catch {}
-      url.searchParams.set("v", String(Date.now()));
-      window.location.replace(url.toString());
-    };
-
-    const onResourceError = (e: any) => {
-      const target = e?.target as any;
-      const src: string = (target && (target.src || target.href)) || "";
-      if (src.includes("/_next/static/")) {
-        reloadWithBuster();
-      }
-    };
-
-    const onUnhandledRejection = (e: PromiseRejectionEvent) => {
-      const reason = String((e && (e.reason?.message || e.reason)) || "");
-      if (reason.includes("Loading chunk") || reason.includes("/_next/static/")) {
-        reloadWithBuster();
-      }
-    };
-
-    window.addEventListener("error", onResourceError, true);
-    window.addEventListener("unhandledrejection", onUnhandledRejection);
-    return () => {
-      window.removeEventListener("error", onResourceError, true);
-      window.removeEventListener("unhandledrejection", onUnhandledRejection);
-    };
-  }, []);
-
   // OVERRIDE Next.js router to prevent ANY redirects away from this page
   useEffect(() => {
     const originalPush = router.push;
@@ -259,8 +214,9 @@ function InviteeSuccessContent() {
       }
 
       if (!resolvedOrderId) {
-        console.warn('[InviteeSuccess] No orderId from authority; proceeding with soft error state');
-        setError("سفارش پیدا نشد. اگر مبلغ کم شد، کمی بعد دوباره امتحان کنید.");
+        console.error('[InviteeSuccess] No orderId found, showing error');
+        // Show error instead of redirecting - user can retry or go back
+        setError("شناسه سفارش یافت نشد");
         setLoading(false);
         return;
       }
@@ -287,9 +243,10 @@ function InviteeSuccessContent() {
         setData({ order, group, pricingTiers });
       } catch (err) {
         console.error("Failed to load data:", err);
-        // Soft error: keep page with message
-        const errorMsg = err instanceof Error ? err.message : "سرور موقتا در دسترس نیست";
+        // Only show error if data truly fails - don't redirect automatically
+        const errorMsg = err instanceof Error ? err.message : "خطا در بارگذاری اطلاعات";
         setError(errorMsg);
+        console.log('[InviteeSuccess] Error occurred, showing error message');
       } finally {
         setLoading(false);
       }
@@ -476,27 +433,9 @@ function InviteeSuccessContent() {
             <Link href="/groups-orders" className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors">
               مشاهده سفارش‌ها
             </Link>
-            {inviteAuthority && data?.order?.id ? (
+            {inviteAuthority ? (
               <button
-                onClick={async () => {
-                  try {
-                    // Create secondary group (invitee becomes leader)
-                    console.log('[InviteeSuccess] Creating secondary group for order:', data.order.id);
-                    const result = await groupApi.createSecondaryGroup(data.order.id);
-                    
-                    if (result.success && result.invite_token) {
-                      console.log('[InviteeSuccess] Secondary group created:', result.group_order_id);
-                      // Redirect to invite page with new group's invite code
-                      // Use full page reload to ensure fresh state
-                      window.location.href = `/invite?authority=${encodeURIComponent(inviteAuthority)}`;
-                    } else {
-                      alert('خطا در ایجاد گروه. لطفا دوباره تلاش کنید.');
-                    }
-                  } catch (error) {
-                    console.error('[InviteeSuccess] Failed to create secondary group:', error);
-                    alert('خطا در ایجاد گروه. لطفا دوباره تلاش کنید.');
-                  }
-                }}
+                onClick={() => router.push(`/invite?authority=${encodeURIComponent(inviteAuthority)}`)}
                 className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors"
               >
                 مبلغ پرداختیت رو پس بگیر!

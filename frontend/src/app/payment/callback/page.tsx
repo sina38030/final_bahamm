@@ -50,22 +50,15 @@ function PaymentCallbackContent() {
             }
             return;
           } else {
-            // For non-invited users (leaders/solo): on reload, stay and show success. But clear the success flag first
-            // to ensure leaders don't get stuck if they were incorrectly sent to success page
-            try {
-              // Clear the payment_success_reached flag for leader flows to prevent getting stuck
-              if (typeof window !== 'undefined') {
-                localStorage.removeItem('payment_success_reached');
-              }
-            } catch {}
-            
+            // For non-invited users: on reload or if success page was reached before, stay and show success
             try {
               const navs: any = (typeof performance !== 'undefined') ? performance.getEntriesByType('navigation') : null;
               const isReload = Array.isArray(navs) && navs[0] && navs[0].type === 'reload';
               // Fallback deprecated API
               // @ts-ignore
               const isReloadDeprecated = typeof performance !== 'undefined' && performance.navigation && performance.navigation.type === 1;
-              if (isReload || isReloadDeprecated) {
+              const successReached = typeof window !== 'undefined' && localStorage.getItem('payment_success_reached') === 'true';
+              if (isReload || isReloadDeprecated || successReached) {
                 setStatus('success');
                 setMessage('سفارش شما با موفقیت ثبت شد');
                 try {
@@ -76,10 +69,8 @@ function PaymentCallbackContent() {
                 return;
               }
             } catch {}
-            
-            // Not a reload - redirect leader to invite page
             const inviteTarget = `/invite?authority=${encodeURIComponent(authority)}`;
-            console.log('[PaymentCallback] Redirecting leader to invite page:', inviteTarget);
+            console.log('[PaymentCallback] Redirecting to invite page:', inviteTarget);
             if (typeof window !== 'undefined') {
               window.location.replace(inviteTarget);
             } else {
@@ -264,20 +255,14 @@ function PaymentCallbackContent() {
             return;
           }
           // Default (leader non-settlement): avoid redirect on reload; show inline success instead
-          // Clear the payment_success_reached flag for leader flows to prevent getting stuck
-          try {
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('payment_success_reached');
-            }
-          } catch {}
-          
           try {
             const navs: any = (typeof performance !== 'undefined') ? performance.getEntriesByType('navigation') : null;
             const isReload = Array.isArray(navs) && navs[0] && navs[0].type === 'reload';
             // Fallback deprecated API
             // @ts-ignore
             const isReloadDeprecated = typeof performance !== 'undefined' && performance.navigation && performance.navigation.type === 1;
-            if (isReload || isReloadDeprecated) {
+            const successReached = typeof window !== 'undefined' && localStorage.getItem('payment_success_reached') === 'true';
+            if (isReload || isReloadDeprecated || successReached) {
               setStatus('success');
               setMessage('سفارش شما با موفقیت ثبت شد');
               const processedKey = `processed_${authority}`;
@@ -292,12 +277,11 @@ function PaymentCallbackContent() {
             }
           } catch {}
 
-          // Not a reload - redirect leader to invite page
+          // Otherwise keep original behavior: redirect to invite page
           const processedKey = `processed_${authority}`;
           const processedData = { isInvited: false, timestamp: Date.now() };
           try { localStorage.setItem(processedKey, JSON.stringify(processedData)); } catch {}
           const inviteTarget = `/invite?authority=${encodeURIComponent(authority)}`;
-          console.log('[PaymentCallback] Redirecting leader to invite page (default flow):', inviteTarget);
           try {
             if (typeof window !== 'undefined') {
               window.location.replace(inviteTarget);

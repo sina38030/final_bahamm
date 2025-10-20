@@ -186,17 +186,10 @@ export default function TrackPage() {
   const load = async () => {
     try {
       if (!groupId) return;
-      // Primary: via Next.js API under /frontapi to avoid Nginx /api proxying to backend
-      const res = await fetchWithTimeout(`/frontapi/groups/${groupId}`, 2500);
+      // Primary: via Next.js API (3.5s hard timeout at client); public access
+      const res = await fetchWithTimeout(`/api/groups/${groupId}`, 2500);
       if (!res.ok) throw new Error(await res.text());
       const j: GroupTrack = await res.json();
-      console.log('[TRACK] API Response:', {
-        id: j.id,
-        basketCount: j.basket?.length || 0,
-        originalTotal: j.pricing?.originalTotal,
-        currentTotal: j.pricing?.currentTotal,
-        fullBasket: j.basket
-      });
       setData(j);
       try {
         const gidStr = String(j.id || groupId || '').trim();
@@ -552,8 +545,8 @@ export default function TrackPage() {
       if (!confirm("آیا از تکمیل گروه اطمینان دارید؟")) return;
 
       console.log(`[TRACK] Calling finalize API for group ${groupId}`);
-      // Finalize via API proxy under /frontapi to avoid Nginx /api collision
-      const res = await fetch(`/frontapi/groups/${groupId}`, {
+      // Finalize via API proxy
+      const res = await fetch(`/api/groups/${groupId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ confirm: true }),

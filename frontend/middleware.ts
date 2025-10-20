@@ -5,15 +5,6 @@ export async function middleware(req: NextRequest) {
   const url = new URL(req.url);
   const pathname = url.pathname;
 
-  // Disable caching for payment success pages to avoid stale HTML after deploys
-  if (pathname === '/payment/success' || pathname.startsWith('/payment/success/')) {
-    const res = NextResponse.next();
-    res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-    res.headers.set('Pragma', 'no-cache');
-    res.headers.set('Expires', '0');
-    return res;
-  }
-
   // Only handle payment callback, not other routes
   if (pathname === '/payment/callback') {
     const authority = url.searchParams.get('Authority') || url.searchParams.get('authority');
@@ -33,7 +24,7 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/payment/callback', '/payment/success', '/payment/success/:path*'],
+  matcher: ['/payment/callback'],
 };
 
 
