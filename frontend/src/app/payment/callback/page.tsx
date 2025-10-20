@@ -77,14 +77,9 @@ function PaymentCallbackContent() {
               }
             } catch {}
             
-            // Not a reload - redirect leader to invite page
-            const inviteTarget = `/invite?authority=${encodeURIComponent(authority)}`;
-            console.log('[PaymentCallback] Redirecting leader to invite page:', inviteTarget);
-            if (typeof window !== 'undefined') {
-              window.location.replace(inviteTarget);
-            } else {
-              router.replace(inviteTarget);
-            }
+            // ✅ REMOVED: Let backend handle all redirects
+            // The backend callback endpoint will determine the correct redirect
+            console.log('[PaymentCallback] Letting backend handle redirect logic');
             return;
           }
         }
@@ -296,17 +291,9 @@ function PaymentCallbackContent() {
           const processedKey = `processed_${authority}`;
           const processedData = { isInvited: false, timestamp: Date.now() };
           try { localStorage.setItem(processedKey, JSON.stringify(processedData)); } catch {}
-          const inviteTarget = `/invite?authority=${encodeURIComponent(authority)}`;
-          console.log('[PaymentCallback] Redirecting leader to invite page (default flow):', inviteTarget);
-          try {
-            if (typeof window !== 'undefined') {
-              window.location.replace(inviteTarget);
-            } else {
-              router.replace(inviteTarget);
-            }
-          } catch {
-            router.replace(inviteTarget);
-          }
+          // ✅ REMOVED: Let backend handle all redirects
+          // The backend callback endpoint will determine the correct redirect
+          console.log('[PaymentCallback] Letting backend handle redirect logic (default flow)');
           return;
         }
       } else {
@@ -314,19 +301,9 @@ function PaymentCallbackContent() {
         setStatus('failed');
         setMessage('پرداخت ناموفق یا لغو شده');
         
-        // Redirect to invite page anyway to let user recover
-        setTimeout(() => {
-          const target = `/invite${authority ? `?authority=${authority}` : ''}`;
-          try {
-            if (typeof window !== 'undefined') {
-              window.location.assign(target);
-            } else {
-              router.push(target);
-            }
-          } catch {
-            router.push(target);
-          }
-        }, 1200);
+        // ✅ REMOVED: Let backend handle all redirects
+        // The backend callback endpoint will determine the correct redirect
+        console.log('[PaymentCallback] Letting backend handle redirect logic (failed payment)');
       }
     };
 

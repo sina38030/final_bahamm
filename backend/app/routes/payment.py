@@ -657,13 +657,17 @@ async def payment_callback(
         try:
             payment_service = PaymentService(db)
             _ = await payment_service.verify_and_complete_payment(authority=Authority, amount=None, user_id=None)
-            # ✅ CRITICAL: Refresh the session to get the updated group_order_id
+            # ✅ CRITICAL: Force fresh database state
             db.expire_all()  # Clear all cached objects to force fresh queries
         except Exception as _e:
             logger.error(f"Callback verification error (continuing to redirect): {_e}")
         
         # Find order by payment authority (reload after verification)
         order = db.query(Order).filter(Order.payment_authority == Authority).first()
+        
+        # Force refresh the specific order to get latest data
+        if order:
+            db.refresh(order)
         
         if not order:
             logger.warning(f"No order found for authority: {Authority}")
@@ -737,7 +741,8 @@ async def payment_callback(
                 redirect_url = f"{settings.FRONTEND_URL}/cart?payment_error=group_not_found"
             elif (group_order.leader_id is not None and 
                   order.user_id is not None and 
-                  group_order.leader_id == order.user_id):
+                  group_order.leader_id == order.user_id and
+                  order.user_id != 0):  # Additional check for invalid user_id
                 # ✅ User is the leader → invite page (NULL-safe comparison)
                 is_leader = True
                 logger.info(f"✅ Leader order detected (order_id={order.id}, group_id={order.group_order_id}, user_id={order.user_id}) → redirecting to /invite")

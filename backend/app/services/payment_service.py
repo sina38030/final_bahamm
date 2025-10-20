@@ -384,76 +384,10 @@ class PaymentService:
                         group = None
                     is_follower_order = bool(group and getattr(group, 'leader_id', None) and getattr(order, 'user_id', None) and int(group.leader_id) != int(order.user_id))
                     if is_follower_order:
-                        # DISABLED: Faulty duplicate check mechanism that was causing multiple secondary groups
-                        # The previous logic was unreliable and caused duplicate groups for some users
-                        # Always create a new secondary group for invited users
-                        existing_secondary = None
-
-                        if existing_secondary is None:
-                            # Create a new secondary group for this invited user
-                            import secrets, string
-                            from datetime import timedelta
-
-                            def _gen_token(length: int = 12) -> str:
-                                alphabet = string.ascii_letters + string.digits
-                                return ''.join(secrets.choice(alphabet) for _ in range(length))
-
-                            token = _gen_token()
-                            # Ensure uniqueness (case-insensitive compare for safety)
-                            from sqlalchemy import func as _func
-                            while self.db.query(GroupOrder).filter(_func.lower(GroupOrder.invite_token) == token.lower()).first():
-                                token = _gen_token()
-
-                            # Compute paid_at/expires_at
-                            paid_at = getattr(order, 'paid_at', None) or getattr(order, 'created_at', None) or datetime.now(TEHRAN_TZ)
-                            if getattr(paid_at, 'tzinfo', None) is None:
-                                paid_at = paid_at.replace(tzinfo=TEHRAN_TZ)
-                            expires_at = paid_at + timedelta(hours=24)
-
-                            # Build items snapshot from this (invited) order (always use follower's purchased items)
-                            items = []
-                            try:
-                                for order_item in order.items:
-                                    product = getattr(order_item, 'product', None)
-                                    items.append({
-                                        'product_id': order_item.product_id,
-                                        'quantity': order_item.quantity,
-                                        'unit_price': order_item.base_price,
-                                        'product_name': getattr(product, 'name', None) if product else f"محصول {order_item.product_id}",
-                                    })
-                            except Exception:
-                                items = []
-
-                            # Snapshot metadata marks this as a secondary group sourced from this paid order
-                            secondary_meta = {
-                                'kind': 'secondary',
-                                'source_group_id': getattr(group, 'id', None),
-                                'source_order_id': order.id,
-                                'items': items,
-                                # Optional hint for UI; admin already hides secondary with 0 followers
-                                'hidden': True,
-                            }
-
-                            try:
-                                snapshot_json = json.dumps(secondary_meta, ensure_ascii=False)
-                            except Exception:
-                                snapshot_json = None
-
-                            new_group = GroupOrder(
-                                leader_id=order.user_id,
-                                invite_token=token,
-                                status=GroupOrderStatus.GROUP_FORMING,
-                                created_at=datetime.now(TEHRAN_TZ),
-                                leader_paid_at=paid_at,
-                                expires_at=expires_at,
-                                basket_snapshot=snapshot_json,
-                            )
-                            self.db.add(new_group)
-                            self.db.flush()
-                            # No need to set allow_consolidation by default; can be toggled later by leader
-                            self.db.commit()
-                except Exception as _e:
-                    logger.error(f"Auto-create secondary group failed for follower order {getattr(order, 'id', None)}: {_e}")
+                        # ✅ DISABLED: Don't auto-create secondary group
+                        # Invitee will manually create it when they click "مبلغ پرداختیت رو پس بگیر!" button
+                        logger.info(f"⏳ Invitee order {getattr(order, 'id', None)} has no secondary group yet - will be created on button click")
+                        pass
 
                 # Check if this is a leader order that might require settlement
                 is_leader_order = False
@@ -516,8 +450,11 @@ class PaymentService:
                          order.shipping_address.startswith('PENDING_GROUP:'))
                     )
                     
-                    # If not invited user and order type is ALONE, this could be a leader
-                    if order.order_type == OrderType.ALONE and (order_mode == 'group' or not is_invited_user):
+                    # ✅ FIX: Don't create new group for invited users
+                    if is_invited_user:
+                        logger.info(f"⏳ Invited user order {order.id} - skipping GroupOrder creation")
+                        pass
+                    elif order.order_type == OrderType.ALONE and (order_mode == 'group' or not is_invited_user):
                         # This is a group buy leader payment - create GroupOrder now
                         try:
                             # Try to resolve leader user by order's user_id or create a minimal one
