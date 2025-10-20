@@ -476,9 +476,27 @@ function InviteeSuccessContent() {
             <Link href="/groups-orders" className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors">
               مشاهده سفارش‌ها
             </Link>
-            {inviteAuthority ? (
+            {inviteAuthority && data?.order?.id ? (
               <button
-                onClick={() => router.push(`/invite?authority=${encodeURIComponent(inviteAuthority)}`)}
+                onClick={async () => {
+                  try {
+                    // Create secondary group (invitee becomes leader)
+                    console.log('[InviteeSuccess] Creating secondary group for order:', data.order.id);
+                    const result = await groupApi.createSecondaryGroup(data.order.id);
+                    
+                    if (result.success && result.invite_token) {
+                      console.log('[InviteeSuccess] Secondary group created:', result.group_order_id);
+                      // Redirect to invite page with new group's invite code
+                      // Use full page reload to ensure fresh state
+                      window.location.href = `/invite?authority=${encodeURIComponent(inviteAuthority)}`;
+                    } else {
+                      alert('خطا در ایجاد گروه. لطفا دوباره تلاش کنید.');
+                    }
+                  } catch (error) {
+                    console.error('[InviteeSuccess] Failed to create secondary group:', error);
+                    alert('خطا در ایجاد گروه. لطفا دوباره تلاش کنید.');
+                  }
+                }}
                 className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors"
               >
                 مبلغ پرداختیت رو پس بگیر!

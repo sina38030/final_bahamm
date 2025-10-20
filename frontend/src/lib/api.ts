@@ -55,14 +55,14 @@ export const orderApi = {
 
 export const groupApi = {
   getGroup: (groupId: string) => api.get<import("@/types/group").Group>(`/groups/${groupId}`),
-  createSecondaryGroup: (data: {
-    kind: "secondary";
-    source_group_id?: string | number;
-    source_order_id: string | number;
-    leader_user_id?: string | number;
-    expires_at?: string;
-  }, headers?: HeadersInit) => 
-    api.post<import("@/types/group").Group>("/groups", data, { headers }),
+  createSecondaryGroup: (orderId: string | number) => 
+    api.post<{
+      success: boolean;
+      group_order_id: number;
+      invite_token: string;
+      expires_at: string | null;
+      already_exists: boolean;
+    }>("/group-orders/create-secondary", { source_order_id: Number(orderId) }),
 };
 
 export const pricingApi = {

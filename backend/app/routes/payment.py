@@ -1244,65 +1244,11 @@ async def get_group_invite_by_code(
                         except Exception:
                             pass
                     else:
-                        # Auto-create a secondary group for this follower
-                        import secrets, string
-                        from datetime import timedelta
-
-                        def _gen_token(length: int = 12) -> str:
-                            alphabet = string.ascii_letters + string.digits
-                            return ''.join(secrets.choice(alphabet) for _ in range(length))
-
-                        token = _gen_token()
-                        # Ensure uniqueness (case-insensitive)
-                        while db.query(GroupOrder).filter(func.lower(GroupOrder.invite_token) == token.lower()).first():
-                            token = _gen_token()
-
-                        # Compute paid_at/expires_at window based on follower's order
-                        paid_at = getattr(order, 'paid_at', None) or getattr(order, 'created_at', None) or datetime.now(TEHRAN_TZ)
-                        if getattr(paid_at, 'tzinfo', None) is None:
-                            paid_at = paid_at.replace(tzinfo=TEHRAN_TZ)
-                        expires_at = paid_at + timedelta(hours=24)
-
-                        # Build items snapshot from the follower's order (always show purchased items)
-                        items = []
-                        try:
-                            for it in order.items:
-                                product = getattr(it, 'product', None)
-                                items.append({
-                                    'product_id': it.product_id,
-                                    'quantity': it.quantity,
-                                    'unit_price': it.base_price,
-                                    'product_name': getattr(product, 'name', None) if product else f"محصول {it.product_id}",
-                                })
-                        except Exception as e:
-                            logger.error(f"Error building items for secondary group: {e}")
-                            items = []
-
-                        meta = {
-                            'kind': 'secondary',
-                            'source_group_id': getattr(group_order, 'id', None) if group_order else getattr(order, 'group_order_id', None),
-                            'source_order_id': order.id,
-                            'items': items,
-                            'hidden': True,  # admin hides secondary until it has a follower
-                        }
-                        try:
-                            snap_json = json.dumps(meta, ensure_ascii=False)
-                        except Exception:
-                            snap_json = None
-
-                        new_group = GroupOrder(
-                            leader_id=order.user_id,
-                            invite_token=token,
-                            status=GroupOrderStatus.GROUP_FORMING,
-                            created_at=datetime.now(TEHRAN_TZ),
-                            leader_paid_at=paid_at,
-                            expires_at=expires_at,
-                            basket_snapshot=snap_json,
-                        )
-                        db.add(new_group)
-                        db.commit()
-                        db.refresh(new_group)
-                        group_order = new_group
+                        # ✅ DON'T auto-create secondary group
+                        # Invitee will manually create it when they click "مبلغ پرداختیت رو پس بگیر!" button
+                        # For now, just keep showing the primary group data
+                        logger.info(f"⏳ Invitee order {order.id} has no secondary group yet - will be created on button click")
+                        pass
             except Exception:
                 # Best-effort; proceed with resolved group_order
                 pass
