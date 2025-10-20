@@ -317,7 +317,9 @@ class PaymentService:
                 order.paid_at = datetime.now(TEHRAN_TZ)
 
                 # Simplified: Only handle invited flow via PENDING_INVITE. No PENDING_GROUP branch.
+                logger.info(f"🔍 Checking if order {order.id} is invited: shipping_address={order.shipping_address[:100] if order.shipping_address else None}")
                 if order.shipping_address and order.shipping_address.startswith("PENDING_INVITE:"):
+                    logger.info(f"✅ INVITED USER DETECTED: order {order.id} has PENDING_INVITE prefix")
                     # Resolve invite to leader order and then to group id
                     try:
                         parts = order.shipping_address.split("|", 1)
@@ -355,9 +357,11 @@ class PaymentService:
                             order.group_order_id = pending_group_id
                             order.order_type = OrderType.GROUP
                             order.shipping_address = original_address
-                            logger.info(f"Linked paid order {order.id} to group {pending_group_id} via invite token")
+                            logger.info(f"✅✅✅ SUCCESSFULLY LINKED invited order {order.id} to group {pending_group_id} via invite token {invite_token}")
+                            logger.info(f"   Order type updated to: {order.order_type}")
+                            logger.info(f"   Order group_order_id updated to: {order.group_order_id}")
                         else:
-                            logger.warning(f"Could not resolve group for invite token {invite_token} on order {order.id}")
+                            logger.error(f"❌❌❌ Could not resolve group for invite token {invite_token} on order {order.id}")
                     except Exception as e:
                         logger.error(f"Error processing pending invite for order {order.id}: {e}")
 

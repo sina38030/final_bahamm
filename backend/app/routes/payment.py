@@ -23,6 +23,12 @@ logger = get_logger(__name__)
 router = APIRouter()
 settings = get_settings()
 
+# Log configuration on startup
+logger.info(f"🔧 Payment Routes Configuration:")
+logger.info(f"   FRONTEND_URL: {settings.FRONTEND_URL}")
+logger.info(f"   get_frontend_public_url: {settings.get_frontend_public_url}")
+logger.info(f"   get_payment_callback_base_url: {settings.get_payment_callback_base_url}")
+
 # Additional schemas for the new endpoints
 class PaymentOrderItem(BaseModel):
     product_id: int
@@ -581,36 +587,62 @@ async def payment_callback(
         # First, verify payment server-side to ensure group linking happens immediately
         try:
             payment_service = PaymentService(db)
-            _ = await payment_service.verify_and_complete_payment(authority=Authority, amount=None, user_id=None)
+            verification_result = await payment_service.verify_and_complete_payment(authority=Authority, amount=None, user_id=None)
+            logger.info(f"✅ Callback verification result: {verification_result}")
             # ✅ CRITICAL: Force fresh database state
             db.expire_all()  # Clear all cached objects to force fresh queries
+            db.commit()  # Ensure all changes are committed before querying
         except Exception as _e:
-            logger.error(f"Callback verification error (continuing to redirect): {_e}")
+            logger.error(f"❌ Callback verification error (continuing to redirect): {_e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
         
         # Find order by payment authority (reload after verification)
-        order = db.query(Order).filter(Order.payment_authority == Authority).first()
+        # Use a fresh query to ensure we get the updated order
+        from sqlalchemy import select
+        order = db.execute(select(Order).where(Order.payment_authority == Authority)).scalar_one_or_none()
         
-        # Force refresh the specific order to get latest data
+        # Force refresh to ensure we have the latest data
         if order:
             db.refresh(order)
+            logger.info(f"🔄 Order refreshed from database: id={order.id}, group_order_id={order.group_order_id}, order_type={order.order_type}")
         
         if not order:
             logger.warning(f"No order found for authority: {Authority}")
             # Default to success page if order not found (client can resolve by authority)
-            redirect_url = f"{settings.get_frontend_public_url}/payment/success/invitee?authority={Authority}"
+            frontend_base = settings.get_frontend_public_url
+            logger.info(f"🔗 FRONTEND_BASE_URL: {frontend_base}")
+            redirect_url = f"{frontend_base}/payment/success/invitee?authority={Authority}"
+            logger.info(f"🔗 REDIRECT_URL (no order): {redirect_url}")
             return RedirectResponse(url=redirect_url, status_code=303)
         
         # Determine user type based on GroupOrder.leader_id
         is_leader = False
         is_invited = False
         
-        logger.info(f"✅ Order after verification: id={order.id}, group_order_id={order.group_order_id}, user_id={order.user_id}, order_type={order.order_type}")
+        logger.info(f"✅ Order after verification: id={order.id}, group_order_id={order.group_order_id}, user_id={order.user_id}, order_type={order.order_type}, shipping_address={order.shipping_address[:50] if order.shipping_address else None}")
+        
+        # ✅ FALLBACK: Check if this was an invited order even if group linking somehow failed
+        # This can happen if the invite code was invalid or the group was deleted
+        was_invited_checkout = False
+        if order.shipping_address and (
+            order.shipping_address.startswith("PENDING_INVITE:") or
+            "PENDING_INVITE:" in order.shipping_address
+        ):
+            logger.warning(f"⚠️ Order {order.id} still has PENDING_INVITE marker - group linking may have failed")
+            was_invited_checkout = True
 
-        if order.order_type == OrderType.ALONE:
-            # Solo purchase ➜ payment callback page
+        # IMPORTANT: Check order type AFTER verification (which may have updated it from ALONE to GROUP)
+        if order.order_type == OrderType.ALONE and not order.group_order_id and not was_invited_checkout:
+            # Solo purchase (not invited) ➜ payment callback page
             logger.info(f"✅ Solo order detected (order_id={order.id}, user_id={order.user_id}, group_order_id={order.group_order_id}) ➜ redirecting to /payment/callback")
             redirect_url = f"{settings.get_frontend_public_url}/payment/callback?Authority={Authority}&Status=OK"
             logger.info(f"🔗 Solo redirect URL: {redirect_url}")
+        elif was_invited_checkout and not order.group_order_id:
+            # Invited at checkout but group linking failed ➜ still redirect to invitee page
+            logger.warning(f"⚠️ Order {order.id} was invited but group linking failed - redirecting to invitee page")
+            redirect_url = f"{settings.get_frontend_public_url}/payment/success/invitee?authority={Authority}&orderId={order.id}"
+            logger.info(f"🔗 Invitee redirect URL (no group): {redirect_url}")
         elif order.group_order_id:
             # Group order - check if user is leader or invited
             group_order = db.query(GroupOrder).filter(GroupOrder.id == order.group_order_id).first()
@@ -635,13 +667,20 @@ async def payment_callback(
                 )
                 # Pass authority for frontend to resolve group invite/refund timer; include orderId/groupId for UX
                 group_part = f"&groupId={order.group_order_id}" if getattr(order, 'group_order_id', None) else ""
+                frontend_base = settings.get_frontend_public_url
+                logger.info(f"🔗 FRONTEND_BASE_URL (invitee): {frontend_base}")
                 redirect_url = (
-                    f"{settings.get_frontend_public_url}/payment/success/invitee?authority={Authority}&orderId={order.id}{group_part}"
+                    f"{frontend_base}/payment/success/invitee?authority={Authority}&orderId={order.id}{group_part}"
                 )
+                logger.info(f"🔗 REDIRECT_URL (invitee): {redirect_url}")
         else:
-            # Fallback: no group_order_id but order_type is GROUP (shouldn't happen but handle it)
-            logger.warning(f"GROUP order without group_order_id (order_id={order.id}) ➜ redirecting to success page")
-            redirect_url = f"{settings.get_frontend_public_url}/payment/success/invitee?authority={Authority}&orderId={order.id}"
+            # Fallback: no group_order_id but order_type is GROUP or was invited at checkout
+            if was_invited_checkout:
+                logger.warning(f"⚠️ Order {order.id} was invited at checkout but has no group - redirecting to invitee success page anyway")
+                redirect_url = f"{settings.get_frontend_public_url}/payment/success/invitee?authority={Authority}&orderId={order.id}"
+            else:
+                logger.warning(f"GROUP order without group_order_id (order_id={order.id}) ➜ redirecting to success page")
+                redirect_url = f"{settings.get_frontend_public_url}/payment/success/invitee?authority={Authority}&orderId={order.id}"
         
         logger.info(f"🚀 Final redirect: {redirect_url}")
         return RedirectResponse(url=redirect_url, status_code=303)

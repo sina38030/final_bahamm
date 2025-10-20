@@ -18,7 +18,8 @@ class Settings(BaseSettings):
     # Payment Gateway Configuration (ZarinPal)
     ZARINPAL_MERCHANT_ID: str = "2cea1309-4a05-4f02-82ce-9a6d183db8a4"  # Real merchant ID
     ZARINPAL_SANDBOX: bool = False
-    FRONTEND_URL: str = "https://bahamm.ir"  # Production domain for payment callbacks
+    # Auto-detect: use localhost for local dev, production for deployed
+    FRONTEND_URL: str = "http://localhost:3000"  # Will use env var in production
     # Payment callback URL - must route to backend's /api/payment/callback
     # Production: https://bahamm.ir/backend/api (nginx proxies to backend)
     # Local: http://localhost:8001/api (direct to backend)
@@ -47,7 +48,8 @@ class Settings(BaseSettings):
         """
         base = (self.FRONTEND_URL or "").strip()
         if not base:
-            return ""
+            # Fallback to safe default if not configured
+            return "http://localhost:3000"
         # Strip trailing slash for consistent concatenation
         if base.endswith('/'):
             base = base[:-1]
@@ -58,6 +60,9 @@ class Settings(BaseSettings):
             if idx != -1:
                 base = base[:idx]
                 break
+        # Ensure we always have a valid URL
+        if not base:
+            return "http://localhost:3000"
         return base
     
     # Telegram Mini App Configuration
