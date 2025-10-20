@@ -328,8 +328,7 @@ async def create_payment_order_public(
                              order_data.shipping_address.startswith('PENDING_GROUP:'))
                         )
                         
-                        # Only create GroupOrder if mode is explicitly 'group' AND user is not invited
-                        if ((getattr(order_data, 'mode', None) or '').lower() == 'group' and not is_invited_user) and not order.group_order_id:
+                        if ((getattr(order_data, 'mode', None) or '').lower() == 'group' or not is_invited_user) and not order.group_order_id:
                             # Resolve leader user
                             leader_user = None
                             if order.user_id:
@@ -368,8 +367,6 @@ async def create_payment_order_public(
                                 invite_token=invite_token,
                                 status=GroupOrderStatus.GROUP_FORMING,
                                 created_at=datetime.now(TEHRAN_TZ),
-                                leader_paid_at=datetime.now(TEHRAN_TZ),
-                                expires_at=datetime.now(TEHRAN_TZ) + timedelta(hours=24),
                                 basket_snapshot=snapshot_json,
                                 allow_consolidation=allow_consolidation_value,
                                 expected_friends=getattr(order_data, 'expected_friends', None) or getattr(order_data, 'friends', None) or getattr(order_data, 'max_friends', None)
@@ -482,8 +479,8 @@ async def request_payment_public(
     درخواست پرداخت جدید (بدون احراز هویت)
     """
     try:
-        # آدرس بازگشت پس از پرداخت - به frontend payment callback page
-        callback_url = f"{settings.FRONTEND_URL}/payment/callback"
+        # آدرس بازگشت پس از پرداخت - به backend callback endpoint که سپس به سایت bahamm.ir redirect می‌کند
+        callback_url = f"{settings.FRONTEND_URL}/api/payment/callback"
         
         # درخواست پرداخت از زرین‌پال
         result = await zarinpal.request_payment(
@@ -519,8 +516,8 @@ async def request_payment(
     درخواست پرداخت جدید
     """
     try:
-        # آدرس بازگشت پس از پرداخت - به frontend payment callback page
-        callback_url = f"{settings.FRONTEND_URL}/payment/callback"
+        # آدرس بازگشت پس از پرداخت - به backend callback endpoint که سپس به سایت bahamm.ir redirect می‌کند
+        callback_url = f"{settings.FRONTEND_URL}/api/payment/callback"
         
         # درخواست پرداخت از زرین‌پال
         result = await zarinpal.request_payment(
@@ -681,52 +678,6 @@ async def payment_callback(
         
         logger.info(f"✅ Order after verification: id={order.id}, group_order_id={order.group_order_id}, user_id={order.user_id}, order_type={order.order_type}")
 
-        # ✅ FIX: Extract pending group_order_id from shipping_address for invitees
-        if not order.group_order_id and order.shipping_address:
-            try:
-                if order.shipping_address.startswith('PENDING_GROUP:'):
-                    parts = order.shipping_address.split('|', 1)
-                    pending_group_id = int(parts[0].replace('PENDING_GROUP:', ''))
-                    original_address = parts[1] if len(parts) > 1 else ''
-                    
-                    # Verify the group exists before linking
-                    group_order = db.query(GroupOrder).filter(GroupOrder.id == pending_group_id).first()
-                    if group_order:
-                        order.group_order_id = pending_group_id
-                        order.order_type = OrderType.GROUP  # ✅ Set order_type to GROUP
-                        order.shipping_address = original_address
-                        db.commit()
-                        logger.info(f"✅ Extracted group_order_id={pending_group_id} from PENDING_GROUP for order {order.id}")
-                    else:
-                        logger.error(f"❌ PENDING_GROUP:{pending_group_id} not found for order {order.id}")
-                
-                elif order.shipping_address.startswith('PENDING_INVITE:'):
-                    # Handle PENDING_INVITE: similar logic
-                    parts = order.shipping_address.split('|', 1)
-                    invite_code = parts[0].replace('PENDING_INVITE:', '')
-                    original_address = parts[1] if len(parts) > 1 else ''
-                    
-                    # Try to find the group by invite_code
-                    group_order = db.query(GroupOrder).filter(
-                        func.lower(GroupOrder.invite_token) == invite_code.lower()
-                    ).order_by(GroupOrder.created_at.desc()).first()
-                    
-                    if group_order:
-                        order.group_order_id = group_order.id
-                        order.order_type = OrderType.GROUP  # ✅ Set order_type to GROUP
-                        order.shipping_address = original_address
-                        db.commit()
-                        logger.info(f"✅ Resolved PENDING_INVITE:{invite_code} to group_order_id={group_order.id} for order {order.id}")
-                    else:
-                        logger.error(f"❌ PENDING_INVITE:{invite_code} not found for order {order.id}")
-            
-            except Exception as e:
-                logger.error(f"❌ Failed to extract pending group info for order {order.id}: {e}")
-        
-        # Re-fetch order to ensure we have the updated group_order_id
-        db.refresh(order)
-        logger.info(f"✅ Order after pending extraction: id={order.id}, group_order_id={order.group_order_id}, user_id={order.user_id}, order_type={order.order_type}")
-
         if order.order_type == OrderType.ALONE:
             # Solo purchase ➜ payment callback page
             logger.info(f"Solo order detected (order_id={order.id}) ➜ redirecting to /payment/callback")
@@ -745,23 +696,23 @@ async def payment_callback(
                   order.user_id != 0):  # Additional check for invalid user_id
                 # ✅ User is the leader → invite page (NULL-safe comparison)
                 is_leader = True
-                logger.info(f"✅ Leader order detected (order_id={order.id}, group_id={order.group_order_id}, user_id={order.user_id}) → redirecting to /invite")
+                logger.info(f"Leader order detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /invite")
                 redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
             else:
-                # ✅ User is invited (follower) → success page
+                # User is invited (follower) ➜ redirect directly to success page
                 is_invited = True
-                logger.info(f"✅ Invited user order detected (order_id={order.id}, group_id={order.group_order_id}, user_id={order.user_id}, leader_id={group_order.leader_id}) → redirecting to /payment/success/invitee")
+                logger.info(
+                    f"Invited user order detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /payment/success/invitee"
+                )
+                # Pass authority for frontend to resolve group invite/refund timer; include orderId/groupId for UX
                 group_part = f"&groupId={order.group_order_id}" if getattr(order, 'group_order_id', None) else ""
-                redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}&orderId={order.id}{group_part}"
+                redirect_url = (
+                    f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}&orderId={order.id}{group_part}"
+                )
         else:
-            # ❌ No group_order_id - treat as error if order_type is GROUP
-            if order.order_type == OrderType.GROUP:
-                logger.error(f"❌ CRITICAL: GROUP order without group_order_id (order_id={order.id})! Redirecting to error page.")
-                redirect_url = f"{settings.FRONTEND_URL}/cart?payment_error=group_missing"
-            else:
-                # Shouldn't reach here for ALONE orders (handled earlier), but just in case
-                logger.warning(f"⚠️ Unexpected: Non-GROUP order without group_order_id (order_id={order.id}) → redirecting to callback")
-                redirect_url = f"{settings.FRONTEND_URL}/payment/callback?Authority={Authority}&Status=OK"
+            # Fallback: no group_order_id but order_type is GROUP (shouldn't happen but handle it)
+            logger.warning(f"GROUP order without group_order_id (order_id={order.id}) ➜ redirecting to success page")
+            redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}&orderId={order.id}"
         
         return RedirectResponse(url=redirect_url, status_code=303)
             
@@ -1078,13 +1029,9 @@ async def get_order_by_authority(
         if group_order_id:
             try:
                 group_order = db.query(GroupOrder).filter(GroupOrder.id == group_order_id).first()
-                if group_order:
-                    # NULL-safe check: User is invited if they are NOT the leader
-                    leader_id = group_order.leader_id
-                    user_id = order.user_id
-                    if not (leader_id is not None and user_id is not None and leader_id == user_id):
-                        # User is NOT the leader, so they are invited
-                        is_invited = True
+                if group_order and group_order.leader_id != order.user_id:
+                    # User is NOT the leader, so they are invited
+                    is_invited = True
             except Exception:
                 is_invited = False
 
@@ -1249,11 +1196,65 @@ async def get_group_invite_by_code(
                         except Exception:
                             pass
                     else:
-                        # ✅ DON'T auto-create secondary group
-                        # Invitee will manually create it when they click "مبلغ پرداختیت رو پس بگیر!" button
-                        # For now, just keep showing the primary group data
-                        logger.info(f"⏳ Invitee order {order.id} has no secondary group yet - will be created on button click")
-                        pass
+                        # Auto-create a secondary group for this follower
+                        import secrets, string
+                        from datetime import timedelta
+
+                        def _gen_token(length: int = 12) -> str:
+                            alphabet = string.ascii_letters + string.digits
+                            return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+                        token = _gen_token()
+                        # Ensure uniqueness (case-insensitive)
+                        while db.query(GroupOrder).filter(func.lower(GroupOrder.invite_token) == token.lower()).first():
+                            token = _gen_token()
+
+                        # Compute paid_at/expires_at window based on follower's order
+                        paid_at = getattr(order, 'paid_at', None) or getattr(order, 'created_at', None) or datetime.now(TEHRAN_TZ)
+                        if getattr(paid_at, 'tzinfo', None) is None:
+                            paid_at = paid_at.replace(tzinfo=TEHRAN_TZ)
+                        expires_at = paid_at + timedelta(hours=24)
+
+                        # Build items snapshot from the follower's order (always show purchased items)
+                        items = []
+                        try:
+                            for it in order.items:
+                                product = getattr(it, 'product', None)
+                                items.append({
+                                    'product_id': it.product_id,
+                                    'quantity': it.quantity,
+                                    'unit_price': it.base_price,
+                                    'product_name': getattr(product, 'name', None) if product else f"محصول {it.product_id}",
+                                })
+                        except Exception as e:
+                            logger.error(f"Error building items for secondary group: {e}")
+                            items = []
+
+                        meta = {
+                            'kind': 'secondary',
+                            'source_group_id': getattr(group_order, 'id', None) if group_order else getattr(order, 'group_order_id', None),
+                            'source_order_id': order.id,
+                            'items': items,
+                            'hidden': True,  # admin hides secondary until it has a follower
+                        }
+                        try:
+                            snap_json = json.dumps(meta, ensure_ascii=False)
+                        except Exception:
+                            snap_json = None
+
+                        new_group = GroupOrder(
+                            leader_id=order.user_id,
+                            invite_token=token,
+                            status=GroupOrderStatus.GROUP_FORMING,
+                            created_at=datetime.now(TEHRAN_TZ),
+                            leader_paid_at=paid_at,
+                            expires_at=expires_at,
+                            basket_snapshot=snap_json,
+                        )
+                        db.add(new_group)
+                        db.commit()
+                        db.refresh(new_group)
+                        group_order = new_group
             except Exception:
                 # Best-effort; proceed with resolved group_order
                 pass

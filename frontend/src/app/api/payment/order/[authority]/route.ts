@@ -42,9 +42,9 @@ export async function GET(
     }
 
     if (!response.ok) {
-      // Do NOT propagate server error; return success:false so client can handle gracefully
       return NextResponse.json(
-        { success: false, error: data?.detail || `Upstream HTTP ${response.status}` }
+        { success: false, error: data.detail || 'Failed to fetch order' },
+        { status: response.status }
       );
     }
 
@@ -54,7 +54,9 @@ export async function GET(
 
   } catch (error) {
     console.error('Error fetching order:', error);
-    // Avoid 500s in production for this endpoint; surface a soft failure
-    return NextResponse.json({ success: false, error: 'Upstream unavailable' });
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 } 

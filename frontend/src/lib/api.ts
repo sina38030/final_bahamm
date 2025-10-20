@@ -6,23 +6,8 @@ export function withIdempotency(headers: HeadersInit = {}): HeadersInit {
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    // Soft-fail for 5xx/HTML responses in production
-    try {
-      const ct = res.headers.get('content-type') || '';
-      if (!ct.includes('application/json')) {
-        throw new Error('سرور موقتا در دسترس نیست');
-      }
-      const j = await res.json();
-      // @ts-ignore
-      if (j && j.success === false) {
-        throw new Error(j.error || 'در دسترس نیست');
-      }
-      // Re-throw as stringified json
-      throw new Error(JSON.stringify(j));
-    } catch (e: any) {
-      const msg = e?.message || `HTTP ${res.status}`;
-      throw new Error(msg);
-    }
+    const text = await res.text();
+    throw new Error(text || `HTTP ${res.status}`);
   }
   return res.json();
 }
@@ -55,14 +40,14 @@ export const orderApi = {
 
 export const groupApi = {
   getGroup: (groupId: string) => api.get<import("@/types/group").Group>(`/groups/${groupId}`),
-  createSecondaryGroup: (orderId: string | number) => 
-    api.post<{
-      success: boolean;
-      group_order_id: number;
-      invite_token: string;
-      expires_at: string | null;
-      already_exists: boolean;
-    }>("/group-orders/create-secondary", { source_order_id: Number(orderId) }),
+  createSecondaryGroup: (data: {
+    kind: "secondary";
+    source_group_id?: string | number;
+    source_order_id: string | number;
+    leader_user_id?: string | number;
+    expires_at?: string;
+  }, headers?: HeadersInit) => 
+    api.post<import("@/types/group").Group>("/groups", data, { headers }),
 };
 
 export const pricingApi = {

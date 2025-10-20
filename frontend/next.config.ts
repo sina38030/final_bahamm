@@ -63,6 +63,15 @@ const nextConfig: NextConfig = {
     
     // Webpack optimizations
     webpack: (config, { dev, isServer }) => {
+        // Fix for "self is not defined" error with browser-only libraries
+        if (isServer) {
+            config.resolve.alias = {
+                ...config.resolve.alias,
+                'matter-js': false,
+                'leaflet': false,
+            };
+        }
+        
         if (!dev) {
             config.optimization.splitChunks = {
                 chunks: 'all',

@@ -411,14 +411,9 @@ export default function GroupsOrdersPage() {
       const res = await apiClient.get('/group-orders/my-groups-and-orders');
       if (!res.ok) {
         const text = await res.text().catch(() => '');
-        const looksLikeHtml = text.startsWith('<!DOCTYPE') || text.includes('<html');
-        const msg = looksLikeHtml ? 'سرور در دسترس نیست یا پاسخ نامعتبر برگرداند. لطفاً بعداً دوباره تلاش کنید.' : (text || `HTTP ${res.status}`);
-        throw new Error(msg);
+        throw new Error(text || `HTTP ${res.status}`);
       }
-      const contentType = res.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) {
-        throw new Error('سرور پاسخ نامعتبر برگرداند. آیا بک‌اند اجراست؟');
-      }
+      
       const data = await res.json();
 
       // فقط گروه‌هایی که کاربر لیدر آن‌هاست در تب «گروه‌ها» نمایش داده شوند
@@ -502,8 +497,36 @@ export default function GroupsOrdersPage() {
     setMounted(true);
   }, []);
 
+  // Gate: If user is not authenticated and no token is stored, show login prompt (client-only)
+  if (noSession) {
+    return (
+      <div dir="rtl" className="min-h-screen bg-gray-50 pb-20">
+        <div className="sticky top-0 bg-white z-10">
+          <div className="px-4 py-3 border-b">
+            <div className="relative flex items-center justify-between">
+              <h1 className="absolute left-1/2 -translate-x-1/2 text-sm font-bold">گروه و سفارش‌ها</h1>
+              <button onClick={() => router.back()} className="ml-auto p-2 hover:bg-gray-100 rounded-full" aria-label="بازگشت">
+                <span className="inline-block">❮</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="p-4">
+          <div className="bg-white border rounded-xl p-6 text-center shadow-sm max-w-md mx-auto">
+            <div className="text-sm text-gray-700 mb-4">برای دیدن گروه و سفارش‌ها وارد شوید</div>
+            <button
+              onClick={() => router.push('/auth/login')}
+              className="w-full bg-rose-600 hover:bg-rose-700 text-white font-medium py-2.5 px-4 rounded-lg"
+            >
+              ورود
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Local toast listener (unified toast surface for this page)
-  // NOTE: All hooks MUST be called before any conditional returns to avoid React Error #300
   useEffect(() => {
     if (typeof window === 'undefined') return;
     let timer: any = null;
@@ -542,9 +565,11 @@ export default function GroupsOrdersPage() {
     const hasToken = typeof window !== 'undefined' && !!localStorage.getItem('auth_token');
     if (isAuthenticated || hasToken) {
       requestRefresh();
+    } else {
+      setGroupIds([]);
+      setGroupsMeta([]);
+      setOrders([]);
     }
-    // Don't clear data here - it causes infinite re-renders
-    // Data will be cleared by fetchUserGroupsAndOrders when needed
 
     const onStorage = (e: StorageEvent) => {
       if (!e.key) return;
@@ -586,9 +611,7 @@ export default function GroupsOrdersPage() {
       };
     }
     return () => {};
-  }, [isAuthenticated, mounted, apiCallInProgress]);
-  // Note: fetchUserGroupsAndOrders is intentionally excluded from deps to prevent infinite loops
-  // It's stable because it's wrapped in useCallback with [isAuthenticated] dependency
+  }, [isAuthenticated, mounted, apiCallInProgress, fetchUserGroupsAndOrders]);
 
   // Duplicate message listener removed (handled in unified effect above)
 
@@ -848,35 +871,6 @@ export default function GroupsOrdersPage() {
     } catch {}
     setTab(hasLeaderGroup ? 'groups' : 'orders');
   }, [initialLoading, hasLeaderGroup]);
-
-  // Show login prompt if not authenticated (after all hooks are called)
-  if (noSession) {
-    return (
-      <div dir="rtl" className="min-h-screen bg-gray-50 pb-20">
-        <div className="sticky top-0 bg-white z-10">
-          <div className="px-4 py-3 border-b">
-            <div className="relative flex items-center justify-between">
-              <h1 className="absolute left-1/2 -translate-x-1/2 text-sm font-bold">گروه و سفارش‌ها</h1>
-              <button onClick={() => router.back()} className="ml-auto p-2 hover:bg-gray-100 rounded-full" aria-label="بازگشت">
-                <span className="inline-block">❮</span>
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className="p-4">
-          <div className="bg-white border rounded-xl p-6 text-center shadow-sm max-w-md mx-auto">
-            <div className="text-sm text-gray-700 mb-4">برای دیدن گروه و سفارش‌ها وارد شوید</div>
-            <button
-              onClick={() => router.push('/auth/login')}
-              className="w-full bg-rose-600 hover:bg-rose-700 text-white font-medium py-2.5 px-4 rounded-lg"
-            >
-              ورود
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
       <div dir="rtl" className="min-h-screen bg-gray-50 pb-20">

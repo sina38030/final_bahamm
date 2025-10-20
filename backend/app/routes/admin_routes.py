@@ -1707,10 +1707,8 @@ async def get_order_details(
                 for it in items
             ]
 
-        # Determine leader and followers shipping to leader, independent of consolidation flag (NULL-safe)
-        leader_id = getattr(group, 'leader_id', None)
-        user_id = getattr(order, 'user_id', None)
-        is_leader_order = (group and leader_id is not None and user_id is not None and leader_id == user_id)
+        # Determine leader and followers shipping to leader, independent of consolidation flag
+        is_leader_order = getattr(order, 'user_id', None) == getattr(group, 'leader_id', None) if group else False
 
         # Identify eligible orders in this group (leader + any followers shipping to leader)
         group_orders: list[Order] = db.query(Order).filter(
@@ -1885,9 +1883,7 @@ async def update_order_status(
                         Order.is_settlement_payment == False
                     ).all()
                     for rel in related_orders:
-                        rel_user_id = getattr(rel, 'user_id', None)
-                        rel_leader_id = getattr(group, 'leader_id', None)
-                        is_leader_order = (rel_user_id is not None and rel_leader_id is not None and rel_user_id == rel_leader_id)
+                        is_leader_order = getattr(rel, 'user_id', None) == getattr(group, 'leader_id', None)
                         ships_to_leader = bool(getattr(rel, 'ship_to_leader_address', False))
                         if is_leader_order or ships_to_leader:
                             rel.status = new_status

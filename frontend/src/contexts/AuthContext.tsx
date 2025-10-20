@@ -221,16 +221,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (startParam) {
         console.log('[AuthContext] Telegram start_param detected:', startParam);
-        // Some routes must NOT be overridden by invite fallback redirects
-        const skipInviteFallback = (() => {
-          const p = pathname || '';
-          // Do not override when already on success/processing or invite routes
-          return (
-            p.startsWith('/payment/success') ||
-            p.startsWith('/payment/callback') ||
-            p.startsWith('/invite')
-          );
-        })();
         
         // Parse payment callback format: "payment_AUTHORITY_STATUS"
         const paymentMatch = startParam.match(/payment_([A-Za-z0-9]+)_(OK|NOK|ERROR)/);
@@ -255,10 +245,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   const order = data.order;
                   // Redirect to appropriate page based on order type
                   setTimeout(() => {
-                    // ✅ Prefer success page for any follower (or when follower cannot be confidently determined)
-                    const isInvited = order.is_invited === true || (order.group_order_id && order.is_invited == null);
-                    if (isInvited) {
-                      console.log('[AuthContext] Invited (or unknown follower) detected - going to SUCCESS page only');
+                    // ✅ CHECK is_invited FIRST - this is the specific condition for invited users
+                    if (order.is_invited) {
+                      console.log('[AuthContext] Invited user detected - going to SUCCESS page only');
                       const orderId = order.id;
                       const groupId = order.group_order_id;
                       const target = `/payment/success/invitee?orderId=${orderId}${groupId ? `&groupId=${groupId}` : ''}&authority=${encodeURIComponent(authority)}`;
@@ -298,53 +287,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (startParam.length > 0 && !paymentMatch && startParam.length > 5) {
           console.log('[AuthContext] Attempting to resolve start_param as payment authority...');
           
-          // ✅ Skip redirect if already on payment-related pages (backend already handled it)
-          const isOnPaymentPage = pathname.includes('/invite') || 
-                                  pathname.includes('/payment/success') || 
-                                  pathname.includes('/payment/callback');
-          
-          if (isOnPaymentPage) {
-            console.log('[AuthContext] Already on payment page, skipping redirect:', pathname);
-            return;
-          }
-          
           fetch(`/api/payment/order/${encodeURIComponent(startParam)}`)
             .then(res => res.json())
             .then(data => {
               if (data.success && data.order) {
-                console.log('[AuthContext] Found order by authority - Let backend handle redirect via callback');
+                console.log('[AuthContext] Found order by authority - processing payment return');
                 const order = data.order;
-                
-                // Instead of deciding here, let the backend handle the redirect
-                // by going through the callback endpoint which has the correct logic
                 setTimeout(() => {
-                  console.log('[AuthContext] Redirecting to backend callback to handle leader/invitee logic');
-                  window.location.href = `/api/payment/callback?Authority=${encodeURIComponent(startParam)}&Status=OK`;
+                  // ✅ CHECK is_invited FIRST
+                  if (order.is_invited) {
+                    console.log('[AuthContext] Payment return: Invited user - going to SUCCESS page');
+                    const orderId = order.id;
+                    const groupId = order.group_order_id;
+                    const target = `/payment/success/invitee?orderId=${orderId}${groupId ? `&groupId=${groupId}` : ''}&authority=${encodeURIComponent(startParam)}`;
+                    router.push(target);
+                  } else if (order.group_order_id) {
+                    console.log('[AuthContext] Payment return: Group leader - going to INVITE page');
+                    router.push(`/invite?authority=${encodeURIComponent(startParam)}`);
+                  } else {
+                    console.log('[AuthContext] Payment return: Solo order - going to ORDERS page');
+                    router.push('/orders');
+                  }
                 }, 500);
                 return;
               }
               
               // Not a valid order - treat as invite code
               console.log('[AuthContext] Not a valid authority, treating as invite code');
-              if (!skipInviteFallback) {
-                setTimeout(() => {
-                  router.push(`/landingM?invite=${startParam}`);
-                }, 500);
-              } else {
-                console.log('[AuthContext] Skipping invite fallback redirect due to current route:', pathname);
-              }
+              setTimeout(() => {
+                router.push(`/landingM?invite=${startParam}`);
+              }, 500);
             })
             .catch(err => {
               console.error('[AuthContext] Error checking authority:', err);
               // Fallback: treat as invite code
               console.log('[AuthContext] Error on authority check - falling back to invite code');
-              if (!skipInviteFallback) {
-                setTimeout(() => {
-                  router.push(`/landingM?invite=${startParam}`);
-                }, 500);
-              } else {
-                console.log('[AuthContext] Skipping invite fallback redirect due to current route:', pathname);
-              }
+              setTimeout(() => {
+                router.push(`/landingM?invite=${startParam}`);
+              }, 500);
             });
           return;
         }
@@ -353,15 +333,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // This handles sharing links from the invite page
         if (startParam.length > 0 && !paymentMatch) {
           console.log('[AuthContext] Invite code detected in start_param:', startParam);
-          // Redirect to landing page with invite code (unless on protected routes)
-          if (!skipInviteFallback) {
-            setTimeout(() => {
-              router.push(`/landingM?invite=${startParam}`);
-            }, 500);
-            return;
-          } else {
-            console.log('[AuthContext] Skipping invite fallback redirect due to current route:', pathname);
-          }
+          // Redirect to landing page with invite code
+          setTimeout(() => {
+            router.push(`/landingM?invite=${startParam}`);
+          }, 500);
+          return;
         }
         
         // Legacy format support: "order_123_group_456" or "order_123"
