@@ -37,6 +37,28 @@ class Settings(BaseSettings):
         else:
             # Production: use nginx proxy path
             return f"{self.FRONTEND_URL}/backend/api"
+
+    @property
+    def get_frontend_public_url(self) -> str:
+        """Return the public-facing frontend base URL (no backend path).
+
+        This normalizes FRONTEND_URL in case it was misconfigured to include
+        backend proxy segments like '/backend' or '/backend/api'.
+        """
+        base = (self.FRONTEND_URL or "").strip()
+        if not base:
+            return ""
+        # Strip trailing slash for consistent concatenation
+        if base.endswith('/'):
+            base = base[:-1]
+        lowered = base.lower()
+        # Remove common backend proxy suffixes if present
+        for marker in ("/backend/api", "/backend"):
+            idx = lowered.rfind(marker)
+            if idx != -1:
+                base = base[:idx]
+                break
+        return base
     
     # Telegram Mini App Configuration
     # Required for verifying Telegram WebApp authentication

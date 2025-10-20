@@ -1,7 +1,18 @@
-import { Composite, World } from "matter-js";
 import { addFruit } from "./matter";
 import { FRUITS, levelToFruit, useGameStore } from "../state/store";
 import { playDrop } from "./audio";
+
+// Dynamic import for Matter.js to avoid SSR issues
+let Composite: any = null;
+let World: any = null;
+
+const initMatter = async () => {
+  if (typeof window !== 'undefined' && !Composite) {
+    const matterModule = await import('matter-js');
+    Composite = matterModule.Composite;
+    World = matterModule.World;
+  }
+};
 
 export class GhostController {
   private width: number;
@@ -63,18 +74,18 @@ function getGhostSprite(path: string): HTMLImageElement | undefined {
   return img;
 }
 
-export function dropCurrentFruit(world: World, ghost: GhostController, muted: boolean) {
+export async function dropCurrentFruit(world: any, ghost: GhostController, muted: boolean) {
   const store = useGameStore.getState();
   if (!ghost.canDrop()) return;
   const level = store.spawn.currentLevel;
   const def = levelToFruit(level);
-  addFruit(world, level, ghost.getX(), 40 + def.radius);
+  await addFruit(world, level, ghost.getX(), 40 + def.radius);
   ghost.markDropped();
   store.nextFruit();
   playDrop(muted);
 }
 
-export function resetSpawner(world: World) {
+export async function resetSpawner(world: any) {
   // Remove all fruit bodies
   const bodies = Composite.allBodies(world);
   for (const b of bodies) {

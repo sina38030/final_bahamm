@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
+
+// Dynamically import Leaflet to avoid SSR issues
+let L: any = null;
 
 interface MapComponentProps {
   center: { lat: number; lng: number };
@@ -13,10 +15,21 @@ interface MapComponentProps {
 export default function MapComponent({ center, onLocationChange, invalidateTrigger }: MapComponentProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<L.Map | null>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    if (!mapRef.current) return;
+    setIsClient(true);
+    // Dynamically import Leaflet on client side
+    if (typeof window !== 'undefined' && !L) {
+      import('leaflet').then((leaflet) => {
+        L = leaflet.default;
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isClient || !mapRef.current || !L) return;
 
     const map = L.map(mapRef.current, {
       center: [center.lat, center.lng],
@@ -72,7 +85,7 @@ export default function MapComponent({ center, onLocationChange, invalidateTrigg
     if (distance > 5) {
       map.setView(target, map.getZoom(), { animate: false });
     }
-  }, [center]);
+  }, [center, isClient]);
 
   // Invalidate size when requested (e.g., when modal opens)
   useEffect(() => {
@@ -81,6 +94,14 @@ export default function MapComponent({ center, onLocationChange, invalidateTrigg
     map.invalidateSize();
     setTimeout(() => map.invalidateSize(), 250);
   }, [invalidateTrigger]);
+
+  if (!isClient) {
+    return (
+      <div className="relative w-full h-full min-h-[70vh] flex items-center justify-center bg-gray-100" style={{ minHeight: '70vh' }}>
+        <div className="text-gray-500">در حال بارگذاری نقشه...</div>
+      </div>
+    );
+  }
 
   return (
     <div ref={mapContainerRef} className="relative w-full h-full min-h-[70vh]" style={{ minHeight: '70vh' }}>

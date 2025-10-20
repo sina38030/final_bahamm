@@ -1,11 +1,38 @@
-import Matter, { Bodies, Body, Composite, Engine, Events, Runner, World } from "matter-js";
 import { FRUITS, levelToFruit, MAX_LEVEL, scoreForMerge, useGameStore, FruitDef } from "../state/store";
 
-export type FruitBody = Body & { __fruit?: { level: number; id: number; lastMergedAt?: number } };
+// Dynamic import for Matter.js to avoid SSR issues
+let Matter: any = null;
+let Bodies: any = null;
+let Body: any = null;
+let Composite: any = null;
+let Engine: any = null;
+let Events: any = null;
+let Runner: any = null;
+let World: any = null;
+
+// Initialize Matter.js on client side
+const initMatter = async () => {
+  if (typeof window !== 'undefined' && !Matter) {
+    const matterModule = await import('matter-js');
+    Matter = matterModule.default;
+    Bodies = matterModule.Bodies;
+    Body = matterModule.Body;
+    Composite = matterModule.Composite;
+    Engine = matterModule.Engine;
+    Events = matterModule.Events;
+    Runner = matterModule.Runner;
+    World = matterModule.World;
+  }
+};
+
+export type FruitBody = any & { __fruit?: { level: number; id: number; lastMergedAt?: number } };
 
 let globalId = 1;
 
-export function createEngineWithWorld() {
+export async function createEngineWithWorld() {
+  await initMatter();
+  if (!Engine) throw new Error('Matter.js not initialized');
+  
   const engine = Engine.create({ enableSleeping: true });
   engine.gravity.y = 1.0;
   const world = engine.world;
@@ -18,11 +45,15 @@ export function createEngineWithWorld() {
   return { engine, world };
 }
 
-export function stepEngine(engine: Engine, dt: number) {
+export function stepEngine(engine: any, dt: number) {
+  if (!Engine) return;
   Engine.update(engine, dt * 1000);
 }
 
-export function makeWalls(world: World, width: number, height: number) {
+export async function makeWalls(world: any, width: number, height: number) {
+  await initMatter();
+  if (!Bodies || !Composite) throw new Error('Matter.js not initialized');
+  
   const thickness = 40;
   const half = thickness / 2;
   const left = Bodies.rectangle(-half, height / 2, thickness, height, { isStatic: true });
@@ -31,7 +62,9 @@ export function makeWalls(world: World, width: number, height: number) {
   Composite.add(world, [left, right, floor]);
 }
 
-export function createFruitBody(level: number, x: number, y: number): FruitBody {
+export async function createFruitBody(level: number, x: number, y: number): Promise<FruitBody> {
+  await initMatter();
+  if (!Bodies) throw new Error('Matter.js not initialized');
   const def = levelToFruit(level);
   const radius = def.radius;
   const mass = def.baseMass * (radius * radius) * 0.0005;
@@ -49,8 +82,11 @@ export function createFruitBody(level: number, x: number, y: number): FruitBody 
   return body;
 }
 
-export function addFruit(world: World, level: number, x: number, y: number): FruitBody {
-  const body = createFruitBody(level, x, y);
+export async function addFruit(world: any, level: number, x: number, y: number): Promise<FruitBody> {
+  await initMatter();
+  if (!Composite) throw new Error('Matter.js not initialized');
+  
+  const body = await createFruitBody(level, x, y);
   Composite.add(world, body);
   return body;
 }
@@ -223,7 +259,7 @@ function drawFruit(ctx: CanvasRenderingContext2D, def: FruitDef, seed?: number) 
 
 if (typeof window !== "undefined") {
   (window as any).__FRUIT_RENDER = (ctx: CanvasRenderingContext2D) => {
-    const world = (Matter as any).engine?.world as World | undefined;
+    const world = (Matter as any).engine?.world as any | undefined;
     if (!world) return;
     const bodies = Composite.allBodies(world) as FruitBody[];
     for (const b of bodies) {
@@ -247,7 +283,7 @@ if (typeof window !== "undefined") {
 
 // Loss detection bridge
 let lossStableSince: number | null = null;
-export function checkLoss(world: World): boolean {
+export function checkLoss(world: any): boolean {
   const bodies = Composite.allBodies(world) as FruitBody[];
   let over = false;
   for (const b of bodies) {
@@ -264,7 +300,7 @@ export function checkLoss(world: World): boolean {
 
 if (typeof window !== "undefined") {
   (window as any).__FRUIT_LOSS_CHECK = (now: number) => {
-    const world = (Matter as any).engine?.world as World | undefined;
+    const world = (Matter as any).engine?.world as any | undefined;
     if (!world) return false;
     const over = checkLoss(world);
     if (over) {
@@ -282,7 +318,7 @@ if (typeof window !== "undefined") {
   (Matter as any).engine = { world: undefined } as any;
 }
 
-export function bindWorldForRender(world: World) {
+export function bindWorldForRender(world: any) {
   if (typeof window !== "undefined") {
     (Matter as any).engine.world = world;
   }

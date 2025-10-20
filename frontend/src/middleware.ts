@@ -4,6 +4,13 @@ export function middleware(request: NextRequest) {
   const url = request.nextUrl;
   const path = url.pathname;
 
+  // Redirect legacy path to the correct invitee success page
+  if (path === "/payment/success/invite" || path === "/payment/success/invite/") {
+    const redirectUrl = url.clone();
+    redirectUrl.pathname = "/payment/success/invitee";
+    return NextResponse.redirect(redirectUrl);
+  }
+
   // Apply no-store for payment success pages to avoid stale HTML after deploys
   if (path === "/payment/success/invitee" || path === "/payment/success" || path.startsWith("/payment/success/")) {
     const response = NextResponse.next({ request: { headers: request.headers } });

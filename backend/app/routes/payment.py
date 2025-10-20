@@ -202,74 +202,10 @@ async def create_payment_order_public(
             for item in order_data.items
         ]
 
-        # If invite_code is provided, try to attach order to existing group order (invited flow)
+        # Simplified invited flow: do NOT resolve group at creation time.
+        # If an invite_code exists, we will mark the order as invited using PENDING_INVITE
+        # and link it during payment verification.
         group_order_id = None
-        if getattr(order_data, 'invite_code', None):
-            code = order_data.invite_code
-            try:
-                raw = code[2:]
-                digits = ''
-                for ch in raw:
-                    if ch.isdigit():
-                        digits += ch
-                    else:
-                        break
-                if digits:
-                    order_id = int(digits)
-                    prefix = raw[len(digits):]
-                    # Find leader order by id and prefix
-                    leader_order_q = db.query(Order).filter(Order.id == order_id)
-                    if prefix:
-                        leader_order_q = leader_order_q.filter(Order.payment_authority.like(f"{prefix}%"))
-                    leader_order = leader_order_q.first()
-                    if leader_order and leader_order.group_order_id:
-                        group_order_id = leader_order.group_order_id
-            except Exception:
-                group_order_id = None
-
-            # Fallback: resolve by GroupOrder.invite_token (supports random tokens used by secondary groups)
-            # IMPORTANT: Prefer secondary groups over primary groups when multiple matches exist
-            if not group_order_id:
-                try:
-                    logger.info(f"🔍 Looking for groups with invite_token: {code}")
-                    groups = db.query(GroupOrder).filter(
-                        func.lower(GroupOrder.invite_token) == str(code).lower()
-                    ).order_by(GroupOrder.created_at.desc()).all()
-                    
-                    logger.info(f"🔍 Found {len(groups)} groups with matching invite_token")
-                    
-                    # Prefer secondary groups over primary groups
-                    secondary_group = None
-                    primary_group = None
-                    
-                    for grp in groups:
-                        try:
-                            snap = json.loads(getattr(grp, 'basket_snapshot', '') or '{}')
-                            kind = str(snap.get('kind', '')).lower() if isinstance(snap, dict) else 'primary'
-                            logger.info(f"🔍 Group {grp.id}: kind={kind}")
-                            
-                            if kind == 'secondary':
-                                secondary_group = grp
-                                logger.info(f"✅ Selected secondary group {grp.id}")
-                                break  # Secondary groups have priority
-                            elif not primary_group:
-                                primary_group = grp
-                                logger.info(f"⚪ Found primary group {grp.id}")
-                        except Exception as e:
-                            logger.warning(f"Error parsing group {grp.id} snapshot: {e}")
-                            if not primary_group:
-                                primary_group = grp
-                    
-                    # Use secondary group if found, otherwise use primary group
-                    selected_group = secondary_group or primary_group
-                    if selected_group:
-                        group_order_id = selected_group.id
-                        logger.info(f"🎯 Final selected group_order_id: {group_order_id}")
-                    else:
-                        logger.warning(f"❌ No group found for invite_code: {code}")
-                except Exception as e:
-                    logger.error(f"Error resolving invite_code {code}: {e}")
-                    pass
 
         # Determine ship_to_leader_address based on consolidation toggle
         # For invited users (those with invite_code), if they enable consolidation, set ship_to_leader_address = True
@@ -302,16 +238,8 @@ async def create_payment_order_public(
             authority = result["authority"]
             order = db.query(Order).filter(Order.payment_authority == authority).first()
             if order:
-                if group_order_id:
-                    # Invited user joining existing group - DON'T link immediately, wait for payment verification
-                    # Store the target group_order_id in shipping_address temporarily (will be moved after payment)
-                    original_address = order.shipping_address or ""
-                    order.shipping_address = f"PENDING_GROUP:{group_order_id}|{original_address}"
-                    db.commit()
-
-                elif getattr(order_data, 'invite_code', None):
-                    # Invited flow but we couldn't resolve the leader's group yet (e.g., prefix mismatch).
-                    # Defer linking until verification by storing the invite token.
+                if getattr(order_data, 'invite_code', None):
+                    # Always mark invited orders using PENDING_INVITE; linking is done after verification
                     original_address = order.shipping_address or ""
                     order.shipping_address = f"PENDING_INVITE:{order_data.invite_code}|{original_address}"
                     db.commit()
@@ -644,7 +572,7 @@ async def payment_callback(
         # For failed payments, redirect to cart with error
         if Status != "OK" or not Authority:
             logger.warning(f"Payment callback failed: Authority={Authority}, Status={Status}")
-            redirect_url = f"{settings.FRONTEND_URL}/cart?payment_failed=true"
+            redirect_url = f"{settings.get_frontend_public_url}/cart?payment_failed=true"
             return RedirectResponse(url=redirect_url, status_code=303)
         
         # Payment successful - determine redirect based on user type
@@ -669,7 +597,7 @@ async def payment_callback(
         if not order:
             logger.warning(f"No order found for authority: {Authority}")
             # Default to success page if order not found (client can resolve by authority)
-            redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}"
+            redirect_url = f"{settings.get_frontend_public_url}/payment/success/invitee?authority={Authority}"
             return RedirectResponse(url=redirect_url, status_code=303)
         
         # Determine user type based on GroupOrder.leader_id
@@ -681,7 +609,7 @@ async def payment_callback(
         if order.order_type == OrderType.ALONE:
             # Solo purchase ➜ payment callback page
             logger.info(f"✅ Solo order detected (order_id={order.id}, user_id={order.user_id}, group_order_id={order.group_order_id}) ➜ redirecting to /payment/callback")
-            redirect_url = f"{settings.FRONTEND_URL}/payment/callback?Authority={Authority}&Status=OK"
+            redirect_url = f"{settings.get_frontend_public_url}/payment/callback?Authority={Authority}&Status=OK"
             logger.info(f"🔗 Solo redirect URL: {redirect_url}")
         elif order.group_order_id:
             # Group order - check if user is leader or invited
@@ -690,7 +618,7 @@ async def payment_callback(
             if not group_order:
                 # ❌ This is a DATA INTEGRITY ERROR - log it and redirect to error page
                 logger.error(f"❌ CRITICAL: GroupOrder {order.group_order_id} not found for order {order.id}! Redirecting to error page.")
-                redirect_url = f"{settings.FRONTEND_URL}/cart?payment_error=group_not_found"
+                redirect_url = f"{settings.get_frontend_public_url}/cart?payment_error=group_not_found"
             elif (group_order.leader_id is not None and 
                   order.user_id is not None and 
                   group_order.leader_id == order.user_id and
@@ -698,7 +626,7 @@ async def payment_callback(
                 # ✅ User is the leader → invite page (NULL-safe comparison)
                 is_leader = True
                 logger.info(f"Leader order detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /invite")
-                redirect_url = f"{settings.FRONTEND_URL}/invite?authority={Authority}"
+                redirect_url = f"{settings.get_frontend_public_url}/invite?authority={Authority}"
             else:
                 # User is invited (follower) ➜ redirect directly to success page
                 is_invited = True
@@ -708,12 +636,12 @@ async def payment_callback(
                 # Pass authority for frontend to resolve group invite/refund timer; include orderId/groupId for UX
                 group_part = f"&groupId={order.group_order_id}" if getattr(order, 'group_order_id', None) else ""
                 redirect_url = (
-                    f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}&orderId={order.id}{group_part}"
+                    f"{settings.get_frontend_public_url}/payment/success/invitee?authority={Authority}&orderId={order.id}{group_part}"
                 )
         else:
             # Fallback: no group_order_id but order_type is GROUP (shouldn't happen but handle it)
             logger.warning(f"GROUP order without group_order_id (order_id={order.id}) ➜ redirecting to success page")
-            redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}&orderId={order.id}"
+            redirect_url = f"{settings.get_frontend_public_url}/payment/success/invitee?authority={Authority}&orderId={order.id}"
         
         logger.info(f"🚀 Final redirect: {redirect_url}")
         return RedirectResponse(url=redirect_url, status_code=303)
@@ -722,9 +650,9 @@ async def payment_callback(
         logger.error(f"Payment callback error: {str(e)}")
         # Even on error, try to redirect with authority if available
         if Authority:
-            redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}"
+            redirect_url = f"{settings.get_frontend_public_url}/payment/success/invitee?authority={Authority}"
         else:
-            redirect_url = f"{settings.FRONTEND_URL}/cart?payment_error=true"
+            redirect_url = f"{settings.get_frontend_public_url}/cart?payment_error=true"
         
         return RedirectResponse(url=redirect_url, status_code=303)
 

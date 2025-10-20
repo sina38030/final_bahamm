@@ -46,13 +46,30 @@ export default function FruitMergeGame() {
     seed,
   } = useGameStore();
 
-  const { engine, world } = useMemo(() => createEngineWithWorld(), []);
+  const [engine, setEngine] = useState<any>(null);
+  const [world, setWorld] = useState<any>(null);
+
+  // Initialize Matter.js engine asynchronously
+  useEffect(() => {
+    const initEngine = async () => {
+      const { engine: eng, world: wld } = await createEngineWithWorld();
+      setEngine(eng);
+      setWorld(wld);
+    };
+    initEngine();
+  }, []);
 
   // Setup walls and collision handlers once
   useEffect(() => {
-    makeWalls(world, PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT);
-    registerCollisionHandlers(engine);
-    bindWorldForRender(world);
+    if (!engine || !world) return;
+    
+    const setupGame = async () => {
+      await makeWalls(world, PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT);
+      await registerCollisionHandlers(engine);
+      bindWorldForRender(world);
+    };
+    setupGame();
+    
     return () => {
       resetMerger();
     };
@@ -115,7 +132,7 @@ export default function FruitMergeGame() {
     };
     const onUp = () => {
       isPointerDown = false;
-      if (!paused && ghostRef.current) {
+      if (!paused && ghostRef.current && world) {
         dropCurrentFruit(world, ghostRef.current, muted);
       }
     };
@@ -123,7 +140,7 @@ export default function FruitMergeGame() {
     container.addEventListener("pointerdown", onDown, { passive: true });
     container.addEventListener("pointerup", onUp, { passive: true });
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === "Space" && !paused && ghostRef.current) {
+      if (e.code === "Space" && !paused && ghostRef.current && world) {
         e.preventDefault();
         dropCurrentFruit(world, ghostRef.current, muted);
       }
@@ -140,7 +157,7 @@ export default function FruitMergeGame() {
   // Main game loop
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !engine || !world) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
@@ -203,7 +220,9 @@ export default function FruitMergeGame() {
 
   // Restart handler
   const handleRestart = () => {
-    resetSpawner(world);
+    if (world) {
+      resetSpawner(world);
+    }
     resetGame();
   };
 

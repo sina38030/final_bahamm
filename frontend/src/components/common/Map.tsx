@@ -1,17 +1,11 @@
 // src/components/common/Map.tsx
 "use client";
 
-import { useEffect, useRef } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 
-// Fix for default marker icons in Leaflet with Next.js
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
-});
+// Dynamically import Leaflet to avoid SSR issues
+let L: any = null;
 
 type MapProps = {
   center: [number, number];
@@ -21,8 +15,26 @@ type MapProps = {
 
 export default function Map({ center, zoom = 13, onLocationChange }: MapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<L.Map | null>(null);
+  const mapInstanceRef = useRef<any>(null);
   const onLocationChangeRef = useRef(onLocationChange);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+    // Dynamically import Leaflet on client side
+    if (typeof window !== 'undefined' && !L) {
+      import('leaflet').then((leaflet) => {
+        L = leaflet.default;
+        // Fix for default marker icons in Leaflet with Next.js
+        delete (L.Icon.Default.prototype as any)._getIconUrl;
+        L.Icon.Default.mergeOptions({
+          iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+          iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
+          shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+        });
+      });
+    }
+  }, []);
 
   // Keep the callback ref updated to avoid stale closures
   useEffect(() => {
@@ -31,7 +43,9 @@ export default function Map({ center, zoom = 13, onLocationChange }: MapProps) {
 
   // Initialize and clean up the map
   useEffect(() => {
-    // Ensure this runs only once
+    // Ensure this runs only once and only on client
+    if (!isClient || !mapContainerRef.current || !mapInstanceRef.current || !L) return;
+
     if (mapContainerRef.current && !mapInstanceRef.current) {
       const map = L.map(mapContainerRef.current).setView(center, zoom);
       mapInstanceRef.current = map;
@@ -61,14 +75,22 @@ export default function Map({ center, zoom = 13, onLocationChange }: MapProps) {
         mapInstanceRef.current = null;
       }
     };
-  }, []); // Empty dependency array ensures this runs only once on mount and cleans up on unmount
+  }, [isClient]); // Dependency on isClient ensures this runs when client is ready
 
   // Effect to update map view when center prop changes from parent
   useEffect(() => {
-    if (mapInstanceRef.current) {
+    if (mapInstanceRef.current && isClient) {
       mapInstanceRef.current.setView(center, zoom);
     }
-  }, [center, zoom]);
+  }, [center, zoom, isClient]);
+
+  if (!isClient) {
+    return (
+      <div style={{ height: "100%", width: "100%" }} className="flex items-center justify-center bg-gray-100">
+        <div className="text-gray-500">در حال بارگذاری نقشه...</div>
+      </div>
+    );
+  }
 
   return <div ref={mapContainerRef} style={{ height: "100%", width: "100%" }} />;
 }
