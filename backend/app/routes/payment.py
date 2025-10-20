@@ -680,8 +680,9 @@ async def payment_callback(
 
         if order.order_type == OrderType.ALONE:
             # Solo purchase ➜ payment callback page
-            logger.info(f"Solo order detected (order_id={order.id}) ➜ redirecting to /payment/callback")
+            logger.info(f"✅ Solo order detected (order_id={order.id}, user_id={order.user_id}, group_order_id={order.group_order_id}) ➜ redirecting to /payment/callback")
             redirect_url = f"{settings.FRONTEND_URL}/payment/callback?Authority={Authority}&Status=OK"
+            logger.info(f"🔗 Solo redirect URL: {redirect_url}")
         elif order.group_order_id:
             # Group order - check if user is leader or invited
             group_order = db.query(GroupOrder).filter(GroupOrder.id == order.group_order_id).first()
@@ -714,6 +715,7 @@ async def payment_callback(
             logger.warning(f"GROUP order without group_order_id (order_id={order.id}) ➜ redirecting to success page")
             redirect_url = f"{settings.FRONTEND_URL}/payment/success/invitee?authority={Authority}&orderId={order.id}"
         
+        logger.info(f"🚀 Final redirect: {redirect_url}")
         return RedirectResponse(url=redirect_url, status_code=303)
             
     except Exception as e:
