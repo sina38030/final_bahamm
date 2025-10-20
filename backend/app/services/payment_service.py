@@ -388,6 +388,8 @@ class PaymentService:
                         # Invitee will manually create it when they click "مبلغ پرداختیت رو پس بگیر!" button
                         logger.info(f"⏳ Invitee order {getattr(order, 'id', None)} has no secondary group yet - will be created on button click")
                         pass
+                except Exception as e:
+                    logger.error(f"Error checking follower order status for order {getattr(order, 'id', None)}: {e}")
 
                 # Check if this is a leader order that might require settlement
                 is_leader_order = False
