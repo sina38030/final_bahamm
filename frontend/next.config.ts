@@ -54,6 +54,16 @@ const nextConfig: NextConfig = {
     },
     
     
+    // Redirect backend API requests to the actual backend
+    async rewrites() {
+        return [
+            {
+                source: '/backend/api/:path*',
+                destination: 'http://127.0.0.1:8001/api/:path*',
+            },
+        ];
+    },
+    
     // Performance optimizations
     poweredByHeader: false,
     compress: true,
