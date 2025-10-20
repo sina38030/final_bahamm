@@ -480,7 +480,7 @@ async def request_payment_public(
     """
     try:
         # آدرس بازگشت پس از پرداخت - به backend callback endpoint که سپس به سایت bahamm.ir redirect می‌کند
-        callback_url = f"{settings.FRONTEND_URL}/api/payment/callback"
+        callback_url = f"{settings.get_payment_callback_base_url}/payment/callback"
         
         # درخواست پرداخت از زرین‌پال
         result = await zarinpal.request_payment(
@@ -517,7 +517,7 @@ async def request_payment(
     """
     try:
         # آدرس بازگشت پس از پرداخت - به backend callback endpoint که سپس به سایت bahamm.ir redirect می‌کند
-        callback_url = f"{settings.FRONTEND_URL}/api/payment/callback"
+        callback_url = f"{settings.get_payment_callback_base_url}/payment/callback"
         
         # درخواست پرداخت از زرین‌پال
         result = await zarinpal.request_payment(
