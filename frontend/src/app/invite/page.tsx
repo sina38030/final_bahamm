@@ -757,19 +757,17 @@ function InvitePageContent() {
       if (!order) { setShareSheetOpen(true); return; }
       if (creating) return;
       setCreating(true);
-      const paidAtStr = (order as any)?.paidAt || (order as any)?.payment_ref_id ? (order as any)?.paidAt : '';
-      const createdAtStr = (order as any)?.created_at || (order as any)?.createdAt || '';
-      const base = paidAtStr ? new Date(paidAtStr) : (createdAtStr ? new Date(createdAtStr) : new Date());
-      const expiryTime = new Date(base.getTime() + 24 * 60 * 60 * 1000);
-      const payload = {
-        kind: 'secondary' as const,
-        source_group_id: undefined,
-        source_order_id: order.id,
-        expires_at: expiryTime.toISOString(),
-      };
-      // Include auth header if available (idempotent on backend)
-      const headers = withIdempotency(token ? { 'Authorization': `Bearer ${token}` } as HeadersInit : {});
-      const g = await groupApi.createSecondaryGroup(payload, headers);
+      // Call the new simplified API that only needs the order ID
+      // Backend handles all the logic (expiry, token generation, etc.)
+      const result = await groupApi.createSecondaryGroup(order.id);
+      
+      // Convert result to Group format for setCreatedGroup
+      const g = {
+        id: result.group_order_id,
+        invite_token: result.invite_token,
+        expires_at: result.expires_at,
+        // Add other required Group fields as needed
+      } as any;
       setCreatedGroup(g);
       // Open share sheet with the newly created group's shareUrl
       setShareSheetOpen(true);

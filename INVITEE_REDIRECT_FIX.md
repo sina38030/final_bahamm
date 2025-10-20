@@ -173,14 +173,16 @@ createSecondaryGroup: (orderId: string | number) =>
 3. ✅ `backend/app/routes/admin_routes.py` - NULL-safe leader detection
 4. ✅ `frontend/src/contexts/AuthContext.tsx` - Skip redirect on payment pages
 5. ✅ `frontend/src/app/checkout/page.tsx` - Delegate to backend callback
-6. ✅ `frontend/src/lib/api.ts` - Updated `createSecondaryGroup` API function
+6. ✅ `frontend/src/lib/api.ts` - Updated `createSecondaryGroup` API function (simplified signature)
 7. ✅ `frontend/src/app/payment/success/invitee/page.tsx` - Button creates secondary group before redirect
+8. ✅ `frontend/src/app/invite/page.tsx` - Updated to use new `createSecondaryGroup` API
+9. ✅ `frontend/src/app/payment/success/invitee/_components/InviteCta.tsx` - Updated to use new API
 
 ## Deployment Commands
 
 ```bash
 # 1. Commit changes
-git add backend/app/routes/payment.py backend/app/routes/group_order_routes.py backend/app/routes/admin_routes.py frontend/src/contexts/AuthContext.tsx frontend/src/app/checkout/page.tsx frontend/src/lib/api.ts frontend/src/app/payment/success/invitee/page.tsx INVITEE_REDIRECT_FIX.md
+git add backend/app/routes/payment.py backend/app/routes/group_order_routes.py backend/app/routes/admin_routes.py frontend/src/contexts/AuthContext.tsx frontend/src/app/checkout/page.tsx frontend/src/lib/api.ts frontend/src/app/payment/success/invitee/page.tsx frontend/src/app/invite/page.tsx frontend/src/app/payment/success/invitee/_components/InviteCta.tsx INVITEE_REDIRECT_FIX.md
 git commit -m "Fix: Invitee redirect with NULL-safe comparisons + manual secondary group creation"
 git push origin main
 
