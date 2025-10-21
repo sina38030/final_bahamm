@@ -31,158 +31,6 @@ function InviteeSuccessContent() {
   const groupIdParam = searchParams.get("groupId");
   const authorityParam = searchParams.get("authority") || searchParams.get("Authority");
   const [inviteAuthority, setInviteAuthority] = useState<string | null>(authorityParam || null);
-  
-  // OVERRIDE Next.js router to prevent ANY redirects away from this page
-  useEffect(() => {
-    const originalPush = router.push;
-    const originalReplace = router.replace;
-    
-    // @ts-ignore
-    router.push = function(href, options) {
-      const hrefStr = String(href);
-      console.warn('[InviteeSuccess] ⚠️ router.push blocked:', hrefStr);
-      console.log('[InviteeSuccess] User should stay on success page');
-      return Promise.resolve(true);
-    };
-    
-    // @ts-ignore
-    router.replace = function(href, options) {
-      const hrefStr = String(href);
-      console.warn('[InviteeSuccess] ⚠️ router.replace blocked:', hrefStr);
-      console.log('[InviteeSuccess] User should stay on success page');
-      return Promise.resolve(true);
-    };
-    
-    return () => {
-      // @ts-ignore
-      router.push = originalPush;
-      // @ts-ignore
-      router.replace = originalReplace;
-    };
-  }, [router]);
-
-  // FORCE STAY ON SUCCESS PAGE - Prevent any redirects to other pages
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const currentPath = window.location.pathname;
-      const currentUrl = window.location.href;
-      
-      console.log('[InviteeSuccess] LOCKED ON PAGE:', currentPath, currentUrl);
-      
-      // Log to localStorage for debugging in mini app (where console isn't accessible)
-      try {
-        const logs = JSON.parse(localStorage.getItem('payment_success_debug') || '[]');
-        logs.push({
-          timestamp: new Date().toISOString(),
-          event: 'PAGE_LOADED',
-          path: currentPath,
-          url: currentUrl
-        });
-        localStorage.setItem('payment_success_debug', JSON.stringify(logs.slice(-50))); // Keep last 50 logs
-      } catch (e) {
-        console.error('Failed to log to localStorage:', e);
-      }
-      
-      // Set a flag to indicate we've successfully reached the success page
-      try {
-        localStorage.setItem('payment_success_reached', 'true');
-      } catch {}
-      
-      // BLOCK ALL navigation attempts to any page
-      const originalPushState = window.history.pushState;
-      const originalReplaceState = window.history.replaceState;
-      const originalLocationAssign = window.location.assign.bind(window.location);
-      const originalLocationReplace = window.location.replace.bind(window.location);
-      
-      window.history.pushState = function(state, title, url) {
-        const urlStr = String(url);
-        if (urlStr !== currentPath && urlStr !== currentUrl) {
-          console.error('[InviteeSuccess] ❌ BLOCKED navigation attempt to:', urlStr);
-          console.trace('[InviteeSuccess] Navigation attempt stack trace:');
-          try {
-            const logs = JSON.parse(localStorage.getItem('payment_success_debug') || '[]');
-            logs.push({
-              timestamp: new Date().toISOString(),
-              event: 'BLOCKED_PUSH_STATE',
-              targetUrl: urlStr
-            });
-            localStorage.setItem('payment_success_debug', JSON.stringify(logs.slice(-50)));
-          } catch (e) {}
-          return;
-        }
-        return originalPushState.call(this, state, title, url);
-      };
-      
-      window.history.replaceState = function(state, title, url) {
-        const urlStr = String(url);
-        if (urlStr !== currentPath && urlStr !== currentUrl) {
-          console.error('[InviteeSuccess] ❌ BLOCKED redirect attempt to:', urlStr);
-          console.trace('[InviteeSuccess] Redirect attempt stack trace:');
-          try {
-            const logs = JSON.parse(localStorage.getItem('payment_success_debug') || '[]');
-            logs.push({
-              timestamp: new Date().toISOString(),
-              event: 'BLOCKED_REPLACE_STATE',
-              targetUrl: urlStr
-            });
-            localStorage.setItem('payment_success_debug', JSON.stringify(logs.slice(-50)));
-          } catch (e) {}
-          return;
-        }
-        return originalReplaceState.call(this, state, title, url);
-      };
-
-      // Also block direct location redirects (except refresh/reload)
-      try {
-        // @ts-ignore
-        window.location.assign = (url: string | URL) => {
-          const s = String(url);
-          if (!s.includes(currentPath)) {
-            console.error('[InviteeSuccess] ❌ BLOCKED location.assign to:', s);
-            console.trace('[InviteeSuccess] location.assign stack trace:');
-            try {
-              const logs = JSON.parse(localStorage.getItem('payment_success_debug') || '[]');
-              logs.push({
-                timestamp: new Date().toISOString(),
-                event: 'BLOCKED_LOCATION_ASSIGN',
-                targetUrl: s
-              });
-              localStorage.setItem('payment_success_debug', JSON.stringify(logs.slice(-50)));
-            } catch (e) {}
-            return;
-          }
-          return originalLocationAssign(url);
-        };
-        // @ts-ignore
-        window.location.replace = (url: string) => {
-          const s = String(url);
-          if (!s.includes(currentPath)) {
-            console.error('[InviteeSuccess] ❌ BLOCKED location.replace to:', s);
-            console.trace('[InviteeSuccess] location.replace stack trace:');
-            try {
-              const logs = JSON.parse(localStorage.getItem('payment_success_debug') || '[]');
-              logs.push({
-                timestamp: new Date().toISOString(),
-                event: 'BLOCKED_LOCATION_REPLACE',
-                targetUrl: s
-              });
-              localStorage.setItem('payment_success_debug', JSON.stringify(logs.slice(-50)));
-            } catch (e) {}
-            return;
-          }
-          return originalLocationReplace(url);
-        };
-      } catch {}
-      
-      // Cleanup function to restore original methods
-      return () => {
-        window.history.pushState = originalPushState;
-        window.history.replaceState = originalReplaceState;
-        try { window.location.assign = originalLocationAssign; } catch {}
-        try { window.location.replace = originalLocationReplace; } catch {}
-      };
-    }
-  }, []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -359,41 +207,6 @@ function InviteeSuccessContent() {
 
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
-      {/* DEBUG INFO - Only in development */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="bg-blue-100 p-2 text-xs text-blue-800 border-b">
-          🔧 Debug: Success Page | Path: {typeof window !== 'undefined' ? window.location.pathname : 'SSR'} | 
-          OrderId: {orderIdParam} | Authority: {authorityParam}
-        </div>
-      )}
-      
-      {/* Mini App Debug Overlay - Always visible for debugging */}
-      <div className="fixed top-0 right-0 w-64 max-h-screen overflow-y-auto bg-black bg-opacity-90 text-white text-xs p-2 z-50 border-l border-red-500">
-        <div className="mb-2">
-          <button 
-            onClick={() => {
-              const logs = JSON.parse(localStorage.getItem('payment_success_debug') || '[]');
-              localStorage.removeItem('payment_success_debug');
-              alert('Debug logs cleared');
-              window.location.reload();
-            }}
-            className="text-red-400 underline text-xs mb-2"
-          >
-            Clear Logs
-          </button>
-        </div>
-        <div className="space-y-1">
-          {typeof window !== 'undefined' && JSON.parse(localStorage.getItem('payment_success_debug') || '[]').map((log: any, index: number) => (
-            <div key={index} className="bg-gray-800 p-1 rounded-sm border-l-2 border-yellow-500 mb-1">
-              <p className="text-gray-400">{new Date(log.timestamp).toLocaleTimeString()}</p>
-              <p className="text-green-400 font-bold">{log.event}</p>
-              {log.targetUrl && <p className="text-red-400 break-all">→ {log.targetUrl}</p>}
-              {log.path && <p className="text-blue-400">Path: {log.path}</p>}
-            </div>
-          ))}
-        </div>
-      </div>
-      
       {/* Main Content */}
       <div className="max-w-md mx-auto bg-white min-h-screen pb-24">
         {/* Success Hero */}
@@ -405,13 +218,6 @@ function InviteeSuccessContent() {
           </div>
           <h1 className="text-lg font-extrabold text-gray-900 mb-1">پرداخت موفق</h1>
           <p className="text-gray-600 text-sm">سفارش شما با موفقیت ثبت شد</p>
-          
-          {/* FORCE STAY MESSAGE - Only in development */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-3 p-2 bg-green-100 rounded text-green-800 text-xs">
-              ✅ صفحه موفقیت - هیچ redirect نخواهد شد!
-            </div>
-          )}
         </div>
 
         {/* Content */}
@@ -451,24 +257,6 @@ function InviteeSuccessContent() {
           </div>
         </div>
       </div>
-
-      {/* Debug Logs Section */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="fixed bottom-0 left-0 p-4 bg-black text-white text-xs overflow-y-auto max-h-full">
-          <h3 className="text-lg font-bold mb-2">Debug Logs</h3>
-          <div id="debug-logs" className="space-y-1">
-            {JSON.parse(localStorage.getItem('payment_success_debug') || '[]').map((log: any, index: number) => (
-              <div key={index} className="bg-gray-800 p-2 rounded-md">
-                <p><strong>Timestamp:</strong> {log.timestamp}</p>
-                <p><strong>Event:</strong> {log.event}</p>
-                {log.targetUrl && <p><strong>Target URL:</strong> {log.targetUrl}</p>}
-                {log.path && <p><strong>Path:</strong> {log.path}</p>}
-                {log.url && <p><strong>URL:</strong> {log.url}</p>}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
