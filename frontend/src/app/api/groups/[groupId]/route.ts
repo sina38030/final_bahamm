@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminApiBase } from '@/utils/serverBackend';
 
 export const revalidate = 30;
+// Force rebuild - track page pricing fix
 
 const BACKEND_BASE = getAdminApiBase();
 
@@ -99,7 +100,7 @@ export async function GET(
     const c = new AbortController();
     const t = setTimeout(() => c.abort(), ms);
     try {
-      const r = await fetch(url, { next: { revalidate: 30 }, cache: 'force-cache', signal: c.signal });
+      const r = await fetch(url, { cache: 'no-store', signal: c.signal });
       return r;
     } finally {
       clearTimeout(t);
@@ -107,8 +108,8 @@ export async function GET(
   };
 
   const [detailsRes, listRes] = await Promise.allSettled([
-    fetchWithTimeout(`${BACKEND_BASE}/group-buys/${groupId}`, 3000),
-    fetchWithTimeout(`${BACKEND_BASE}/group-buys`, 2500),
+    fetchWithTimeout(`${BACKEND_BASE}/admin/group-buys/${groupId}`, 3000),
+    fetchWithTimeout(`${BACKEND_BASE}/admin/group-buys`, 2500),
   ]);
 
   let details: any | null = null;
@@ -180,12 +181,23 @@ export async function GET(
     console.log(`[API] Group ${groupId} is a known secondary group (fallback)`);
     isSecondaryGroup = true;
     basketSnapshotData = SECONDARY_GROUPS_DATA[groupIdNum];
-    basketItemsRaw = basketSnapshotData.items || [];
+    if (!basketItemsRaw || basketItemsRaw.length === 0) {
+      basketItemsRaw = basketSnapshotData.items || [];
+    }
   }
   
-  // Fallback to list basket if no items found in snapshot
-  if (!basketItemsRaw || basketItemsRaw.length === 0) {
-    basketItemsRaw = Array.isArray(listRow?.basket) ? listRow.basket : [];
+  // Prefer list basket items (which have product prices enriched) over snapshot items (which may not)
+  // For secondary groups, keep snapshot items if they exist
+  if (!isSecondaryGroup || !basketItemsRaw || basketItemsRaw.length === 0) {
+    if (Array.isArray(listRow?.basket) && listRow.basket.length > 0) {
+      basketItemsRaw = listRow.basket;
+      console.log(`[API] Group ${groupId}: Using list basket with ${basketItemsRaw.length} items`);
+    } else if (!basketItemsRaw || basketItemsRaw.length === 0) {
+      basketItemsRaw = [];
+      console.log(`[API] Group ${groupId}: No basket items found`);
+    }
+  } else {
+    console.log(`[API] Group ${groupId}: Using snapshot basket for secondary group with ${basketItemsRaw.length} items`);
   }
 
   // Fetch product pricing data from backend to ensure correct prices (short timeout)
@@ -195,7 +207,7 @@ export async function GET(
       const productIds = basketItemsRaw.map((item: any) => item.product_id).filter(Boolean);
       if (productIds.length > 0) {
         const prodRes = await Promise.race([
-          fetch(`${BACKEND_BASE}/admin/products`, { next: { revalidate: 60 } }),
+          fetch(`${BACKEND_BASE}/admin/products`, { cache: 'no-store' }),
           new Promise((_r, rej) => setTimeout(() => rej(new Error('products timeout')), 2000)),
         ]) as Response;
         if (prodRes?.ok) {
@@ -208,11 +220,11 @@ export async function GET(
               const imageFromProduct = Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : undefined;
               return {
                 ...basketItem,
-                market_price: product.market_price,
-                solo_price: product.solo_price,
-                friend_1_price: product.friend_1_price,
-                friend_2_price: product.friend_2_price,
-                friend_3_price: product.friend_3_price,
+                market_price: product.market_price || basketItem.market_price || product.solo_price || basketItem.solo_price,
+                solo_price: product.solo_price || basketItem.solo_price || product.market_price || basketItem.market_price,
+                friend_1_price: product.friend_1_price || basketItem.friend_1_price,
+                friend_2_price: product.friend_2_price || basketItem.friend_2_price,
+                friend_3_price: product.friend_3_price || basketItem.friend_3_price,
                 product_name: product.name || basketItem.product_name,
                 image: basketItem.image || basketItem.image_url || imageFromProduct,
               };
@@ -228,6 +240,8 @@ export async function GET(
   
   // Use enriched data if available, otherwise fall back to basket snapshot
   basketItemsRaw = enrichedBasketItems.length > 0 ? enrichedBasketItems : basketItemsRaw;
+  
+  console.log(`[API] Group ${groupId}: basketItemsRaw after enrichment:`, JSON.stringify(basketItemsRaw, null, 2));
 
   let participants: Array<{ id: string; username: string; isLeader: boolean; phone?: string; telegramId?: string; paid?: boolean; hasUser?: boolean }> = (() => {
     const leaderIdStr = String(details?.leader_id ?? '');
@@ -335,17 +349,23 @@ export async function GET(
 
     const f1 = (() => {
       const v = toNum(item?.friend_1_price);
-      return v > 0 ? v : Math.round(solo / 2);
+      if (v > 0) return v;
+      // Fallback: if we don't have friend_1_price but have solo, use half
+      return solo > 0 ? Math.round(solo / 2) : 0;
     })();
 
     const f2 = (() => {
       const v = toNum(item?.friend_2_price);
-      return v > 0 ? v : Math.round(solo / 3);
+      if (v > 0) return v;
+      // Fallback: if we don't have friend_2_price but have solo, use 1/3
+      return solo > 0 ? Math.round(solo / 3) : 0;
     })();
 
     const f3 = (() => {
       const v = toNum(item?.friend_3_price);
-      return v > 0 ? v : 0;
+      if (v > 0) return v;
+      // Fallback: if we don't have friend_3_price, free for 3+ friends
+      return 0;
     })();
 
     if (friends === 0) return solo;
@@ -365,6 +385,8 @@ export async function GET(
     // Compute numeric unit prices for display to avoid NaN on the client
     const unitPrice = getItemGroupPrice(it, 0);
     const discountedUnitPrice = getItemGroupPrice(it, Math.min(3, Math.max(0, paidNonLeaders)));
+
+    console.log(`[API] Group ${groupId} - Product ${it.product_id}: unitPrice=${unitPrice}, discountedUnitPrice=${discountedUnitPrice}, qty=${qty}, paidNonLeaders=${paidNonLeaders}`);
 
     return {
       productId: String(it.product_id ?? ''),
@@ -433,6 +455,7 @@ export async function GET(
   const currentTotal = leaderPrice; // قیمت لیدر با دوستان واقعی (همان totals.your در cart)
   const expectedTotal = expectedLeaderPrice; // قیمت لیدر با دوستان مورد انتظار
   
+  console.log(`[API] Group ${groupId} - Pricing: originalTotal=${originalTotal}, currentTotal=${currentTotal}, expectedTotal=${expectedTotal}, isSecondaryGroup=${isSecondaryGroup}, paidNonLeaders=${paidNonLeaders}`);
 
   // Prefer backend's authoritative expires_at if available, otherwise try groups endpoint, and avoid fabricating defaults
   const startRaw = (details?.leader_paid_at || details?.created_at || listRow?.created_at || null);

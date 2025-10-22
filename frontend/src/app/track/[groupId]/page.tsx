@@ -187,7 +187,7 @@ export default function TrackPage() {
     try {
       if (!groupId) return;
       // Primary: via Next.js API (3.5s hard timeout at client); public access
-      const res = await fetchWithTimeout(`/api/groups/${groupId}`, 2500);
+      const res = await fetchWithTimeout(`/api/groups/${groupId}`, 4500);
       if (!res.ok) throw new Error(await res.text());
       const j: GroupTrack = await res.json();
       setData(j);
@@ -230,157 +230,27 @@ export default function TrackPage() {
         setCountdownReady(true);
       }
     } catch (e) {
-      // Fallback: fetch backend directly from client, build minimal payload.
-      // NOTE: We will not show data if user is not leader; this fallback is only used when API is unreachable.
-      try {
-        if (!groupId) return;
-        const [detailsRes, listRes] = await Promise.all([
-          fetchWithTimeout(`${PUBLIC_API}/admin/group-buys/${groupId}`, 3500).catch(() => undefined),
-          fetchWithTimeout(`${PUBLIC_API}/admin/group-buys`, 2500).catch(() => undefined),
-        ]);
-        const details = detailsRes && detailsRes.ok ? await detailsRes.json().catch(() => null) : null;
-        const list = listRes && listRes.ok ? await listRes.json().catch(() => []) : [];
-        // Proceed even if details are missing; avoid limited-data toast
-        const row = Array.isArray(list) ? list.find((r: any) => String(r.id) === String(groupId)) : null;
-        let participants: Array<Participant> = Array.isArray(details?.participants)
-          ? details.participants.map((p: any) => {
-              const leaderIdStr = String(details?.leader_id ?? '');
-              const userIdStr = p.user_id != null ? String(p.user_id) : '';
-              let isLeader = leaderIdStr !== '' && userIdStr !== '' && userIdStr === leaderIdStr;
-              if (!isLeader && (p.is_creator === true || p.is_leader === true)) {
-                isLeader = true;
-              }
-              const statusStr = (p.status || '').toString().toLowerCase();
-              const paid = !!(p.paid_at || statusStr.includes('paid') || statusStr.includes('success'));
-              const phone = p.user_phone ?? p.phone;
-              const name = p.user_name ?? p.name;
-              return {
-                id: String(p.user_id ?? p.order_id ?? p.id ?? phone ?? ''),
-                username: name ?? phone ?? '@member',
-                isLeader,
-                phone,
-                hasUser: !!(p.user_id || phone || name),
-                paid,
-              };
-            })
-          : [];
-        if (participants.length > 0 && !participants.some(p => p.isLeader)) {
-          participants = participants.map((p, idx) => ({ ...p, isLeader: idx === 0 }));
-        }
-        const basketRaw: any[] = Array.isArray(row?.basket) ? row.basket : [];
-        // Count only paid non-leader members for determining achieved tier
-        const paidNonLeaders = Math.max(
-          0,
-          participants.filter((p) => !p.isLeader && p.paid).length
-        );
-
-        // Determine if this is a secondary group
-        const isSecondaryGroup = details?.kind === 'secondary' || row?.kind === 'secondary' ||
-          details?.groupType === 'secondary' || row?.groupType === 'secondary';
-        const basket = basketRaw.map((it: any) => {
-          const unitPrice = Number(it.market_price ?? it.unit_price ?? 0) || 0;
-          const f1 = Number(it.friend_1_price);
-          const f2 = Number(it.friend_2_price);
-          const f3 = Number(it.friend_3_price);
-          const friend1 = Number.isFinite(f1) ? f1 : undefined;
-          const friend2 = Number.isFinite(f2) ? f2 : undefined;
-          const friend3 = Number.isFinite(f3) ? f3 : undefined;
-          
-          const priceForTier = (tier: number): number => {
-            if (tier >= 3) return friend3 ?? unitPrice;
-            if (tier === 2) return friend2 ?? unitPrice;
-            if (tier === 1) return friend1 ?? unitPrice;
-            return unitPrice;
-          };
-
-          const discountedUnitPrice = priceForTier(Math.min(3, Math.max(0, paidNonLeaders)));
-          
-          return {
-            productId: String(it.product_id ?? ''),
-            name: String(it.product_name ?? `محصول ${it.product_id ?? ''}`),
-            qty: Number(it.quantity ?? 1),
-            unitPrice,
-            discountedUnitPrice,
-            image: it.image || it.image_url || undefined,
-          };
-        });
-        const originalTotal = basket.reduce((s, it) => s + it.unitPrice * it.qty, 0);
-
-        // For secondary groups, use the secondary calculation logic
-        let currentTotal = 0;
-        if (isSecondaryGroup) {
-          const basketValue = originalTotal;
-          const secondaryTotals = computeSecondaryTotals(paidNonLeaders, basketValue);
-          currentTotal = secondaryTotals.current;
-        } else {
-          currentTotal = basket.reduce((s, it) => s + it.discountedUnitPrice * it.qty, 0);
-        }
-        const payload: GroupTrack = {
+      // If API fails, show error without fallback to direct backend
+      // The fallback logic was causing 0 prices due to missing product enrichment
+      console.error('[Track] API error:', e);
+      setToast("خطا در دریافت اطلاعات گروه");
+      if (!data && groupId) {
+        setData({
           id: String(groupId),
-          leader: { id: String(details?.leader_id ?? ''), username: details?.leader_name || details?.leader_phone || '@leader' },
-          expiresAt: details?.expires_at || row?.expires_at || null,
-          createdAt: details?.created_at || row?.created_at || null,
-          status: ((): GroupStatus => {
-            const s = String(details?.status || row?.status || '').toUpperCase();
-            if (s.includes('FINALIZED') || s.includes('SUCCESS') || s.includes('موفق')) return 'success';
-            if (s.includes('FAILED') || s.includes('EXPIRED') || s.includes('ناموفق') || s.includes('منقضی')) return 'failed';
-            return 'ongoing';
-          })(),
-          minJoinersForSuccess: isSecondaryGroup ? 4 : 3,
-          participants,
-          basket,
-          pricing: { originalTotal, currentTotal },
-          invite: { shareUrl: row?.invite_link || (row?.invite_code ? `/landingM?invite=${row.invite_code}` : '') },
-          isSecondaryGroup: isSecondaryGroup,
-          groupType: isSecondaryGroup ? 'secondary' : 'regular',
-        };
-        setData(payload);
-        try {
-          const gidStr = String(payload.id || groupId || '').trim();
-          const infoRaw = localStorage.getItem('groupOrderInfo');
-          const byInfo = (() => {
-            try { const i = infoRaw ? JSON.parse(infoRaw) : null; return i?.invite_code && String(i.invite_code).trim() === gidStr; } catch { return false; }
-          })();
-          const byPending = (() => {
-            try { const p = localStorage.getItem('gb-pending'); const arr = p ? JSON.parse(p) : []; return Array.isArray(arr) && arr.includes(gidStr); } catch { return false; }
-          })();
-          const byLeader = Array.isArray(payload.participants) && payload.participants.some((p) => p.isLeader);
-          const isMine = byInfo || byPending || byLeader;
-          if (isMine) {
-            const key = 'gb-my-active-groups';
-            const raw = localStorage.getItem(key);
-            const list = raw ? JSON.parse(raw) : [];
-            const next = Array.isArray(list) ? Array.from(new Set([...list, gidStr])) : [gidStr];
-            localStorage.setItem(key, JSON.stringify(next));
-          }
-        } catch {}
-        
-        // Show group buy result modal for leaders when group becomes successful
-        if (payload.status === 'success' && payload.participants.some(p => p.isLeader)) {
-          setTimeout(() => {
-            showModalForGroup(payload.id);
-          }, 1000); // Delay to let the page settle
-        }
-      } catch {
-        setToast("خطا در دریافت اطلاعات گروه");
-        if (!data && groupId) {
-          setData({
-            id: String(groupId),
-            leader: { id: "", username: "@leader" },
-            expiresAt: null,
-            createdAt: null,
-            status: "failed",
-            minJoinersForSuccess: 3,
-            participants: [],
-            basket: [],
-            pricing: { originalTotal: 0, currentTotal: 0 },
-            invite: { shareUrl: "" },
-            isSecondaryGroup: false,
-            groupType: 'regular' as 'secondary' | 'regular',
-            kind: '',
-            group: { kind: '' },
-          });
-        }
+          leader: { id: "", username: "@leader" },
+          expiresAt: null,
+          createdAt: null,
+          status: "failed",
+          minJoinersForSuccess: 3,
+          participants: [],
+          basket: [],
+          pricing: { originalTotal: 0, currentTotal: 0 },
+          invite: { shareUrl: "" },
+          isSecondaryGroup: false,
+          groupType: 'regular' as 'secondary' | 'regular',
+          kind: '',
+          group: { kind: '' },
+        });
       }
     }
   };
