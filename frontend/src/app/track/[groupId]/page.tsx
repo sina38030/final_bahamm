@@ -230,27 +230,52 @@ export default function TrackPage() {
         setCountdownReady(true);
       }
     } catch (e) {
-      // If API fails, show error without fallback to direct backend
-      // The fallback logic was causing 0 prices due to missing product enrichment
-      console.error('[Track] API error:', e);
-      setToast("خطا در دریافت اطلاعات گروه");
-      if (!data && groupId) {
-        setData({
-          id: String(groupId),
-          leader: { id: "", username: "@leader" },
-          expiresAt: null,
-          createdAt: null,
-          status: "failed",
-          minJoinersForSuccess: 3,
-          participants: [],
-          basket: [],
-          pricing: { originalTotal: 0, currentTotal: 0 },
-          invite: { shareUrl: "" },
-          isSecondaryGroup: false,
-          groupType: 'regular' as 'secondary' | 'regular',
-          kind: '',
-          group: { kind: '' },
-        });
+      // Try a resilient fallback via frontapi proxy (same payload shape)
+      try {
+        if (!groupId) throw e;
+        const res2 = await fetchWithTimeout(`/frontapi/groups/${groupId}`, 4500);
+        if (!res2.ok) throw new Error(await res2.text());
+        const j2: GroupTrack = await res2.json();
+        setData(j2);
+        // Derive remaining seconds from server and store stably
+        let nextRemaining2: number | null = null;
+        const anyJ2: any = j2 as any;
+        if (anyJ2?.remainingSeconds != null) {
+          nextRemaining2 = Math.max(0, Number(anyJ2.remainingSeconds) || 0);
+        } else if (anyJ2?.expiresAtMs != null && anyJ2?.serverNowMs != null) {
+          const exp = Number(anyJ2.expiresAtMs) || 0;
+          const srv = Number(anyJ2.serverNowMs) || 0;
+          if (exp > 0 && srv > 0) nextRemaining2 = Math.max(0, Math.floor((exp - srv) / 1000));
+        } else if (anyJ2?.startedAtMs != null) {
+          const start = Number(anyJ2.startedAtMs) || 0;
+          if (start > 0) nextRemaining2 = Math.max(0, Math.floor(((start + 24 * 3600 * 1000) - Date.now()) / 1000));
+        }
+        if (nextRemaining2 != null) {
+          setTimeLeftSec(nextRemaining2);
+          setCountdownReady(true);
+        }
+        return;
+      } catch (e2) {
+        console.error('[Track] API error (both routes failed):', e, e2);
+        setToast("خطا در دریافت اطلاعات گروه");
+        if (!data && groupId) {
+          setData({
+            id: String(groupId),
+            leader: { id: "", username: "@leader" },
+            expiresAt: null,
+            createdAt: null,
+            status: "failed",
+            minJoinersForSuccess: 3,
+            participants: [],
+            basket: [],
+            pricing: { originalTotal: 0, currentTotal: 0 },
+            invite: { shareUrl: "" },
+            isSecondaryGroup: false,
+            groupType: 'regular' as 'secondary' | 'regular',
+            kind: '',
+            group: { kind: '' },
+          });
+        }
       }
     }
   };
@@ -366,29 +391,37 @@ export default function TrackPage() {
     if (!data) return { originalTotal: 0, currentTotal: 0 };
 
     const safeOriginal = Number(
-      (data as any)?.pricing?.originalTotal ??
-      (data as any)?.orderSummary?.originalPrice ??
-      (data as any)?.initialPayment ??
+      (data as any)?.pricing?.originalTotal ||
+      (data as any)?.orderSummary?.originalPrice ||
+      (data as any)?.initialPayment ||
       0
     );
     const safeCurrent = Number(
-      (data as any)?.pricing?.currentTotal ??
-      (data as any)?.orderSummary?.finalItemsPrice ??
-      safeOriginal
+      (data as any)?.pricing?.currentTotal ||
+      (data as any)?.orderSummary?.finalItemsPrice ||
+      safeOriginal ||
+      0
     );
 
+    // Fallback to basket-derived totals if server totals are zero
+    const basket = Array.isArray((data as any)?.basket) ? (data as any).basket : [];
+    const basketOriginal = basket.reduce((sum: number, it: any) => sum + Number(it?.unitPrice || 0) * Number(it?.qty || 0), 0);
+    const basketCurrentRegular = basket.reduce((sum: number, it: any) => sum + Number((it?.discountedUnitPrice ?? it?.unitPrice) || 0) * Number(it?.qty || 0), 0);
+
     if (isSecondaryGroup) {
-      const basketValue = Number(safeOriginal || 0);
-      const secondaryTotals = computeSecondaryTotals(nonLeaderPaid, basketValue);
+      const base = safeOriginal > 0 ? safeOriginal : basketOriginal;
+      const secondaryTotals = computeSecondaryTotals(nonLeaderPaid, Number(base || 0));
       return {
-        originalTotal: secondaryTotals.solo,
-        currentTotal: secondaryTotals.current
+        originalTotal: Number(secondaryTotals.solo || 0),
+        currentTotal: Number(secondaryTotals.current || 0)
       };
     }
 
+    const outOriginal = safeOriginal > 0 ? safeOriginal : basketOriginal;
+    const outCurrent = safeCurrent > 0 ? safeCurrent : (basketCurrentRegular > 0 ? basketCurrentRegular : outOriginal);
     return {
-      originalTotal: Number(safeOriginal || 0),
-      currentTotal: Number(safeCurrent || 0)
+      originalTotal: Number(outOriginal || 0),
+      currentTotal: Number(outCurrent || 0)
     };
   }, [data, isSecondaryGroup, nonLeaderPaid]);
 
