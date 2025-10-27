@@ -67,6 +67,14 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
   const [disabledJoin, setDisabledJoin] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [categorySettings, setCategorySettings] = useState({ 
+    all_label: 'همه', 
+    all_image: null as string | null,
+    fruit_label: 'میوه ها', 
+    fruit_image: null as string | null,
+    veggie_label: 'صیفی جات', 
+    veggie_image: null as string | null 
+  });
   const initialExpiry = (() => {
     try {
       if (initialGroupMeta?.expiresAtMs != null) {
@@ -293,6 +301,25 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
       })
       .catch((error) => {
         console.error('❌ Error fetching products:', error);
+      });
+  }, []);
+
+  // Load category settings from backend
+  useEffect(() => {
+    fetchJson('/api/settings')
+      .then((data) => {
+        debugLog('⚙️ Category settings loaded:', data);
+        setCategorySettings({
+          all_label: data.all_category_label || 'همه',
+          all_image: data.all_category_image || null,
+          fruit_label: data.fruit_category_label || 'میوه ها',
+          fruit_image: data.fruit_category_image || null,
+          veggie_label: data.veggie_category_label || 'صیفی جات',
+          veggie_image: data.veggie_category_image || null,
+        });
+      })
+      .catch((error) => {
+        console.error('❌ Error fetching category settings:', error);
       });
   }, []);
 
@@ -1026,9 +1053,24 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
                   <button className="close-x" aria-label="بستن" onClick={closeSearch}>&times;</button>
                 </div>
               )}
-              <span className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')} data-category="all">همه</span>
-              <span className={`tab ${activeTab === 'fruit' ? 'active' : ''}`} onClick={() => setActiveTab('fruit')} data-category="fruit">میوه ها</span>
-              <span className={`tab ${activeTab === 'veggie' ? 'active' : ''}`} onClick={() => setActiveTab('veggie')} data-category="veggie">صیفی جات</span>
+              <span className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')} data-category="all">
+                {categorySettings.all_image && (
+                  <img src={categorySettings.all_image} alt={categorySettings.all_label} style={{ width: '20px', height: '20px', marginLeft: '5px', verticalAlign: 'middle' }} />
+                )}
+                {categorySettings.all_label}
+              </span>
+              <span className={`tab ${activeTab === 'fruit' ? 'active' : ''}`} onClick={() => setActiveTab('fruit')} data-category="fruit">
+                {categorySettings.fruit_image && (
+                  <img src={categorySettings.fruit_image} alt={categorySettings.fruit_label} style={{ width: '20px', height: '20px', marginLeft: '5px', verticalAlign: 'middle' }} />
+                )}
+                {categorySettings.fruit_label}
+              </span>
+              <span className={`tab ${activeTab === 'veggie' ? 'active' : ''}`} onClick={() => setActiveTab('veggie')} data-category="veggie">
+                {categorySettings.veggie_image && (
+                  <img src={categorySettings.veggie_image} alt={categorySettings.veggie_label} style={{ width: '20px', height: '20px', marginLeft: '5px', verticalAlign: 'middle' }} />
+                )}
+                {categorySettings.veggie_label}
+              </span>
             </div>
           </div>
         </nav>

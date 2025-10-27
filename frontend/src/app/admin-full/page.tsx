@@ -2450,6 +2450,12 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
     const [label, setLabel] = useState<string>("همه");
     const [imageUrl, setImageUrl] = useState<string>("");
     const [file, setFile] = useState<File | null>(null);
+    const [fruitLabel, setFruitLabel] = useState<string>("میوه ها");
+    const [fruitImageUrl, setFruitImageUrl] = useState<string>("");
+    const [fruitFile, setFruitFile] = useState<File | null>(null);
+    const [veggieLabel, setVeggieLabel] = useState<string>("صیفی جات");
+    const [veggieImageUrl, setVeggieImageUrl] = useState<string>("");
+    const [veggieFile, setVeggieFile] = useState<File | null>(null);
     const [aiChatbotEnabled, setAiChatbotEnabled] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(true);
     const [saving, setSaving] = useState<boolean>(false);
@@ -2462,6 +2468,10 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
           const js = await res.json();
           setLabel(js?.all_category_label || "همه");
           setImageUrl(js?.all_category_image || "");
+          setFruitLabel(js?.fruit_category_label || "میوه ها");
+          setFruitImageUrl(js?.fruit_category_image || "");
+          setVeggieLabel(js?.veggie_category_label || "صیفی جات");
+          setVeggieImageUrl(js?.veggie_category_image || "");
           setAiChatbotEnabled(js?.ai_chatbot_enabled === "true" || js?.ai_chatbot_enabled === true);
         }
       } finally {
@@ -2475,10 +2485,20 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
       setSaving(true);
       try {
         let res: Response;
-        if (file) {
+        if (file || fruitFile || veggieFile) {
           const form = new FormData();
           form.append("all_category_label", label);
-          form.append("all_category_image_file", file);
+          if (file) form.append("all_category_image_file", file);
+          else if (imageUrl) form.append("all_category_image", imageUrl);
+          
+          form.append("fruit_category_label", fruitLabel);
+          if (fruitFile) form.append("fruit_category_image_file", fruitFile);
+          else if (fruitImageUrl) form.append("fruit_category_image", fruitImageUrl);
+          
+          form.append("veggie_category_label", veggieLabel);
+          if (veggieFile) form.append("veggie_category_image_file", veggieFile);
+          else if (veggieImageUrl) form.append("veggie_category_image", veggieImageUrl);
+          
           form.append("ai_chatbot_enabled", aiChatbotEnabled.toString());
           res = await fetch(`${ADMIN_API_BASE_URL}/admin/settings`, { method: "PUT", body: form });
         } else {
@@ -2486,9 +2506,13 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
-              all_category_label: label, 
+              all_category_label: label,
+              ...(imageUrl ? { all_category_image: imageUrl } : {}),
+              fruit_category_label: fruitLabel,
+              ...(fruitImageUrl ? { fruit_category_image: fruitImageUrl } : {}),
+              veggie_category_label: veggieLabel,
+              ...(veggieImageUrl ? { veggie_category_image: veggieImageUrl } : {}),
               ai_chatbot_enabled: aiChatbotEnabled,
-              ...(imageUrl ? { all_category_image: imageUrl } : {}) 
             }),
           });
         }
@@ -2496,8 +2520,14 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
         const js = await res.json();
         setLabel(js?.all_category_label || label);
         setImageUrl(js?.all_category_image || imageUrl);
+        setFruitLabel(js?.fruit_category_label || fruitLabel);
+        setFruitImageUrl(js?.fruit_category_image || fruitImageUrl);
+        setVeggieLabel(js?.veggie_category_label || veggieLabel);
+        setVeggieImageUrl(js?.veggie_category_image || veggieImageUrl);
         setAiChatbotEnabled(js?.ai_chatbot_enabled === "true" || js?.ai_chatbot_enabled === true);
         setFile(null);
+        setFruitFile(null);
+        setVeggieFile(null);
         alert("تنظیمات ذخیره شد");
       } catch (e: any) {
         alert("خطا در ذخیره تنظیمات");
@@ -2513,25 +2543,83 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
         {loading ? (
           <div>در حال بارگذاری…</div>
         ) : (
-          <div className="grid gap-4 max-w-lg">
-            <div>
-              <label className="block text-sm mb-1">برچسب تب «همه»</label>
-              <input className="border rounded p-2 w-full" value={label} onChange={(e) => setLabel(e.target.value)} />
-            </div>
-            <div>
-              <label className="block text-sm mb-1">آدرس تصویر تب «همه» (اختیاری)</label>
-              <input className="border rounded p-2 w-full" placeholder="https://…" value={imageUrl} onChange={(e) => { setImageUrl(e.target.value); setFile(null); }} />
-            </div>
-            <div>
-              <label className="block text-sm mb-1">آپلود تصویر (اختیاری)</label>
-              <input type="file" accept="image/*" onChange={(e) => { setFile(e.target.files?.[0] || null); if (e.target.files?.[0]) setImageUrl(""); }} />
-            </div>
-            {(file || imageUrl) && (
-              <div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={file ? URL.createObjectURL(file) : imageUrl} alt="preview" className="w-40 h-40 object-cover rounded-full" />
+          <div className="grid gap-6 max-w-4xl">
+            {/* تنظیمات تب همه */}
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <h3 className="text-lg font-semibold mb-3 text-blue-700">تب «همه»</h3>
+              <div className="grid gap-4">
+                <div>
+                  <label className="block text-sm mb-1 font-medium">برچسب تب «همه»</label>
+                  <input className="border rounded p-2 w-full" value={label} onChange={(e) => setLabel(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1 font-medium">آدرس تصویر (اختیاری)</label>
+                  <input className="border rounded p-2 w-full" placeholder="https://…" value={imageUrl} onChange={(e) => { setImageUrl(e.target.value); setFile(null); }} />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1 font-medium">آپلود تصویر (اختیاری)</label>
+                  <input type="file" accept="image/*" onChange={(e) => { setFile(e.target.files?.[0] || null); if (e.target.files?.[0]) setImageUrl(""); }} />
+                </div>
+                {(file || imageUrl) && (
+                  <div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={file ? URL.createObjectURL(file) : imageUrl} alt="preview" className="w-32 h-32 object-cover rounded-lg border-2 border-blue-400" />
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+
+            {/* تنظیمات تب میوه ها */}
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <h3 className="text-lg font-semibold mb-3 text-green-700">تب «میوه ها»</h3>
+              <div className="grid gap-4">
+                <div>
+                  <label className="block text-sm mb-1 font-medium">برچسب تب «میوه ها»</label>
+                  <input className="border rounded p-2 w-full" value={fruitLabel} onChange={(e) => setFruitLabel(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1 font-medium">آدرس تصویر (اختیاری)</label>
+                  <input className="border rounded p-2 w-full" placeholder="https://…" value={fruitImageUrl} onChange={(e) => { setFruitImageUrl(e.target.value); setFruitFile(null); }} />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1 font-medium">آپلود تصویر (اختیاری)</label>
+                  <input type="file" accept="image/*" onChange={(e) => { setFruitFile(e.target.files?.[0] || null); if (e.target.files?.[0]) setFruitImageUrl(""); }} />
+                </div>
+                {(fruitFile || fruitImageUrl) && (
+                  <div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={fruitFile ? URL.createObjectURL(fruitFile) : fruitImageUrl} alt="preview" className="w-32 h-32 object-cover rounded-lg border-2 border-green-400" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* تنظیمات تب صیفی جات */}
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <h3 className="text-lg font-semibold mb-3 text-orange-700">تب «صیفی جات»</h3>
+              <div className="grid gap-4">
+                <div>
+                  <label className="block text-sm mb-1 font-medium">برچسب تب «صیفی جات»</label>
+                  <input className="border rounded p-2 w-full" value={veggieLabel} onChange={(e) => setVeggieLabel(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1 font-medium">آدرس تصویر (اختیاری)</label>
+                  <input className="border rounded p-2 w-full" placeholder="https://…" value={veggieImageUrl} onChange={(e) => { setVeggieImageUrl(e.target.value); setVeggieFile(null); }} />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1 font-medium">آپلود تصویر (اختیاری)</label>
+                  <input type="file" accept="image/*" onChange={(e) => { setVeggieFile(e.target.files?.[0] || null); if (e.target.files?.[0]) setVeggieImageUrl(""); }} />
+                </div>
+                {(veggieFile || veggieImageUrl) && (
+                  <div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={veggieFile ? URL.createObjectURL(veggieFile) : veggieImageUrl} alt="preview" className="w-32 h-32 object-cover rounded-lg border-2 border-orange-400" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* تنظیمات چت‌بات */}
             <div className="border-t pt-4 mt-4">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
@@ -2548,9 +2636,11 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
                 چت‌بات هوش مصنوعی به طور خودکار به پیام‌های کاربران پاسخ می‌دهد
               </p>
             </div>
+
+            {/* دکمه‌های ذخیره و بازنشانی */}
             <div className="flex gap-2">
-              <button onClick={handleSave} disabled={saving} className="bg-blue-600 text-white px-4 py-2 rounded">{saving ? "در حال ذخیره…" : "ذخیره"}</button>
-              <button onClick={load} className="bg-gray-500 text-white px-4 py-2 rounded">بازنشانی</button>
+              <button onClick={handleSave} disabled={saving} className="bg-blue-600 text-white px-6 py-3 rounded font-semibold hover:bg-blue-700 disabled:opacity-50">{saving ? "در حال ذخیره…" : "ذخیره تمام تنظیمات"}</button>
+              <button onClick={load} className="bg-gray-500 text-white px-6 py-3 rounded font-semibold hover:bg-gray-600">بازنشانی</button>
             </div>
           </div>
         )}

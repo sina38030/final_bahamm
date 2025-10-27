@@ -2166,11 +2166,15 @@ async def delete_banner(banner_id: int, db: Session = Depends(get_db)):
 async def get_admin_settings(db: Session = Depends(get_db)):
     """Return admin-manageable settings used by the storefront."""
     try:
-        rows = db.execute(text("SELECT key, value FROM app_settings WHERE key IN ('all_category_image', 'all_category_label', 'ai_chatbot_enabled')"))
+        rows = db.execute(text("SELECT key, value FROM app_settings WHERE key IN ('all_category_image', 'all_category_label', 'fruit_category_image', 'fruit_category_label', 'veggie_category_image', 'veggie_category_label', 'ai_chatbot_enabled')"))
         data = {row[0]: row[1] for row in rows}
         return {
             "all_category_image": data.get("all_category_image"),
             "all_category_label": data.get("all_category_label", "همه"),
+            "fruit_category_image": data.get("fruit_category_image"),
+            "fruit_category_label": data.get("fruit_category_label", "میوه ها"),
+            "veggie_category_image": data.get("veggie_category_image"),
+            "veggie_category_label": data.get("veggie_category_label", "صیفی جات"),
             "ai_chatbot_enabled": data.get("ai_chatbot_enabled", "false"),
         }
     except Exception as e:
@@ -2178,12 +2182,18 @@ async def get_admin_settings(db: Session = Depends(get_db)):
 
 @admin_router.put("/settings")
 async def update_admin_settings(request: Request, db: Session = Depends(get_db)):
-    """Update settings. Supports JSON or multipart with optional file upload for the All icon.
+    """Update settings. Supports JSON or multipart with optional file upload for category icons.
 
     Accepted fields:
       - all_category_label: string
       - all_category_image: string URL
       - all_category_image_file: file (multipart form) -> saved to /static/site/all-<ts>.ext and URL stored
+      - fruit_category_label: string
+      - fruit_category_image: string URL
+      - fruit_category_image_file: file (multipart form) -> saved to /static/site/fruit-<ts>.ext and URL stored
+      - veggie_category_label: string
+      - veggie_category_image: string URL
+      - veggie_category_image_file: file (multipart form) -> saved to /static/site/veggie-<ts>.ext and URL stored
       - ai_chatbot_enabled: boolean/string
     """
     form = None
@@ -2196,15 +2206,32 @@ async def update_admin_settings(request: Request, db: Session = Depends(get_db))
 
         updates: dict[str, str] = {}
 
-        # Handle label
+        # Handle All category
         label = data.get("all_category_label")
         if label is not None:
             updates["all_category_label"] = str(label)
 
-        # Handle image via URL (if provided)
         image_url = data.get("all_category_image")
         if image_url:
             updates["all_category_image"] = str(image_url)
+
+        # Handle Fruit category
+        fruit_label = data.get("fruit_category_label")
+        if fruit_label is not None:
+            updates["fruit_category_label"] = str(fruit_label)
+
+        fruit_image_url = data.get("fruit_category_image")
+        if fruit_image_url:
+            updates["fruit_category_image"] = str(fruit_image_url)
+
+        # Handle Veggie category
+        veggie_label = data.get("veggie_category_label")
+        if veggie_label is not None:
+            updates["veggie_category_label"] = str(veggie_label)
+
+        veggie_image_url = data.get("veggie_category_image")
+        if veggie_image_url:
+            updates["veggie_category_image"] = str(veggie_image_url)
 
         # Handle AI chatbot toggle
         ai_enabled = data.get("ai_chatbot_enabled")
@@ -2215,18 +2242,19 @@ async def update_admin_settings(request: Request, db: Session = Depends(get_db))
             else:
                 updates["ai_chatbot_enabled"] = str(ai_enabled)
 
-        # Handle uploaded file if present in form
+        # Handle uploaded files if present in form
         if form is not None:
+            base_url = str(request.base_url)
+            root_url = base_url[:-4] if base_url.endswith("/api/") else base_url.rstrip("/")
+            static_base = f"{root_url.rstrip('/')}/static"
+            backend_dir = Path(__file__).resolve().parents[1]
+            uploads_dir = backend_dir / "uploads" / "site"
+            uploads_dir.mkdir(parents=True, exist_ok=True)
+            import os, time
+
+            # All category file
             up = form.get("all_category_image_file")
             if up and (isinstance(up, UploadFile) or hasattr(up, "filename")):
-                # Save under uploads/site/
-                base_url = str(request.base_url)
-                root_url = base_url[:-4] if base_url.endswith("/api/") else base_url.rstrip("/")
-                static_base = f"{root_url.rstrip('/')}/static"
-                backend_dir = Path(__file__).resolve().parents[1]
-                uploads_dir = backend_dir / "uploads" / "site"
-                uploads_dir.mkdir(parents=True, exist_ok=True)
-                import os, time
                 filename = os.path.basename(getattr(up, "filename", "all.png"))
                 name, ext = os.path.splitext(filename)
                 dest = uploads_dir / f"all_{int(time.time())}{ext or '.png'}"
@@ -2235,17 +2263,43 @@ async def update_admin_settings(request: Request, db: Session = Depends(get_db))
                     f.write(content)
                 updates["all_category_image"] = f"{static_base}/{dest.relative_to(backend_dir / 'uploads').as_posix()}"
 
+            # Fruit category file
+            fruit_up = form.get("fruit_category_image_file")
+            if fruit_up and (isinstance(fruit_up, UploadFile) or hasattr(fruit_up, "filename")):
+                filename = os.path.basename(getattr(fruit_up, "filename", "fruit.png"))
+                name, ext = os.path.splitext(filename)
+                dest = uploads_dir / f"fruit_{int(time.time())}{ext or '.png'}"
+                content = await fruit_up.read()
+                with open(dest, "wb") as f:
+                    f.write(content)
+                updates["fruit_category_image"] = f"{static_base}/{dest.relative_to(backend_dir / 'uploads').as_posix()}"
+
+            # Veggie category file
+            veggie_up = form.get("veggie_category_image_file")
+            if veggie_up and (isinstance(veggie_up, UploadFile) or hasattr(veggie_up, "filename")):
+                filename = os.path.basename(getattr(veggie_up, "filename", "veggie.png"))
+                name, ext = os.path.splitext(filename)
+                dest = uploads_dir / f"veggie_{int(time.time())}{ext or '.png'}"
+                content = await veggie_up.read()
+                with open(dest, "wb") as f:
+                    f.write(content)
+                updates["veggie_category_image"] = f"{static_base}/{dest.relative_to(backend_dir / 'uploads').as_posix()}"
+
         # Persist updates
         for k, v in updates.items():
             db.execute(text("INSERT INTO app_settings(key, value) VALUES (:k, :v) ON CONFLICT(key) DO UPDATE SET value = excluded.value"), {"k": k, "v": v})
         db.commit()
 
         # Return merged view
-        rows = db.execute(text("SELECT key, value FROM app_settings WHERE key IN ('all_category_image', 'all_category_label', 'ai_chatbot_enabled')"))
+        rows = db.execute(text("SELECT key, value FROM app_settings WHERE key IN ('all_category_image', 'all_category_label', 'fruit_category_image', 'fruit_category_label', 'veggie_category_image', 'veggie_category_label', 'ai_chatbot_enabled')"))
         data = {row[0]: row[1] for row in rows}
         return {
             "all_category_image": data.get("all_category_image"),
             "all_category_label": data.get("all_category_label", "همه"),
+            "fruit_category_image": data.get("fruit_category_image"),
+            "fruit_category_label": data.get("fruit_category_label", "میوه ها"),
+            "veggie_category_image": data.get("veggie_category_image"),
+            "veggie_category_label": data.get("veggie_category_label", "صیفی جات"),
             "ai_chatbot_enabled": data.get("ai_chatbot_enabled", "false"),
         }
     except HTTPException:
