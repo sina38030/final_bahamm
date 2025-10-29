@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminApiBase } from '@/utils/serverBackend';
+import { getApiBase } from '@/utils/serverBackend';
 
 export const revalidate = 60;
 
 export async function GET(request: NextRequest) {
-  const base = getAdminApiBase();
+  const base = getApiBase();
   const search = request.nextUrl.search;
   const target = `${base}/admin/products${search || '?order=landing'}`;
 

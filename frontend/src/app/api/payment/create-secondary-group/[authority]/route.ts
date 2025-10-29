@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminApiBase } from '@/utils/serverBackend';
+import { getApiBase } from '@/utils/serverBackend';
 
-const BACKEND_BASE = getAdminApiBase();
+const BACKEND_BASE = getApiBase();
 
 export async function POST(
   req: NextRequest,

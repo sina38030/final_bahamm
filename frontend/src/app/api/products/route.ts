@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBackendOrigin } from '@/utils/serverBackend';
+import { getApiBase } from '@/utils/serverBackend';
 
 export const revalidate = 60;
 
 export async function GET(request: NextRequest) {
-  const base = getBackendOrigin();
+  const base = getApiBase();
   const search = request.nextUrl.search;
-  const target = `${base}/api/products${search || '?page=1&limit=20'}`;
+  const target = `${base}/products${search || '?page=1&limit=20'}`;
 
   try {
     const response = await fetch(target, { next: { revalidate: 60 } });

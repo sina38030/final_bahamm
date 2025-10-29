@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminApiBase } from '@/utils/serverBackend';
+import { getApiBase } from '@/utils/serverBackend';
 
-const BACKEND_BASE = getAdminApiBase();
+const BACKEND_BASE = getApiBase();
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'phone required' }, { status: 400 });
     }
 
-    const res = await fetch(`${BACKEND_BASE}/group-buys`, { cache: 'no-store' });
+    const res = await fetch(`${BACKEND_BASE}/admin/group-buys`, { cache: 'no-store' });
     if (!res.ok) {
       return NextResponse.json([], { status: 200 });
     }

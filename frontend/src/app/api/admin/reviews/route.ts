@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBackendOrigin } from '@/utils/serverBackend';
+import { getApiBase } from '@/utils/serverBackend';
 
-const API_BASE_URL = `${getBackendOrigin()}/api`;
+const API_BASE_URL = getApiBase();
 
 export async function POST(req: NextRequest) {
   // Handle review creation

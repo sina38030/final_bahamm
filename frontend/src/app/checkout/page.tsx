@@ -351,7 +351,7 @@ function CheckoutPageContent() {
       // Fetch cart items from API
       (async () => {
         try {
-          const res = await fetch(`/api/group-invite/${encodeURIComponent(inviteCodeParam)}`);
+          const res = await fetch(`${API_BASE_URL}/payment/group-invite/${encodeURIComponent(inviteCodeParam)}`);
           if (res.ok) {
             const data = await res.json();
             console.log('📦 Fetched group data from API:', data);

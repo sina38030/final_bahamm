@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBackendOrigin } from '@/utils/serverBackend';
+import { getApiBase } from '@/utils/serverBackend';
 
 export const revalidate = 300;
 
 export async function GET(request: NextRequest) {
-  const base = getBackendOrigin();
-  const target = `${base}/api/banners`;
+  const base = getApiBase();
+  const target = `${base}/banners`;
 
   try {
     const response = await fetch(target, { next: { revalidate: 300 } });

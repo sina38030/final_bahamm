@@ -293,6 +293,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
       debugLog('📦 Using server-provided initial products:', `count=${initialProducts.length}`);
       return;
     }
+    if (!apiBase) return;
     debugLog('📡 Fetching products data...');
     fetchJson(`${apiBase}/api/admin/products`, { cache: 'no-store' })
       .then((data) => {
@@ -302,11 +303,12 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
       .catch((error) => {
         console.error('❌ Error fetching products:', error);
       });
-  }, []);
+  }, [apiBase]);
 
   // Load category settings from backend
   useEffect(() => {
-    fetchJson('/api/settings')
+    if (!apiBase) return;
+    fetchJson(`${apiBase}/api/settings`)
       .then((data) => {
         debugLog('⚙️ Category settings loaded:', data);
         setCategorySettings({
@@ -321,7 +323,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
       .catch((error) => {
         console.error('❌ Error fetching category settings:', error);
       });
-  }, []);
+  }, [apiBase]);
 
   useEffect(() => {
     const inviteCode = invite;
@@ -345,9 +347,10 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
           setGroupStatus('ongoing');
         }
       } else {
+        if (!apiBase) return;
         setLoading(true);
         debugLog('📡 Fetching group order data for:', inviteCode);
-        fetchJson(`/api/payment/group-invite/${encodeURIComponent(inviteCode)}?t=${Date.now()}`)
+        fetchJson(`${apiBase}/api/payment/group-invite/${encodeURIComponent(inviteCode)}?t=${Date.now()}`)
           .then(data => {
             debugLog('📋 Raw response data:', data?.success ? 'success' : 'fail');
             debugLog('📋 Group data items:', data?.items?.length || 0);
@@ -376,7 +379,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
           });
       }
     }
-  }, [invite]);
+  }, [invite, apiBase]);
 
   useEffect(() => {
     let interval: any;
@@ -437,7 +440,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
     let abort = false;
     (async () => {
       try {
-        const data = await fetchJson(`/api/groups/${encodeURIComponent(invite)}`);
+        const data = await fetchJson(`${apiBase}/api/groups/${encodeURIComponent(invite)}`);
         if (abort) return;
         let targetMs: number | null = null;
         if (data?.remainingSeconds != null) {
@@ -475,7 +478,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
       } catch (e) { if (process.env.NODE_ENV !== 'production') console.error(e); }
     })();
     return () => { abort = true; };
-  }, [invite]);
+  }, [invite, apiBase]);
 
   const countdownRef = useRef<HTMLSpanElement | null>(null);
   useEffect(() => {

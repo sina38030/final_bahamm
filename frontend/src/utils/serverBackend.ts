@@ -26,9 +26,10 @@ export function getBackendOrigin(): string {
 }
 
 /**
- * Returns the admin API base (origin + /api) without trailing slash.
+ * Returns the API base URL (origin + /api) without trailing slash.
+ * Use this for all backend API calls to ensure consistent URL formatting.
  */
-export function getAdminApiBase(): string {
+export function getApiBase(): string {
   const origin = resolveBackendOrigin();
   return origin.endsWith('/api') ? origin : `${origin}/api`;
 }

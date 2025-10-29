@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminApiBase } from '@/utils/serverBackend';
+import { getApiBase } from '@/utils/serverBackend';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const days = searchParams.get('days') || '7';
-    const adminBase = getAdminApiBase();
+    const apiBase = getApiBase();
 
-    const response = await fetch(`${adminBase}/delivery-slots/next?days=${encodeURIComponent(days)}`, {
+    const response = await fetch(`${apiBase}/delivery-slots/next?days=${encodeURIComponent(days)}`, {
       headers: { 'Content-Type': 'application/json' },
       cache: 'no-store',
     });

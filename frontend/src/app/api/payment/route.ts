@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBackendOrigin } from '@/utils/serverBackend';
+import { getApiBase } from '@/utils/serverBackend';
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const token = authHeader?.replace('Bearer ', '') || request.cookies.get('auth_token')?.value || null;
 
     // Choose endpoint based on whether items are provided
-    let endpoint = '/api/payment/request-public';
+    let endpoint = '/payment/request-public';
     let requestBody: any = {
       amount,
       description,
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     // If items are provided, use the create-order endpoint
     if (items && Array.isArray(items) && items.length > 0) {
-      endpoint = '/api/payment/create-order-public';
+      endpoint = '/payment/create-order-public';
       requestBody = {
         // Forward explicit amount (Rial) so backend/gateway uses discounted total
         amount,
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
       console.log('[Payment API] No auth token found, proceeding as guest');
     }
 
-    const response = await fetch(`${getBackendOrigin()}${endpoint}`, {
+    const response = await fetch(`${getApiBase()}${endpoint}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
@@ -119,8 +119,8 @@ export async function PUT(request: NextRequest) {
     const token = null;
 
     // Try FastAPI first (port 8001)
-    const backendOrigin = getBackendOrigin();
-    let response = await fetch(`${backendOrigin}/api/payment`, {
+    const apiBase = getApiBase();
+    let response = await fetch(`${apiBase}/payment`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -131,7 +131,7 @@ export async function PUT(request: NextRequest) {
     // If FastAPI fails, try quick_server (port 8000)
     if (!response.ok) {
       try {
-        const quickServerUrl = backendOrigin.replace('8001', '8000');
+        const quickServerUrl = apiBase.replace('8001', '8000');
         const fallback = await fetch(`${quickServerUrl}/api/payment/verify-public`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

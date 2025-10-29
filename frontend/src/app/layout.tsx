@@ -24,7 +24,7 @@ export const viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fa" dir="rtl" className={iransans.variable}>
+    <html lang="fa" dir="rtl" className={iransans.variable} suppressHydrationWarning>
       <head>
         {/* Preconnect links removed to avoid localhost references in production */}
         {/* Telegram Mini App Script */}

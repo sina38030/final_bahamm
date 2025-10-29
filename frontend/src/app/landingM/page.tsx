@@ -1,5 +1,5 @@
 import { ProductModalProvider } from '@/hooks/useProductModal';
-import { getSiteOrigin } from '@/utils/serverBackend';
+import { getApiBase } from '@/utils/serverBackend';
 import ClientLanding from './ClientLanding';
 
 export const revalidate = 60;
@@ -8,12 +8,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ i
   const params = await searchParams;
   const invite = params?.invite ?? '';
 
-  const origin = getSiteOrigin();
+  const apiBase = getApiBase();
 
   let initialProducts: any[] = [];
   try {
-    const res = await fetch(`${origin}/api/admin/products?order=landing`, { next: { revalidate: 60 } });
-    console.log(`[landingM/page] Products fetch: ${res.status} from ${origin}/api/admin/products?order=landing`);
+    const res = await fetch(`${apiBase}/admin/products?order=landing`, { next: { revalidate: 60 } });
+    console.log(`[landingM/page] Products fetch: ${res.status} from ${apiBase}/admin/products?order=landing`);
     if (res.ok) {
       initialProducts = await res.json();
       console.log(`[landingM/page] Products loaded: ${initialProducts?.length || 0} items`);
@@ -28,7 +28,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ i
   let initialGroupMeta: any | null = null;
   if (invite) {
     try {
-      const res = await fetch(`${origin}/api/group-invite/${encodeURIComponent(invite)}`, { next: { revalidate: 30 } });
+      const res = await fetch(`${apiBase}/payment/group-invite/${encodeURIComponent(invite)}`, { next: { revalidate: 30 } });
       console.log(`[landingM/page] Group invite fetch: ${res.status}`);
       if (res.ok) {
         initialGroupOrderData = await res.json();
@@ -38,7 +38,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ i
       console.error('[landingM/page] Group invite fetch error:', err);
     }
     try {
-      const grpRes = await fetch(`${origin}/api/groups/${encodeURIComponent(invite)}`, { next: { revalidate: 30 } });
+      const grpRes = await fetch(`${apiBase}/groups/${encodeURIComponent(invite)}`, { next: { revalidate: 30 } });
       if (grpRes.ok) {
         initialGroupMeta = await grpRes.json();
       }

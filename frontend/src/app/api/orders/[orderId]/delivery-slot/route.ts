@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminApiBase } from '@/utils/serverBackend';
+import { getApiBase } from '@/utils/serverBackend';
 
 export async function PUT(
   request: NextRequest,
@@ -11,10 +11,10 @@ export async function PUT(
     const body = await request.json();
     console.log('Request body:', body);
 
-    const adminBase = getAdminApiBase();
+    const apiBase = getApiBase();
     const token = request.cookies.get('auth_token')?.value;
 
-    console.log('Backend URL:', adminBase);
+    console.log('Backend URL:', apiBase);
     console.log('Token exists:', !!token);
 
     // Temporarily allow without token for testing
@@ -22,9 +22,9 @@ export async function PUT(
       console.log('No authentication token found - proceeding without auth for testing');
     }
 
-    console.log('Making request to backend:', `${adminBase}/admin/orders/${orderId}/delivery-slot`);
+    console.log('Making request to backend:', `${apiBase}/admin/orders/${orderId}/delivery-slot`);
 
-    const response = await fetch(`${adminBase}/admin/orders/${orderId}/delivery-slot`, {
+    const response = await fetch(`${apiBase}/admin/orders/${orderId}/delivery-slot`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

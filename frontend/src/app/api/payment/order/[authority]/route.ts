@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBackendOrigin } from '@/utils/serverBackend';
+import { getApiBase } from '@/utils/serverBackend';
 
 export async function GET(
   request: NextRequest,
@@ -16,8 +16,8 @@ export async function GET(
     }
 
     // Try FastAPI first (port 8001)
-    const backendOrigin = getBackendOrigin();
-    let response = await fetch(`${backendOrigin}/api/payment/order/${authority}`, {
+    const apiBase = getApiBase();
+    let response = await fetch(`${apiBase}/payment/order/${authority}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -29,8 +29,8 @@ export async function GET(
     // If FastAPI fails, try quick_server (port 8000)
     if (!response.ok) {
       try {
-        const quickServerUrl = backendOrigin.replace('8001', '8000');
-        const fallback = await fetch(`${quickServerUrl}/api/payment/order/${authority}`, {
+        const quickServerUrl = apiBase.replace('8001', '8000');
+        const fallback = await fetch(`${quickServerUrl}/payment/order/${authority}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });

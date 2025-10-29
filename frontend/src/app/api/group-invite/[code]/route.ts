@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBackendOrigin } from '@/utils/serverBackend';
+import { getApiBase } from '@/utils/serverBackend';
 
 export const revalidate = 30;
 
@@ -13,8 +13,8 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Invite code is required' }, { status: 400 });
     }
 
-    const backendOrigin = getBackendOrigin();
-    const apiPath = `${backendOrigin}/api/payment/group-invite/${encodeURIComponent(code)}`;
+    const apiBase = getApiBase();
+    const apiPath = `${apiBase}/payment/group-invite/${encodeURIComponent(code)}`;
 
     const response = await fetch(apiPath, { next: { revalidate: 30 } });
 

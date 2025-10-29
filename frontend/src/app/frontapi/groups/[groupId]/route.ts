@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminApiBase } from '@/utils/serverBackend';
+import { getApiBase } from '@/utils/serverBackend';
 
 export const revalidate = 0;
 
-const BACKEND_BASE = getAdminApiBase();
+const BACKEND_BASE = getApiBase();
 
 function normalizeDateString(input: any): string | null {
   if (!input) return null;

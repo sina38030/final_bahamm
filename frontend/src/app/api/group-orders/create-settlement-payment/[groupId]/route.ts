@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminApiBase } from '@/utils/serverBackend';
+import { getApiBase } from '@/utils/serverBackend';
 
 export async function POST(
   request: NextRequest,
@@ -7,7 +7,7 @@ export async function POST(
 ) {
   try {
     const { groupId } = await params;
-    const backend = getAdminApiBase();
+    const backend = getApiBase();
     // Forward client cookies/authorization to backend for session-based auth
     const cookieHeader = request.headers.get('cookie') || '';
     const authHeader = request.headers.get('authorization') || '';

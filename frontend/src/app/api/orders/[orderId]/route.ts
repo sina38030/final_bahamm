@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminApiBase, getBackendOrigin } from '@/utils/serverBackend';
+import { getApiBase, getBackendOrigin } from '@/utils/serverBackend';
 
 export async function GET(
   _request: NextRequest,
@@ -14,11 +14,11 @@ export async function GET(
       );
     }
 
-    const adminBase = getAdminApiBase();
+    const apiBase = getApiBase();
     const backendOrigin = getBackendOrigin();
 
     // Prefer admin details endpoint (includes shipping_address, shipping_details, delivery_slot)
-    let response = await fetch(`${adminBase}/admin/orders/${encodeURIComponent(orderId)}`, {
+    let response = await fetch(`${apiBase}/admin/orders/${encodeURIComponent(orderId)}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       cache: 'no-store',
@@ -27,7 +27,7 @@ export async function GET(
     // Fallback to public orders endpoint
     if (!response.ok) {
       try {
-        const alt = await fetch(`${backendOrigin}/api/orders/${encodeURIComponent(orderId)}`, {
+        const alt = await fetch(`${apiBase}/orders/${encodeURIComponent(orderId)}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',
@@ -39,14 +39,14 @@ export async function GET(
     // Optional fallback to quick_server on port 8000 for both endpoints
     if (!response.ok) {
       try {
-        const fallbackBase = backendOrigin.replace('8001', '8000');
-        let fb = await fetch(`${fallbackBase}/api/admin/orders/${encodeURIComponent(orderId)}`, {
+        const fallbackBase = apiBase.replace('8001', '8000');
+        let fb = await fetch(`${fallbackBase}/admin/orders/${encodeURIComponent(orderId)}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',
         });
         if (!fb.ok) {
-          fb = await fetch(`${fallbackBase}/api/orders/${encodeURIComponent(orderId)}`, {
+          fb = await fetch(`${fallbackBase}/orders/${encodeURIComponent(orderId)}`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
             cache: 'no-store',
