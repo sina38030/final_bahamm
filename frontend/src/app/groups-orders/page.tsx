@@ -9,6 +9,8 @@ import { useGroupBuyResult } from "@/components/providers/GroupBuyResultProvider
 import GroupBuyResultContent from "@/components/groupbuy/GroupBuyResultContent";
 import { fetchGroupBuyData } from "@/hooks/useGroupBuyResultModal";
 import DeliveryTimeModal from "@/components/modals/DeliveryTimeModal";
+import GroupTrackContent from "@/components/GroupTrackContent";
+import { generateInviteLink, extractInviteCode } from "@/utils/linkGenerator";
 // import { requestSlot, releaseSlot } from "@/utils/queue";
 
 // Debounce utility to prevent excessive updates
@@ -1464,8 +1466,9 @@ function LazyTrackEmbed({
   const [bankSuccess, setBankSuccess] = useState(false);
   const [refundMethod, setRefundMethod] = useState<"wallet" | "bank" | null>(null);
   const [isSecondary, setIsSecondary] = useState(false);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
-  const [iframeHeight, setIframeHeight] = useState<number>(700);
+  const [trackData, setTrackData] = useState<any | null>(null);
+  const [timeLeftSec, setTimeLeftSec] = useState<number>(0);
+  const [countdownReady, setCountdownReady] = useState<boolean>(false);
   // const dataCacheRef = useRef<Record<string, any>>({});
   // const [payloadReady, setPayloadReady] = useState(false);
   // Determine if this group is a secondary group (authoritative via /api/groups/{gid})
@@ -1522,11 +1525,60 @@ function LazyTrackEmbed({
     return () => io.disconnect();
   }, []);
 
-  // Removed iframe load queue
+  // Fetch track data for ongoing groups
+  useEffect(() => {
+    let cancelled = false;
+    if (status !== 'ongoing' || !visible) {
+      return;
+    }
+    
+    const fetchTrackData = async () => {
+      try {
+        if (!gid) return;
+        const res = await fetch(`/api/groups/${gid}`, { cache: "no-store" });
+        if (!res.ok) throw new Error(await res.text());
+        const j = await res.json();
+        if (!cancelled) {
+          setTrackData(j);
+          // Derive remaining seconds from server
+          let nextRemaining: number | null = null;
+          const anyJ: any = j;
+          if (anyJ?.remainingSeconds != null) {
+            nextRemaining = Math.max(0, Number(anyJ.remainingSeconds) || 0);
+          } else if (anyJ?.expiresAtMs != null && anyJ?.serverNowMs != null) {
+            const exp = Number(anyJ.expiresAtMs) || 0;
+            const srv = Number(anyJ.serverNowMs) || 0;
+            if (exp > 0 && srv > 0) nextRemaining = Math.max(0, Math.floor((exp - srv) / 1000));
+          } else if (anyJ?.startedAtMs != null) {
+            const start = Number(anyJ.startedAtMs) || 0;
+            if (start > 0) nextRemaining = Math.max(0, Math.floor(((start + 24 * 3600 * 1000) - Date.now()) / 1000));
+          }
+          if (nextRemaining != null) {
+            setTimeLeftSec(nextRemaining);
+            setCountdownReady(true);
+          }
+        }
+      } catch (e) {
+        console.error('[LazyTrackEmbed] Error fetching track data:', e);
+      }
+    };
+    
+    fetchTrackData();
+    const interval = setInterval(fetchTrackData, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [gid, status, visible]);
 
-  // Removed bootstrap prefetch for iframe
-
-  // Removed postMessage injection when payload becomes ready
+  // Countdown timer (pure decrement per second)
+  useEffect(() => {
+    if (status !== 'ongoing') return;
+    const t = setInterval(() => {
+      setTimeLeftSec(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [status]);
 
   // When finalized to success, fetch detailed data to render inline result content
   useEffect(() => {
@@ -1583,29 +1635,6 @@ function LazyTrackEmbed({
       }
     })();
   }, [status, gid, token]);
-
-  // Listen for height messages from embedded track page to avoid inner scrolling
-  useEffect(() => {
-    try {
-      const onMessage = (ev: MessageEvent) => {
-        try {
-          if (!ev || !ev.data) return;
-          if (typeof window === 'undefined') return;
-          if (ev.origin !== window.location.origin) return;
-          const data: any = ev.data;
-          if (data && data.type === 'embed-height') {
-            if (data.groupId && String(data.groupId) !== String(gid)) return;
-            const h = Number(data.height);
-            if (Number.isFinite(h) && h > 0) {
-              setIframeHeight(Math.max(300, Math.min(4000, Math.floor(h + 16))));
-            }
-          }
-        } catch {}
-      };
-      window.addEventListener('message', onMessage);
-      return () => window.removeEventListener('message', onMessage);
-    } catch {}
-  }, [gid]);
 
   // Listen to storage changes for refund submission to update UI
   useEffect(() => {
@@ -1888,6 +1917,99 @@ function LazyTrackEmbed({
 
 
   const finalized = status === 'success' || status === 'failed';
+
+  // Handlers for GroupTrackContent component
+  const handleComplete = async () => {
+    try {
+      if (!gid) return;
+      const nonLeaderPaid = (trackData?.participants || []).reduce(
+        (acc: number, p: any) => acc + (!p.isLeader && p.paid ? 1 : 0),
+        0
+      );
+      if (nonLeaderPaid < 1) {
+        fireToast({ type: 'error', message: 'برای اعلام تکمیل، حداقل یک عضو باید بپیوندد.' });
+        return;
+      }
+      if (!confirm("آیا از تکمیل گروه اطمینان دارید؟")) return;
+
+      const res = await fetch(`/api/groups/${gid}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: true }),
+      });
+      
+      if (!res.ok) {
+        let friendly = "خطا در تکمیل گروه";
+        try {
+          const text = await res.text();
+          try {
+            const j = JSON.parse(text);
+            const msg = j?.error || j?.detail || j?.message;
+            if (msg && typeof msg === "string") friendly = msg;
+          } catch {
+            if (text && text.trim().length > 0) friendly = text.trim();
+          }
+        } catch {}
+        fireToast({ type: 'error', message: friendly });
+        return;
+      }
+      
+      fireToast({ type: 'success', message: 'گروه با موفقیت تکمیل شد.' });
+      // Refresh track data
+      try {
+        const refreshRes = await fetch(`/api/groups/${gid}`, { cache: "no-store" });
+        if (refreshRes.ok) {
+          const j = await refreshRes.json();
+          setTrackData(j);
+        }
+      } catch {}
+    } catch (e) {
+      console.error(`[LazyTrackEmbed] Finalize error:`, e);
+      fireToast({ type: 'error', message: 'خطا در تکمیل گروه' });
+    }
+  };
+
+  // Compute resolved invite link and share text for track content
+  const resolvedInviteLink = useMemo(() => {
+    try {
+      const raw = trackData?.invite?.shareUrl || "";
+      if (!raw) return "";
+      
+      const inviteCode = extractInviteCode(raw);
+      if (inviteCode) {
+        return generateInviteLink(inviteCode);
+      }
+      
+      const envBase = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_FRONTEND_URL || "").replace(/\/$/, "");
+      const origin = envBase || (typeof window !== "undefined" ? window.location.origin : "");
+      if (/^https?:\/\//i.test(raw)) return raw;
+      if (raw.startsWith("/")) return `${origin}${raw}`;
+      return `${origin}/${raw.replace(/^\/+/, "")}`;
+    } catch {
+      return "";
+    }
+  }, [trackData?.invite?.shareUrl]);
+
+  const shareText = useMemo(() => {
+    const shareMsg = "بیا با هم سبد رو بخریم تا رایگان بگیریم!";
+    return `${shareMsg} ${resolvedInviteLink || ""}`.trim();
+  }, [resolvedInviteLink]);
+
+  const nonLeaderPaid = useMemo(() => {
+    if (!trackData) return 0;
+    return (trackData.participants || []).reduce(
+      (acc: number, p: any) => acc + (!p.isLeader && p.paid ? 1 : 0),
+      0
+    );
+  }, [trackData]);
+
+  const canComplete = useMemo(() => {
+    return !!trackData && trackData.status === "ongoing" && timeLeftSec > 0 && nonLeaderPaid >= 1;
+  }, [trackData, timeLeftSec, nonLeaderPaid]);
+
+  const inviteDisabled = useMemo(() => {
+    return !trackData || trackData.status !== "ongoing" || timeLeftSec === 0;
+  }, [trackData, timeLeftSec]);
 
   // حذف شرط عدم نمایش برای non-leader ها - همه گروه‌ها باید نمایش داده بشن
   // if (isLeader === false) {
@@ -2250,17 +2372,20 @@ function LazyTrackEmbed({
         ) : (
           (visible || mountedOnce) ? (
             <div className="relative">
-              <iframe
-                src={`/track/${encodeURIComponent(gid)}?embed=1`}
-                className="w-full"
-                style={{ height: iframeHeight, border: 0 }}
-                loading="lazy"
-                title={`track-${gid}`}
-                onLoad={() => { setIframeLoaded(true); }}
-              />
-              {/* Loading overlay to prevent flash of empty content */}
-              {!iframeLoaded && (
-                <div className="loading-overlay absolute inset-0 bg-white flex items-center justify-center">
+              {trackData ? (
+                <GroupTrackContent
+                  data={trackData}
+                  timeLeftSec={timeLeftSec}
+                  countdownReady={countdownReady}
+                  isLeader={isLeader || false}
+                  onComplete={isLeader ? handleComplete : undefined}
+                  resolvedInviteLink={resolvedInviteLink}
+                  shareText={shareText}
+                  canComplete={canComplete}
+                  inviteDisabled={inviteDisabled}
+                />
+              ) : (
+                <div className="w-full h-[300px] bg-white flex items-center justify-center">
                   <div className="text-center">
                     <div className="w-8 h-8 border-4 border-rose-200 border-t-rose-500 rounded-full animate-spin mx-auto mb-2"></div>
                     <div className="text-sm text-gray-600">در حال بارگذاری...</div>

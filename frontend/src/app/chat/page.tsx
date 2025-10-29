@@ -93,7 +93,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-[100vh] bg-white pb-28">
+    <div className="flex flex-col h-[100vh] bg-white">
       {!isAuthenticated ? (
         <div className="flex flex-col items-center justify-center flex-1 gap-4 p-4">
           <h1 className="text-lg font-bold">برای گفتگو ابتدا وارد شوید</h1>
@@ -116,7 +116,7 @@ export default function ChatPage() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 pb-24 space-y-2 bg-gray-50">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50">
             {loading ? (
               <div className="text-center text-sm text-gray-500 mt-4">در حال بارگذاری...</div>
             ) : (
