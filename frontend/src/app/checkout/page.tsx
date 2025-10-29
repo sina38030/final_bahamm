@@ -1105,6 +1105,8 @@ function CheckoutPageContent() {
         const data = await response.json();
 
         if (data.success && data.authority) {
+          // Clear cart after successful free order
+          clearCart();
           // Redirect to invite page with authority
           router.push(`/invite?authority=${data.authority}`);
         } else {
@@ -1168,6 +1170,8 @@ function CheckoutPageContent() {
           const data = await response.json();
 
           if (data.success && data.authority) {
+            // Clear cart after successful wallet payment order
+            clearCart();
             // Redirect to invite page with authority
             router.push(`/invite?authority=${data.authority}`);
           } else {
@@ -1254,6 +1258,9 @@ function CheckoutPageContent() {
             if (isJoiningGroup && greenToggle && !forceDisableConsolidation) {
               try { localStorage.setItem('ship_to_leader_intent', '1'); } catch {}
             }
+            
+            // Clear cart before redirecting to payment gateway
+            clearCart();
             
             // Redirect to payment gateway (will return to Telegram Mini App after payment)
             window.location.href = data.payment_url;
@@ -1359,6 +1366,9 @@ function CheckoutPageContent() {
 
       if (data.success && data.payment_url) {
         console.log('✅ Redirecting to payment gateway:', data.payment_url);
+        
+        // Clear cart before redirecting to payment gateway
+        clearCart();
         
         // Redirect to payment gateway (will return to Telegram Mini App after payment)
         window.location.href = data.payment_url;

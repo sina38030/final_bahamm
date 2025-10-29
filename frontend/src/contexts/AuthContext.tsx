@@ -237,6 +237,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               window.Telegram.WebApp.showAlert('✅ پرداخت شما با موفقیت انجام شد!');
             }
             
+            // Clear cart from localStorage after successful payment
+            try {
+              localStorage.removeItem('cart_items');
+              console.log('[AuthContext] Cart cleared after successful payment');
+            } catch (e) {
+              console.warn('[AuthContext] Failed to clear cart:', e);
+            }
+            
             // Get order details from backend using authority
             fetch(`/api/payment/order/${authority}`)
               .then(res => res.json())
@@ -301,6 +309,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               if (data.success && data.order) {
                 console.log('[AuthContext] Found order by authority - processing payment return');
                 const order = data.order;
+                
+                // Clear cart from localStorage after successful payment
+                try {
+                  localStorage.removeItem('cart_items');
+                  console.log('[AuthContext] Cart cleared after payment return');
+                } catch (e) {
+                  console.warn('[AuthContext] Failed to clear cart:', e);
+                }
+                
                 // ✅ DEBUG: Log all order fields to understand the issue
                 console.log('[AuthContext] Order details:', {
                   id: order.id,
