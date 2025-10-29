@@ -243,6 +243,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               .then(data => {
                 if (data.success && data.order) {
                   const order = data.order;
+                  // ✅ DEBUG: Log all order fields to understand the issue
+                  console.log('[AuthContext] Order details from payment callback:', {
+                    id: order.id,
+                    is_invited: order.is_invited,
+                    group_order_id: order.group_order_id,
+                    user_id: order.user_id,
+                    order_type: order.order_type
+                  });
                   // Redirect to appropriate page based on order type
                   setTimeout(() => {
                     // ✅ CHECK is_invited FIRST - this is the specific condition for invited users
@@ -293,6 +301,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               if (data.success && data.order) {
                 console.log('[AuthContext] Found order by authority - processing payment return');
                 const order = data.order;
+                // ✅ DEBUG: Log all order fields to understand the issue
+                console.log('[AuthContext] Order details:', {
+                  id: order.id,
+                  is_invited: order.is_invited,
+                  group_order_id: order.group_order_id,
+                  user_id: order.user_id,
+                  order_type: order.order_type
+                });
                 setTimeout(() => {
                   // ✅ CHECK is_invited FIRST
                   if (order.is_invited) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { API_BASE_URL } from '@/utils/api';
 
 type UploadedFile = {
   name: string;
@@ -82,7 +83,7 @@ export default function MediaUploader() {
     try {
       const form = new FormData();
       for (let i = 0; i < f.length; i++) form.append('file', f[i]);
-      const res = await fetch('/api/upload', { method: 'POST', body: form });
+      const res = await fetch(`${API_BASE_URL}/upload`, { method: 'POST', body: form });
       if (!res.ok) {
         const text = await res.text();
         throw new Error(text || 'Upload failed');

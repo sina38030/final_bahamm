@@ -3,6 +3,10 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { API_BASE_URL } from '@/utils/api';
+
+// Debug: Log API_BASE_URL on module load
+console.log('[Payment Callback] API_BASE_URL:', API_BASE_URL);
 
 function PaymentCallbackContent() {
   const [status, setStatus] = useState<'loading' | 'success' | 'failed'>('loading');
@@ -62,7 +66,9 @@ function PaymentCallbackContent() {
                 setStatus('success');
                 setMessage('سفارش شما با موفقیت ثبت شد');
                 try {
-                  const res = await fetch(`/api/payment/order/${authority}`);
+                  const url = `${API_BASE_URL}/payment/order/${authority}`;
+                  console.log('[Payment Callback] Fetching order from:', url);
+                  const res = await fetch(url);
                   const data = await res.json();
                   if (data?.success && data.order) setOrder(data.order);
                 } catch {}
@@ -109,7 +115,7 @@ function PaymentCallbackContent() {
           // Verify and load order
           try {
             setVerifying(true);
-            await fetch('/api/payment', {
+            await fetch(`${API_BASE_URL}/payment`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -120,7 +126,7 @@ function PaymentCallbackContent() {
           } catch {}
 
           try {
-            const res = await fetch(`/api/payment/order/${authority}`);
+            const res = await fetch(`${API_BASE_URL}/payment/order/${authority}`);
             const data = await res.json();
             if (data?.success && data.order?.id) {
               const orderId = data.order.id;
@@ -172,7 +178,7 @@ function PaymentCallbackContent() {
             try { localStorage.removeItem('settlement_group_id'); } catch {}
             // Verify in the background
             try {
-              void fetch('/api/payment', {
+              void fetch(`${API_BASE_URL}/payment`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ authority, amount: amount ? parseInt(amount) : undefined }),
@@ -212,7 +218,7 @@ function PaymentCallbackContent() {
             try {
               setVerifying(true);
               // First attempt: verify without explicit amount (backend uses order total)
-              await fetch('/api/payment', {
+              await fetch(`${API_BASE_URL}/payment`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ authority, amount: amount ? parseInt(amount) : undefined }),
@@ -220,7 +226,7 @@ function PaymentCallbackContent() {
               // Check order
               let orderOk = false;
               try {
-                const res = await fetch(`/api/payment/order/${authority}`);
+                const res = await fetch(`${API_BASE_URL}/payment/order/${authority}`);
                 const data = await res.json();
                 if (data?.success && data.order?.id) {
                   setOrder(data.order);
@@ -229,13 +235,13 @@ function PaymentCallbackContent() {
                 // If payment_ref_id missing, try verify with explicit amount from order total
                 if (!orderOk && data?.order?.total_amount) {
                   const rial = parseInt(data.order.total_amount) * 10;
-                  await fetch('/api/payment', {
+                  await fetch(`${API_BASE_URL}/payment`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ authority, amount: rial }),
                   }).catch(() => {});
                   // Re-fetch
-                  const res2 = await fetch(`/api/payment/order/${authority}`);
+                  const res2 = await fetch(`${API_BASE_URL}/payment/order/${authority}`);
                   const data2 = await res2.json();
                   if (data2?.success && data2.order?.payment_ref_id) {
                     setOrder(data2.order);
@@ -266,7 +272,7 @@ function PaymentCallbackContent() {
               const processedData = { isInvited: false, timestamp: Date.now() };
               try { localStorage.setItem(processedKey, JSON.stringify(processedData)); } catch {}
               try {
-                const res = await fetch(`/api/payment/order/${authority}`);
+                const res = await fetch(`${API_BASE_URL}/payment/order/${authority}`);
                 const data = await res.json();
                 if (data?.success && data.order) setOrder(data.order);
               } catch {}
@@ -374,13 +380,13 @@ function PaymentCallbackContent() {
       try {
         if (!authorityParam) return;
         // Fetch order by authority to derive invite code
-        const res = await fetch(`/api/payment/order/${authorityParam}`);
+        const res = await fetch(`${API_BASE_URL}/payment/order/${authorityParam}`);
         const data = await res.json().catch(() => null as any);
         if (!data?.success || !data.order) return;
         const ord = data.order;
         const code = (ord?.group_buy?.invite_code) || (ord?.id ? `GB${ord.id}${String(authorityParam).slice(0, 8)}` : '');
         if (!code) return;
-        const gRes = await fetch(`/api/groups/${encodeURIComponent(code)}`, { cache: 'no-store' });
+        const gRes = await fetch(`${API_BASE_URL}/groups/${encodeURIComponent(code)}`, { cache: 'no-store' });
         if (!gRes.ok) return;
         const g = await gRes.json().catch(() => null as any);
         if (abort || !g) return;

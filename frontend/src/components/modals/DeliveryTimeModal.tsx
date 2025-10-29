@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { API_BASE_URL } from '@/utils/api';
 
 interface DeliverySlot {
   id: number;
@@ -89,7 +90,7 @@ const DeliveryTimeModal: React.FC<DeliveryTimeModalProps> = ({
       console.log('Making API call to: /api/admin/delivery-slots/next?days=14');
       console.log('Environment BACKEND_URL:', process.env.NEXT_PUBLIC_BACKEND_URL);
 
-      const response = await fetch('/api/admin/delivery-slots/next?days=14', {
+      const response = await fetch(`${API_BASE_URL}/admin/delivery-slots/next?days=14`, {
         cache: 'no-store' // اطمینان از دریافت داده‌های تازه
       });
 

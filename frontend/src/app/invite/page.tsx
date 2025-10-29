@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import './invite.css';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateInviteLink, generateShareUrl, extractInviteCode, isTelegramMiniApp } from '@/utils/linkGenerator';
+import { API_BASE_URL } from '@/utils/api';
 
 interface Product {
   id: number;
@@ -106,7 +107,7 @@ function InvitePageContent() {
 
     const fetchOrder = async (retryCount = 0) => {
       try {
-        const response = await fetch(`/api/payment/order/${authority}`);
+        const response = await fetch(`${API_BASE_URL}/payment/order/${authority}`);
         const data = await response.json();
 
         if (data.success) {
@@ -159,7 +160,7 @@ function InvitePageContent() {
     let abort = false;
     (async () => {
       try {
-        const res = await fetch(`/api/groups/${encodeURIComponent(code)}`, { cache: 'no-store' });
+        const res = await fetch(`${API_BASE_URL}/groups/${encodeURIComponent(code)}`, { cache: 'no-store' });
         if (!res.ok) return;
         const data = await res.json();
         const status = String(data?.status || '').toLowerCase();
@@ -184,7 +185,7 @@ function InvitePageContent() {
     let abort = false;
     (async () => {
       try {
-        const res = await fetch(`/api/group-invite/${encodeURIComponent(code)}?t=${Date.now()}`, { cache: 'no-store' });
+        const res = await fetch(`${API_BASE_URL}/group-invite/${encodeURIComponent(code)}?t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) return;
         const data = await res.json();
         if (abort) return;
@@ -217,7 +218,7 @@ function InvitePageContent() {
           } catch { return ''; }
         })();
         if (!idOrCode) return;
-        const res = await fetch(`/api/groups/${encodeURIComponent(idOrCode)}`, { cache: 'no-store' });
+        const res = await fetch(`${API_BASE_URL}/groups/${encodeURIComponent(idOrCode)}`, { cache: 'no-store' });
         if (!res.ok) return;
         const data = await res.json();
         if (abort) return;
@@ -294,7 +295,7 @@ function InvitePageContent() {
     let abort = false;
     (async () => {
       try {
-        const res = await fetch(`/api/groups/${encodeURIComponent(code)}`, { cache: 'no-store' });
+        const res = await fetch(`${API_BASE_URL}/groups/${encodeURIComponent(code)}`, { cache: 'no-store' });
         if (!res.ok) return;
         const data = await res.json();
         if (abort) return;

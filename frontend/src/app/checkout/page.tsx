@@ -1072,7 +1072,7 @@ function CheckoutPageContent() {
           headers['Authorization'] = `Bearer ${token}`;
         }
         
-        const response = await fetch('/api/payment', {
+        const response = await fetch(`${API_BASE_URL}/payment`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -1133,7 +1133,7 @@ function CheckoutPageContent() {
             friend_1_price: item.friend_1_price
           }));
           
-          const response = await fetch('/api/payment', {
+          const response = await fetch(`${API_BASE_URL}/payment`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1234,7 +1234,7 @@ function CheckoutPageContent() {
             headers['Authorization'] = `Bearer ${token}`;
           }
           
-          const response = await fetch('/api/payment', {
+          const response = await fetch(`${API_BASE_URL}/payment`, {
             method: 'POST',
             headers,
             body: JSON.stringify({
@@ -1325,7 +1325,7 @@ function CheckoutPageContent() {
         headers['Authorization'] = `Bearer ${token}`;
       }
       
-      const response = await fetch('/api/payment', {
+      const response = await fetch(`${API_BASE_URL}/payment`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -1468,7 +1468,7 @@ function CheckoutPageContent() {
     })();
     
     return () => { abort = true; };
-  }, [useAdminTomorrowSlots, API_BASE_URL, tomorrowLabelPrefix, hhToLabel]);
+  }, [useAdminTomorrowSlots, isLeaderGroup, hasSetDefaultSlot]);
 
   return (
     <div style={{ minHeight: '100vh', background: '#fafafa', direction: 'rtl' }}>

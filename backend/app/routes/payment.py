@@ -998,10 +998,24 @@ async def get_order_by_authority(
         if group_order_id:
             try:
                 group_order = db.query(GroupOrder).filter(GroupOrder.id == group_order_id).first()
-                if group_order and group_order.leader_id != order.user_id:
-                    # User is NOT the leader, so they are invited
-                    is_invited = True
-            except Exception:
+                if group_order:
+                    # ✅ FIX: Properly handle None/0 user_id cases for guest users
+                    # An invited user is someone who has a group_order_id but is NOT the leader
+                    # Use NULL-safe comparison to handle guest users
+                    order_user_id = getattr(order, 'user_id', None)
+                    leader_id = getattr(group_order, 'leader_id', None)
+                    
+                    if leader_id is not None and order_user_id is not None:
+                        # Both IDs are valid - check if they're different
+                        is_invited = (leader_id != order_user_id)
+                    elif leader_id is None:
+                        # Group has no leader - should not happen, but assume invited
+                        is_invited = True
+                    else:
+                        # order_user_id is None but group has a leader - assume invited
+                        is_invited = True
+            except Exception as e:
+                logger.error(f"Error checking is_invited status for order {order.id}: {e}")
                 is_invited = False
 
         # Always provide a synthetic group-buy payload for sharing (even before verification)
