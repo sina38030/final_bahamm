@@ -466,13 +466,19 @@ function InvitePageContent() {
             setExpiresAtISO(raw);
           } else {
             const normalized = raw.replace(' ', 'T');
-            const local = Date.parse(normalized);
-            const utc = Number.isNaN(local) ? Date.parse(normalized + 'Z') : local;
-            if (!Number.isNaN(utc)) {
-              setExpiryMs(utc);
-              setExpiresAtISO(new Date(utc).toISOString());
+            // Check if timezone info is missing, if so, assume Tehran time (+03:30)
+            if (!/Z|[+-]\d{2}:?\d{2}$/.test(normalized)) {
+              const tehranTime = Date.parse(normalized + '+03:30');
+              if (!Number.isNaN(tehranTime)) {
+                setExpiryMs(tehranTime);
+                setExpiresAtISO(new Date(tehranTime).toISOString());
+              }
             } else {
-              // Unknown format; do not force a default. Wait for next fetch.
+              const utc = Date.parse(normalized);
+              if (!Number.isNaN(utc)) {
+                setExpiryMs(utc);
+                setExpiresAtISO(new Date(utc).toISOString());
+              }
             }
           }
         } else {
