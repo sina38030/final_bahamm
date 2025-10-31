@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 import ReactDOM from 'react-dom';
@@ -83,23 +83,40 @@ function CheckoutPageContent() {
   const isInvitedUser = invitedParam === 'true';
   const isLeaderGroup = actualMode === 'group' && !isInvitedUser;
   
-  // Debug logging
-  console.log('💳 Checkout received params:', {
-    mode,
-    invitedParam,
-    inviteCodeParam,
-    allowParam,
-    friendsParam,
-    maxFriendsParam,
-    paymentAmountParam,
-    paymentPercentageParam,
-    friendPriceParam
-  });
-  console.log('💳 Checkout computed values:', {
-    actualMode,
-    isInvitedUser,
-    isLeaderGroup
-  });
+  // Debug logging - only log once on mount or when params actually change
+  const paramsRef = useRef<string>('');
+  useEffect(() => {
+    const currentParams = JSON.stringify({
+      mode,
+      invitedParam,
+      inviteCodeParam,
+      allowParam,
+      friendsParam,
+      maxFriendsParam,
+      paymentAmountParam,
+      paymentPercentageParam,
+      friendPriceParam
+    });
+    if (paramsRef.current !== currentParams) {
+      paramsRef.current = currentParams;
+      console.log('💳 Checkout received params:', {
+        mode,
+        invitedParam,
+        inviteCodeParam,
+        allowParam,
+        friendsParam,
+        maxFriendsParam,
+        paymentAmountParam,
+        paymentPercentageParam,
+        friendPriceParam
+      });
+      console.log('💳 Checkout computed values:', {
+        actualMode,
+        isInvitedUser,
+        isLeaderGroup
+      });
+    }
+  }, [mode, invitedParam, inviteCodeParam, allowParam, friendsParam, maxFriendsParam, paymentAmountParam, paymentPercentageParam, friendPriceParam, actualMode, isInvitedUser, isLeaderGroup]);
   // Use admin-configured next-day delivery slots for invited users, solo purchases, and leaders
   const useAdminTomorrowSlots = isInvitedUser || actualMode === 'solo' || isLeaderGroup;
 
@@ -108,6 +125,11 @@ function CheckoutPageContent() {
   // FIX: Initialize isJoiningGroup from URL parameter immediately, not from localStorage
   const [isJoiningGroup, setIsJoiningGroup] = useState(invitedParam === 'true');
   const [groupCartItems, setGroupCartItems] = useState<any[]>([]);
+
+  // Ref to track if addresses have been loaded for current user to prevent duplicate calls
+  const addressesLoadedRef = useRef<number | null>(null);
+  // Ref to track last address ID to prevent unnecessary updates
+  const lastAddressIdRef = useRef<number | null>(null);
 
   // State
   const [tickerIndex, setTickerIndex] = useState(0);
@@ -268,13 +290,18 @@ function CheckoutPageContent() {
     }
   }, [showAddressPopup, addressCount]);
 
-  // Load group order data from localStorage if joining a group
+  // Load group order data from localStorage if joining a group (only once)
+  const groupOrderLoadedRef = useRef<boolean>(false);
   useEffect(() => {
+    // Only run once
+    if (groupOrderLoadedRef.current) return;
+    
     const groupInfo = localStorage.getItem('groupOrderInfo');
     const groupCartItems = localStorage.getItem('groupOrderCartItems');
     const oldGroupCart = localStorage.getItem('groupOrderCart'); // Legacy support
     
     if (groupInfo && (groupCartItems || oldGroupCart)) {
+      groupOrderLoadedRef.current = true;
       try {
         const parsedGroupInfo = JSON.parse(groupInfo);
         
@@ -340,6 +367,7 @@ function CheckoutPageContent() {
       }
     } else if (invitedParam === 'true' && inviteCodeParam) {
       // FALLBACK: Even without localStorage, if URL says invited=true, treat as joining group
+      groupOrderLoadedRef.current = true;
       console.log('🎯 No localStorage but invited=true in URL, fetching group data from API...');
       setIsJoiningGroup(true);
       setGroupOrderInfo({
@@ -388,7 +416,8 @@ function CheckoutPageContent() {
         }
       })();
     }
-  }, [invitedParam, isInvitedUser, router, inviteCodeParam, allowParam]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load group cart items into cart context
   useEffect(() => {
@@ -436,41 +465,28 @@ function CheckoutPageContent() {
     }
   }, [user?.id]);
 
-  // Load addresses from AuthContext when user is authenticated
+  // Load addresses from AuthContext when user is authenticated (only once per user)
   useEffect(() => {
-    if (isAuthenticated && user) {
-      loadUserAddresses();
-      // Force refresh savedAddress after loading
-      setTimeout(() => {
-        const uid = (user as any)?.id;
-        if (uid) {
-          const cached = localStorage.getItem(`addresses_${uid}`);
-          if (cached) {
-            try {
-              const list = JSON.parse(cached);
-              if (Array.isArray(list) && list.length > 0) {
-                const def = list.find((a: any) => a.is_default) || list[0];
-                if (def) {
-                  setSavedAddress({
-                    fullAddress: def.full_address,
-                    phone: def.phone_number,
-                    details: def.receiver_name || '',
-                    coordinates: { lat: def.latitude, lng: def.longitude }
-                  });
-                }
-              }
-            } catch {}
-          }
-        }
-      }, 500);
+    const userId = (user as any)?.id;
+    if (isAuthenticated && user && userId) {
+      // Only load if we haven't loaded for this user yet, or if addresses aren't already loaded
+      if (addressesLoadedRef.current !== userId || !authAddresses || authAddresses.length === 0) {
+        addressesLoadedRef.current = userId;
+        loadUserAddresses();
+      }
+    } else if (!isAuthenticated || !user) {
+      // Reset ref when user logs out
+      addressesLoadedRef.current = null;
+      lastAddressIdRef.current = null;
     }
-  }, [isAuthenticated, user, loadUserAddresses]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user?.id]);
 
-  // Update saved address when AuthContext addresses change
+  // Update saved address and header details when AuthContext addresses change
   useEffect(() => {
     if (authAddresses && authAddresses.length > 0) {
       // Find default address from AuthContext
-      const defaultAddress = authAddresses.find(addr => addr.is_default);
+      const defaultAddress = authAddresses.find(addr => addr.is_default) || authAddresses[0];
       if (defaultAddress) {
         const newSavedAddress = { 
           fullAddress: defaultAddress.full_address, 
@@ -478,12 +494,24 @@ function CheckoutPageContent() {
           details: defaultAddress.receiver_name || '',
           coordinates: { lat: defaultAddress.latitude, lng: defaultAddress.longitude }
         };
-        setSavedAddress(newSavedAddress);
-        try {
-          const uid = (user as any)?.id;
-          const key = uid ? `userAddress_${uid}` : 'userAddress';
-          localStorage.setItem(key, JSON.stringify(newSavedAddress));
-        } catch {}
+        
+        // Only update if address actually changed to prevent unnecessary re-renders
+        const currentAddressId = typeof defaultAddress.id === 'number' ? defaultAddress.id : null;
+        
+        if (lastAddressIdRef.current !== currentAddressId || 
+            savedAddress?.fullAddress !== newSavedAddress.fullAddress ||
+            savedAddress?.phone !== newSavedAddress.phone) {
+          if (currentAddressId !== null) {
+            lastAddressIdRef.current = currentAddressId;
+          }
+          setSavedAddress(newSavedAddress);
+          setHeaderDetails(defaultAddress.receiver_name || '');
+          try {
+            const uid = (user as any)?.id;
+            const key = uid ? `userAddress_${uid}` : 'userAddress';
+            localStorage.setItem(key, JSON.stringify(newSavedAddress));
+          } catch {}
+        }
       }
     }
   }, [authAddresses, user?.id]);
@@ -502,54 +530,19 @@ function CheckoutPageContent() {
       ].filter(Boolean));
       if (!keysToWatch.has(e.key || '')) return;
 
-      try {
-        const res = await apiClient.get(`/users/addresses`);
-        if (res.ok) {
-          const list = await res.json();
-          if (Array.isArray(list) && list.length > 0) {
-            const def = list.find((a: any) => a.is_default) || list[0];
-            const persisted = {
-              fullAddress: def.full_address,
-              phone: def.phone_number,
-              details: def.receiver_name || ''
-            } as any;
-            setSavedAddress(persisted);
-            try {
-              const key = uid ? `userAddress_${uid}` : 'userAddress';
-              localStorage.setItem(key, JSON.stringify(persisted));
-              if (uid) localStorage.setItem(`addresses_${uid}`, JSON.stringify(list));
-            } catch {}
-          }
-        }
-      } catch {}
+      // Use loadUserAddresses instead of direct API call
+      // Only reload if addresses haven't been loaded yet or if we're syncing from another tab
+      if (e.key === 'address_sync' || addressesLoadedRef.current !== uid) {
+        try {
+          await loadUserAddresses();
+        } catch {}
+      }
     };
 
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user?.id]);
-
-  // Fetch header details directly from server on mount/focus and when authAddresses change
-  useEffect(() => {
-    if (!isAuthenticated || !user) return;
-
-    const fetchDetails = async () => {
-      try {
-        const res = await apiClient.get(`/users/addresses`);
-        if (res.ok) {
-          const list = await res.json();
-          if (Array.isArray(list) && list.length > 0) {
-            const def = list.find((a: any) => a.is_default) || list[0];
-            setHeaderDetails(def?.receiver_name || '');
-          }
-        }
-      } catch {}
-    };
-
-    fetchDetails();
-    const onFocus = () => fetchDetails();
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, [isAuthenticated, user?.id, authAddresses?.length]);
 
   // If user is authenticated but has no server addresses yet, and there is a locally saved checkout address,
   // automatically create a real server-backed address so it persists across browsers/sessions
@@ -604,85 +597,6 @@ function CheckoutPageContent() {
     } catch {}
   }, [user?.id]);
 
-  // On tab focus/visibility, force-refresh addresses from server and hydrate savedAddress + cache
-  useEffect(() => {
-    if (!isAuthenticated || !user) return;
-
-    const refreshFromServer = async () => {
-      try {
-        const res = await apiClient.get(`/users/addresses`);
-        if (res.ok) {
-          const list = await res.json();
-          if (Array.isArray(list) && list.length > 0) {
-            const def = list.find((a: any) => a.is_default) || list[0];
-            const persisted = {
-              fullAddress: def.full_address,
-              phone: def.phone_number,
-              details: ''
-            } as any;
-            setSavedAddress(persisted);
-            try {
-              const uid = (user as any)?.id;
-              const key = uid ? `userAddress_${uid}` : 'userAddress';
-              localStorage.setItem(key, JSON.stringify(persisted));
-              if (uid) {
-                localStorage.setItem(`addresses_${uid}`, JSON.stringify(list));
-              }
-            } catch {}
-          }
-        }
-      } catch {}
-    };
-
-    const onFocus = () => {
-      refreshFromServer();
-    };
-    const onVisibility = () => {
-      if (!document.hidden) refreshFromServer();
-    };
-
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => {
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [isAuthenticated, user?.id]);
-
-  // Safety net: if authenticated on a fresh browser and no savedAddress yet,
-  // fetch addresses directly and hydrate from the server (handles race/cache misses)
-  useEffect(() => {
-    if (!isAuthenticated || !user) return;
-    if (savedAddress) return;
-    if (authAddresses && authAddresses.length > 0) return;
-
-    (async () => {
-      try {
-        const res = await apiClient.get(`/users/addresses`);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            const def = data.find((a: any) => a.is_default) || data[0];
-            const persisted = {
-              fullAddress: def.full_address,
-              phone: def.phone_number,
-              details: ''
-            } as any;
-            setSavedAddress(persisted);
-            try {
-              const uid = (user as any)?.id;
-              const key = uid ? `userAddress_${uid}` : 'userAddress';
-              localStorage.setItem(key, JSON.stringify(persisted));
-              if (uid) {
-                localStorage.setItem(`addresses_${uid}`, JSON.stringify(data));
-              }
-            } catch {}
-          }
-        }
-      } catch {}
-    })();
-  }, [isAuthenticated, user?.id, savedAddress, authAddresses?.length]);
-
   // Ticker animation
   useEffect(() => {
     const interval = setInterval(() => {
@@ -692,6 +606,8 @@ function CheckoutPageContent() {
   }, []);
 
   // Simple approach: fetch leader's toggle state for invited users
+  // Fetch leader toggle state for invited users (only once per invite code)
+  const leaderToggleFetchedRef = useRef<string>('');
   useEffect(() => {
     const isInvited = invitedParam === 'true';
     
@@ -702,7 +618,8 @@ function CheckoutPageContent() {
     // Get invite code from any available source
     const inviteCode = inviteCodeParam || groupOrderInfo?.invite_code;
     
-    if (inviteCode) {
+    if (inviteCode && leaderToggleFetchedRef.current !== inviteCode) {
+      leaderToggleFetchedRef.current = inviteCode;
       console.log('🔍 Fetching leader toggle state for invite:', inviteCode);
       
       fetch(`/api/group-invite/${encodeURIComponent(inviteCode)}`)
@@ -726,16 +643,24 @@ function CheckoutPageContent() {
     !isInvitedUser || ((allowParam === '1' || leaderAllowsConsolidation) && !forceDisableConsolidation)
   );
 
-  console.log('🧮 Toggle visibility decision:', {
-    actualMode,
-    isInvitedUser,
-    isJoiningGroup,
-    allowParam,
-    leaderAllowsConsolidation,
-    forceDisableConsolidation,
-    shouldShowToggle,
-    calculation: `!isInvitedUser(${!isInvitedUser}) || (allowParam==='1'(${allowParam === '1'}) || leaderAllow(${leaderAllowsConsolidation})) && !forceDisable(${!forceDisableConsolidation})`
-  });
+  // Debug toggle visibility - only log when values actually change
+  const toggleLogRef = useRef<string>('');
+  useEffect(() => {
+    const toggleKey = `${actualMode}-${isInvitedUser}-${isJoiningGroup}-${allowParam}-${leaderAllowsConsolidation}-${forceDisableConsolidation}-${shouldShowToggle}`;
+    if (toggleLogRef.current !== toggleKey) {
+      toggleLogRef.current = toggleKey;
+      console.log('🧮 Toggle visibility decision:', {
+        actualMode,
+        isInvitedUser,
+        isJoiningGroup,
+        allowParam,
+        leaderAllowsConsolidation,
+        forceDisableConsolidation,
+        shouldShowToggle,
+        calculation: `!isInvitedUser(${!isInvitedUser}) || (allowParam==='1'(${allowParam === '1'}) || leaderAllow(${leaderAllowsConsolidation})) && !forceDisable(${!forceDisableConsolidation})`
+      });
+    }
+  }, [actualMode, isInvitedUser, isJoiningGroup, allowParam, leaderAllowsConsolidation, forceDisableConsolidation, shouldShowToggle]);
 
   // Calculations based on mode and cart context
   const calculations = useMemo(() => {
@@ -930,29 +855,20 @@ function CheckoutPageContent() {
   const handleEditAddr = async () => {
     try {
       setShowAddressPopup(false);
-      // Fetch freshest addresses from server to avoid stale details
-      const res = await apiClient.get(`/users/addresses`);
-      if (res.ok) {
-        const list = await res.json();
-        if (Array.isArray(list) && list.length > 0) {
-          const def = list.find((a: any) => a.is_default) || list[0];
-          setModalInit({
-            fullAddress: def?.full_address,
-            details: def?.receiver_name,
-            phone: def?.phone_number,
-            coordinates: (typeof def?.latitude === 'number' && typeof def?.longitude === 'number')
-              ? { lat: def.latitude, lng: def.longitude }
-              : savedAddress?.coordinates,
-          });
-        } else {
-          setModalInit({
-            fullAddress: savedAddress?.fullAddress,
-            details: savedAddress?.details,
-            phone: savedAddress?.phone,
-            coordinates: savedAddress?.coordinates,
-          });
-        }
+      // Use authAddresses from context or defaultServerAddress instead of fetching
+      const def = defaultServerAddress || (authAddresses && authAddresses.length > 0 ? authAddresses.find((a: any) => a.is_default) || authAddresses[0] : null);
+      
+      if (def) {
+        setModalInit({
+          fullAddress: def?.full_address,
+          details: def?.receiver_name,
+          phone: def?.phone_number,
+          coordinates: (typeof def?.latitude === 'number' && typeof def?.longitude === 'number')
+            ? { lat: def.latitude, lng: def.longitude }
+            : savedAddress?.coordinates,
+        });
       } else {
+        // Fallback to savedAddress if no server address available
         setModalInit({
           fullAddress: savedAddress?.fullAddress,
           details: savedAddress?.details,
@@ -991,33 +907,11 @@ function CheckoutPageContent() {
     // Close modal first for better UX
     setShowMapModal(false);
 
-    // Now refresh from server to get the actual saved data (including receiver_name)
+    // Refresh addresses from server - loadUserAddresses will update authAddresses, 
+    // which will trigger the useEffect to update savedAddress automatically
     if (isAuthenticated && user) {
       try {
-        await loadUserAddresses(); // This will trigger the authAddresses useEffect
-        
-        // Also directly fetch and update savedAddress from server
-        const res = await apiClient.get(`/users/addresses`);
-        if (res.ok) {
-          const list = await res.json();
-          if (Array.isArray(list) && list.length > 0) {
-            const def = list.find((a: any) => a.is_default) || list[list.length - 1]; // Get latest or default
-            const persisted = {
-              fullAddress: def.full_address,
-              phone: def.phone_number,
-              details: def.receiver_name || ''
-            };
-            setSavedAddress(persisted);
-            
-            // Update localStorage with server data
-            const uid = (user as any)?.id;
-            const key = uid ? `userAddress_${uid}` : 'userAddress';
-            localStorage.setItem(key, JSON.stringify(persisted));
-            if (uid) {
-              localStorage.setItem(`addresses_${uid}`, JSON.stringify(list));
-            }
-          }
-        }
+        await loadUserAddresses(); // This will trigger the authAddresses useEffect to update savedAddress
       } catch (error) {
         console.error('Error refreshing addresses after save:', error);
       }
@@ -1382,9 +1276,17 @@ function CheckoutPageContent() {
     }
   };
 
-  // Fetch next day delivery slots from admin when required (invited, solo, or leaders)
+  // Fetch next day delivery slots from admin when required (invited, solo, or leaders) - only once
+  const deliverySlotsFetchedRef = useRef<boolean>(false);
   useEffect(() => {
-    if (!useAdminTomorrowSlots) return;
+    if (!useAdminTomorrowSlots) {
+      deliverySlotsFetchedRef.current = false;
+      return;
+    }
+    
+    // Only fetch once
+    if (deliverySlotsFetchedRef.current) return;
+    deliverySlotsFetchedRef.current = true;
     
     let abort = false;
     (async () => {
@@ -1478,7 +1380,8 @@ function CheckoutPageContent() {
     })();
     
     return () => { abort = true; };
-  }, [useAdminTomorrowSlots, isLeaderGroup, hasSetDefaultSlot]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [useAdminTomorrowSlots, isLeaderGroup]);
 
   return (
     <div style={{ minHeight: '100vh', background: '#fafafa', direction: 'rtl' }}>
