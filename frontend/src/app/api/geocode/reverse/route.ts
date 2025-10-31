@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 // Optional: very light in-memory throttle to reduce spamming the upstream API
 let lastRequestAt = 0;
@@ -12,9 +12,9 @@ export async function GET(request: NextRequest) {
     const lang = searchParams.get('lang') || 'fa';
 
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      return new Response(
-        JSON.stringify({ error: 'Missing or invalid lat/lng query params' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      return NextResponse.json(
+        { error: 'Missing or invalid lat/lng query params' },
+        { status: 400 }
       );
     }
 
@@ -53,33 +53,32 @@ export async function GET(request: NextRequest) {
       clearTimeout(timeout);
 
       if (!upstream.ok) {
-        return new Response(
-          JSON.stringify({ error: `Upstream error: ${upstream.status}` }),
-          { status: upstream.status, headers: { 'Content-Type': 'application/json' } }
+        return NextResponse.json(
+          { error: `Upstream error: ${upstream.status}` },
+          { status: upstream.status }
         );
       }
 
       const data = await upstream.json();
 
-      return new Response(JSON.stringify(data), {
+      return NextResponse.json(data, {
         status: 200,
         headers: {
-          'Content-Type': 'application/json',
           // Allow the browser to cache briefly to reduce repeated calls while dragging
           'Cache-Control': 'private, max-age=5',
         },
       });
     } catch (err: any) {
       const isAbort = err?.name === 'AbortError' || /aborted|timeout/i.test(String(err?.message || ''));
-      return new Response(
-        JSON.stringify({ error: isAbort ? 'Timeout' : 'Request failed' }),
-        { status: isAbort ? 504 : 502, headers: { 'Content-Type': 'application/json' } }
+      return NextResponse.json(
+        { error: isAbort ? 'Timeout' : 'Request failed' },
+        { status: isAbort ? 504 : 502 }
       );
     }
   } catch (err) {
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
     );
   }
 }
