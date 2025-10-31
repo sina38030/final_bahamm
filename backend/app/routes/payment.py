@@ -251,68 +251,11 @@ async def create_payment_order_public(
                     db.commit()
                 else:
                     # Leader initiating a new group buy
-                    # If mode indicates group, create GroupOrder immediately so admin can see it
-                    try:
-                        # Check if this is a leader order (not invited user)
-                        is_invited_user = (
-                            hasattr(order_data, 'shipping_address') and 
-                            order_data.shipping_address and 
-                            isinstance(order_data.shipping_address, str) and
-                            (order_data.shipping_address.startswith('PENDING_INVITE:') or 
-                             order_data.shipping_address.startswith('PENDING_GROUP:'))
-                        )
-                        
-                        if ((getattr(order_data, 'mode', None) or '').lower() == 'group' or not is_invited_user) and not order.group_order_id:
-                            # Resolve leader user
-                            leader_user = None
-                            if order.user_id:
-                                leader_user = db.query(User).filter(User.id == order.user_id).first()
-                            if not leader_user:
-                                # Use the mobile number from the request if available, otherwise use guest format
-                                phone_number = order_data.mobile or f"guest_{int(datetime.now(TEHRAN_TZ).timestamp())}"
-                                leader_user = User(
-                                    phone_number=phone_number,
-                                    user_type='CUSTOMER'
-                                )
-                                db.add(leader_user)
-                                db.flush()
-
-                            # Basket snapshot from provided items
-                            try:
-                                snapshot_json = json.dumps([
-                                    {
-                                        "product_id": it.get('product_id'),
-                                        "quantity": it.get('quantity'),
-                                        "unit_price": it.get('price')
-                                    } for it in items
-                                ], ensure_ascii=False)
-                            except Exception:
-                                snapshot_json = None
-
-                            # Invite token based on order id and authority prefix
-                            prefix = (result.get("authority") or "")[:8]
-                            invite_token = f"GB{order.id}{prefix}"
-
-                            allow_consolidation_value = getattr(order_data, 'allow_consolidation', False)
-                            logger.info(f"🔧 Creating GroupOrder with allow_consolidation: {allow_consolidation_value}")
-                            
-                            group = GroupOrder(
-                                leader_id=leader_user.id,
-                                invite_token=invite_token,
-                                status=GroupOrderStatus.GROUP_FORMING,
-                                created_at=datetime.now(TEHRAN_TZ),
-                                basket_snapshot=snapshot_json,
-                                allow_consolidation=allow_consolidation_value,
-                                expected_friends=getattr(order_data, 'expected_friends', None) or getattr(order_data, 'friends', None) or getattr(order_data, 'max_friends', None)
-                            )
-                            db.add(group)
-                            db.flush()
-
-                            order.group_order_id = group.id
-                            order.order_type = OrderType.GROUP
-                            db.commit()
-                    except Exception as e:
-                        logger.error(f"Create initial GroupOrder failed: {e}")
+                    # ✅ FIX: Do NOT create GroupOrder here - wait for payment verification
+                    # Store mode and group info in delivery_slot (already done in payment_service.create_payment_order)
+                    # Group will be created in verify_and_complete_payment AFTER successful payment
+                    logger.info(f"⏳ Leader order {order.id} created - GroupOrder will be created after payment verification")
+                    # No action needed here - group creation happens in verify_and_complete_payment
 
             return PaymentResponse(
                 success=True,
