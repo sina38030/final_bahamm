@@ -48,6 +48,15 @@ export default function AddressMapModal({ isOpen, onClose, onAddressSave, userTo
   const [isAddressLoading, setIsAddressLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [mapInvalidateKey, setMapInvalidateKey] = useState(0);
+
+  // Trigger map invalidation when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      // Increment key to trigger map size recalculation
+      setMapInvalidateKey(prev => prev + 1);
+    }
+  }, [isOpen]);
 
   // Debug state changes
   useEffect(() => {
@@ -536,7 +545,7 @@ export default function AddressMapModal({ isOpen, onClose, onAddressSave, userTo
             <MapComponent
               center={coordinates}
               onLocationChange={updateAddressDisplay}
-              invalidateTrigger={isOpen ? 1 : 0}
+              invalidateTrigger={mapInvalidateKey}
             />
             
 
