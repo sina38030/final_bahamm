@@ -465,44 +465,71 @@ export async function GET(
   const durationSeconds = 24 * 60 * 60;
   let startedAtMs: number | undefined = undefined;
   let expiresAtMs: number | undefined = undefined;
-
-  const parsedStart = parseMs(startRaw);
-  const parsedExpires = parseMs(expiresRaw);
-
-  if (parsedExpires != null) {
-    // Trust backend expires_at if provided
-    expiresAtMs = parsedExpires;
-    // Derive start if missing by subtracting duration
-    startedAtMs = parsedExpires - durationSeconds * 1000;
-  } else if (parsedStart != null) {
-    startedAtMs = parsedStart;
-    expiresAtMs = parsedStart + durationSeconds * 1000;
-  } else {
-    // Attempt to fetch from groups endpoint as a fallback (without fabricating 24h window)
-    try {
-      const grpRes = await fetchWithTimeout(`${BACKEND_BASE}/groups/${groupId}`, 1500);
-      if (grpRes?.ok) {
-        const grp = await grpRes.json().catch(() => null as any);
-        const ex2 = parseMs(grp?.expiresAt || grp?.expires_at);
-        if (ex2 != null) {
-          expiresAtMs = ex2;
-          startedAtMs = ex2 - durationSeconds * 1000;
-        }
-      }
-    } catch {}
-    // If still unknown, leave expiresAtMs undefined; clients should hide countdown until known
-  }
-
-  // Provide a server-computed remaining time from canonical expiresAtMs (only when known)
   let remainingSeconds: number | undefined = undefined;
   let expiresInSeconds: number | undefined = undefined; // legacy for backward compatibility
+  let serverNowMs: number | undefined = Date.now(); // Default to current server time
+
+  // Always try to fetch from /groups endpoint first to get accurate remainingSeconds from backend
+  // This ensures timezone-aware calculations and accounts for server time correctly
+  let grpData: any = null;
   try {
-    if (typeof expiresAtMs === 'number') {
-      const nowMs = Date.now();
-      remainingSeconds = Math.max(0, Math.floor((expiresAtMs - nowMs) / 1000));
-      expiresInSeconds = remainingSeconds;
+    const grpRes = await fetchWithTimeout(`${BACKEND_BASE}/groups/${groupId}`, 1500);
+    if (grpRes?.ok) {
+      grpData = await grpRes.json().catch(() => null as any);
+      
+      // Prefer backend's calculated remainingSeconds (most accurate, accounts for timezone)
+      if (grpData?.remainingSeconds != null && typeof grpData.remainingSeconds === 'number') {
+        remainingSeconds = Math.max(0, grpData.remainingSeconds);
+        expiresInSeconds = remainingSeconds;
+      }
+      
+      // Prefer expiresAtMs from backend if available (it's already calculated correctly)
+      const backendExpiresAtMs = grpData?.expiresAtMs || grpData?.expires_at_ms;
+      if (backendExpiresAtMs != null && typeof backendExpiresAtMs === 'number') {
+        expiresAtMs = backendExpiresAtMs;
+        startedAtMs = backendExpiresAtMs - durationSeconds * 1000;
+      }
+      
+      // Use backend's serverNowMs if available for clock skew compensation
+      if (grpData?.serverNowMs != null && typeof grpData.serverNowMs === 'number') {
+        serverNowMs = grpData.serverNowMs;
+      }
     }
   } catch {}
+
+  // Fallback to admin endpoint data if /groups endpoint didn't provide expiry info
+  if (expiresAtMs === undefined) {
+    const parsedStart = parseMs(startRaw);
+    const parsedExpires = parseMs(expiresRaw);
+
+    if (parsedExpires != null) {
+      // Trust backend expires_at if provided
+      expiresAtMs = parsedExpires;
+      // Derive start if missing by subtracting duration
+      startedAtMs = parsedExpires - durationSeconds * 1000;
+    } else if (parsedStart != null) {
+      startedAtMs = parsedStart;
+      expiresAtMs = parsedStart + durationSeconds * 1000;
+    } else if (grpData) {
+      // Try parsing from /groups endpoint ISO string if we have it
+      const ex2 = parseMs(grpData?.expiresAt || grpData?.expires_at);
+      if (ex2 != null) {
+        expiresAtMs = ex2;
+        startedAtMs = ex2 - durationSeconds * 1000;
+      }
+    }
+  }
+
+  // Calculate remainingSeconds if we didn't get it from backend /groups endpoint
+  if (remainingSeconds === undefined) {
+    try {
+      if (typeof expiresAtMs === 'number') {
+        const nowMs = Date.now();
+        remainingSeconds = Math.max(0, Math.floor((expiresAtMs - nowMs) / 1000));
+        expiresInSeconds = remainingSeconds;
+      }
+    } catch {}
+  }
 
   // Derive leader's initial paid amount from admin details participants (order totals)
   const detailsParticipants: any[] = Array.isArray(details?.participants)
@@ -558,7 +585,7 @@ export async function GET(
     // Server-side countdown helpers
     expiresInSeconds,
     remainingSeconds,
-    serverNowMs: Date.now(),
+    serverNowMs: serverNowMs ?? Date.now(),
     // Help client determine leader in the current session
     currentUserId: (() => {
       try {
