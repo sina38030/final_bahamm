@@ -730,32 +730,37 @@ function InvitePageContent() {
   const ensureSecondaryGroupThenShare = async () => {
     try {
       setCreateError(null);
-      // If we already created a group, just open share
-      if (createdGroup && createdGroup.shareUrl) {
-        setShareSheetOpen(true);
-        return;
-      }
-      // Always create (or reuse) a secondary group for invited user's share
-      if (!order) { setShareSheetOpen(true); return; }
-      if (creating) return;
-      setCreating(true);
-      const paidAtStr = (order as any)?.paidAt || (order as any)?.payment_ref_id ? (order as any)?.paidAt : '';
-      const createdAtStr = (order as any)?.created_at || (order as any)?.createdAt || '';
-      const base = paidAtStr ? new Date(paidAtStr) : (createdAtStr ? new Date(createdAtStr) : new Date());
-      const expiryTime = new Date(base.getTime() + 24 * 60 * 60 * 1000);
-      const payload = {
-        kind: 'secondary' as const,
-        source_group_id: undefined,
-        source_order_id: order.id,
-        expires_at: expiryTime.toISOString(),
-      };
-      // Include auth header if available (idempotent on backend)
-      const headers = withIdempotency(token ? { 'Authorization': `Bearer ${token}` } as HeadersInit : {});
-      const g = await groupApi.createSecondaryGroup(payload, headers);
-      setCreatedGroup(g);
-      // Open share sheet with the newly created group's shareUrl
+      // SECONDARY GROUPS DISABLED: Just open share sheet directly
+      console.log('[Secondary Groups] Feature disabled - opening share sheet with original group link');
       setShareSheetOpen(true);
       return;
+      
+      // // If we already created a group, just open share
+      // if (createdGroup && createdGroup.shareUrl) {
+      //   setShareSheetOpen(true);
+      //   return;
+      // }
+      // // Always create (or reuse) a secondary group for invited user's share
+      // if (!order) { setShareSheetOpen(true); return; }
+      // if (creating) return;
+      // setCreating(true);
+      // const paidAtStr = (order as any)?.paidAt || (order as any)?.payment_ref_id ? (order as any)?.paidAt : '';
+      // const createdAtStr = (order as any)?.created_at || (order as any)?.createdAt || '';
+      // const base = paidAtStr ? new Date(paidAtStr) : (createdAtStr ? new Date(createdAtStr) : new Date());
+      // const expiryTime = new Date(base.getTime() + 24 * 60 * 60 * 1000);
+      // const payload = {
+      //   kind: 'secondary' as const,
+      //   source_group_id: undefined,
+      //   source_order_id: order.id,
+      //   expires_at: expiryTime.toISOString(),
+      // };
+      // // Include auth header if available (idempotent on backend)
+      // const headers = withIdempotency(token ? { 'Authorization': `Bearer ${token}` } as HeadersInit : {});
+      // const g = await groupApi.createSecondaryGroup(payload, headers);
+      // setCreatedGroup(g);
+      // // Open share sheet with the newly created group's shareUrl
+      // setShareSheetOpen(true);
+      // return;
     } catch (e: any) {
       // Suppress raw backend error details; just open share sheet
       try { console.warn('createSecondaryGroup failed:', e?.message || e); } catch {}

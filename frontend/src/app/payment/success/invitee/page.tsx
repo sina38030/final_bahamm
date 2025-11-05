@@ -5,8 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Order } from "@/types/order";
 import { Group } from "@/types/group";
-import { SecondaryPricingTiers } from "@/types/pricing";
-import { orderApi, groupApi, pricingApi } from "@/lib/api";
+// import { SecondaryPricingTiers } from "@/types/pricing";
+import { orderApi, groupApi } from "@/lib/api"; // pricingApi removed - secondary groups disabled
 
 // Components
 import SuccessCard from "./_components/SuccessCard";
@@ -16,7 +16,7 @@ import PaymentDetails from "./_components/PaymentDetails";
 interface PageData {
   order: Order;
   group: Group;
-  pricingTiers: SecondaryPricingTiers;
+  // pricingTiers: SecondaryPricingTiers; // Secondary groups disabled
 }
 
 function InviteeSuccessContent() {
@@ -71,10 +71,11 @@ function InviteeSuccessContent() {
 
       try {
         // Load all data in parallel - no timeout, just wait for it
-        const [order, maybeGroup, pricingTiers] = await Promise.all([
+        // Secondary groups disabled - removed pricingApi call
+        const [order, maybeGroup] = await Promise.all([
           orderApi.getOrder(resolvedOrderId),
           resolvedGroupId ? groupApi.getGroup(resolvedGroupId) : Promise.resolve(null as any),
-          pricingApi.getSecondaryPricingTiers(resolvedOrderId),
+          // pricingApi.getSecondaryPricingTiers(resolvedOrderId), // Disabled
         ]);
 
         // Validate order status (case-insensitive) or presence of paid markers
@@ -88,7 +89,7 @@ function InviteeSuccessContent() {
         }
 
         const group = maybeGroup || { expiresAt: undefined } as any;
-        setData({ order, group, pricingTiers });
+        setData({ order, group }); // pricingTiers removed - secondary groups disabled
       } catch (err) {
         console.error("Failed to load data:", err);
         // Only show error if data truly fails - don't redirect automatically
