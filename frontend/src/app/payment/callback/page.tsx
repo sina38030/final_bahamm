@@ -76,9 +76,40 @@ function PaymentCallbackContent() {
               }
             } catch {}
             
-            // ✅ REMOVED: Let backend handle all redirects
-            // The backend callback endpoint will determine the correct redirect
-            console.log('[PaymentCallback] Letting backend handle redirect logic');
+            // Fallback: determine redirect client-side to avoid getting stuck on callback page
+            console.log('[PaymentCallback] Backend redirect hint missing; resolving order client-side');
+            try {
+              const res = await fetch(`${API_BASE_URL}/payment/order/${authority}`);
+              const data = await res.json();
+              if (data?.success && data.order?.id) {
+                const orderId = data.order.id;
+                const groupId = data.order.group_order_id || data.order.groupId || '';
+                const invited = !!data.order.is_invited;
+                // Persist processing result to prevent re-processing on refresh
+                const processedKey = `processed_${authority}`;
+                const processedData = {
+                  isInvited: invited,
+                  orderId,
+                  groupId,
+                  timestamp: Date.now()
+                };
+                try { localStorage.setItem(processedKey, JSON.stringify(processedData)); } catch {}
+                const target = invited
+                  ? `/payment/success/invitee?orderId=${orderId}${groupId ? `&groupId=${groupId}` : ''}`
+                  : '/groups-orders?tab=orders';
+                if (typeof window !== 'undefined') {
+                  window.location.replace(target);
+                } else {
+                  router.replace(target);
+                }
+                return;
+              }
+            } catch (e) {
+              console.warn('[PaymentCallback] Fallback resolution failed:', e);
+            }
+            // As a last resort, stay and show inline success
+            setStatus('success');
+            setMessage('پرداخت شما با موفقیت انجام شد');
             return;
           }
         }
@@ -158,8 +189,12 @@ function PaymentCallbackContent() {
               
               console.log('[PaymentCallback] Redirecting invited user to:', target);
               
-              // Use router.replace to avoid reload (which would lose invited parameter)
-              router.replace(target);
+              // Use window.location.replace for production compatibility (avoid localhost redirect bug)
+              if (typeof window !== 'undefined') {
+                window.location.replace(target);
+              } else {
+                router.replace(target);
+              }
               return;
             }
           } catch {}
