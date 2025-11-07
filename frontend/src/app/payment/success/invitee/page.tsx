@@ -227,7 +227,7 @@ function InviteeSuccessContent() {
 
           {/* CTAs */}
           <div className="grid grid-cols-2 gap-3">
-            <Link href="/order-details" className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors">
+            <Link href={`/order/${data.order.id}`} className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors">
               جزئیات سفارش
             </Link>
             {inviteAuthority ? (
