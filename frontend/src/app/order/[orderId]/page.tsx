@@ -122,15 +122,15 @@ export default function OrderTrackingPage() {
           const normalized: PublicOrder = {
             id: Number(order?.id ?? order?.order_id ?? orderId),
             status: String(order?.status || ""),
-            totalOriginal: Number(order?.totalOriginal ?? order?.total_amount ?? 0),
-            totalPaid: Number(order?.totalPaid ?? order?.total_amount ?? 0),
+            totalOriginal: Number(order?.totalOriginal ?? order?.total_amount ?? order?.total ?? 0),
+            totalPaid: Number(order?.totalPaid ?? order?.total_amount ?? order?.total ?? 0),
             paidAt: order?.paidAt ?? order?.paid_at ?? null,
             items: Array.isArray(order?.items)
               ? order.items.map((it: any) => ({
-                  productId: it.productId ?? it.product_id,
-                  name: it.name ?? it.product?.name ?? `محصول ${it.product_id}`,
-                  qty: it.qty ?? it.quantity ?? 1,
-                  unitPrice: it.unitPrice ?? it.base_price ?? 0,
+                  productId: it.productId ?? it.product_id ?? it.id,
+                  name: it.name ?? it.product_name ?? it.product?.name ?? `محصول ${it.product_id ?? it.productId ?? it.id}`,
+                  qty: Number(it.qty ?? it.quantity ?? it.amount ?? 1),
+                  unitPrice: Number(it.unitPrice ?? it.base_price ?? it.price ?? it.unit_price ?? 0),
                   image: it.image ?? (it.product?.images?.[0] ?? null),
                 }))
               : [],
@@ -140,6 +140,46 @@ export default function OrderTrackingPage() {
             shipping_details: order?.shipping_details ?? null,
           };
           console.log('Normalized order data:', normalized); // DEBUG: Log normalized data
+
+          // If no items or totals are 0, try to get more data from backend directly
+          const hasValidData = normalized.items.length > 0 && (normalized.totalOriginal > 0 || normalized.totalPaid > 0);
+          if (!hasValidData) {
+            console.log('No valid data found, trying direct backend call...'); // DEBUG
+            try {
+              const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+              const backendUrl = typeof window !== 'undefined' ? window.location.origin.replace(/\/$/, '') : '';
+              const directRes = await fetch(`${backendUrl}/api/admin/orders/${encodeURIComponent(String(normalized.id))}`, {
+                method: 'GET',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                },
+                cache: 'no-store',
+              });
+              if (directRes.ok) {
+                const directData = await directRes.json().catch(() => ({}));
+                console.log('Direct backend data:', directData); // DEBUG
+                if (directData) {
+                  // Update normalized data with direct backend data
+                  normalized.totalOriginal = Number(directData.total_amount ?? directData.total ?? normalized.totalOriginal);
+                  normalized.totalPaid = Number(directData.total_amount ?? directData.total ?? normalized.totalPaid);
+                  if (Array.isArray(directData.items)) {
+                    normalized.items = directData.items.map((it: any) => ({
+                      productId: it.product_id ?? it.id,
+                      name: it.product_name ?? it.name ?? `محصول ${it.product_id}`,
+                      qty: Number(it.quantity ?? it.qty ?? 1),
+                      unitPrice: Number(it.base_price ?? it.price ?? 0),
+                      image: it.image ?? null,
+                    }));
+                  }
+                  console.log('Updated normalized data:', normalized); // DEBUG
+                }
+              }
+            } catch (e) {
+              console.error('Direct backend call failed:', e);
+            }
+          }
+
           // If address/time are missing, try authenticated backend admin endpoint from client
           const needsDetails = !normalized.address && !normalized.shipping_details && !normalized.delivery_slot;
           if (needsDetails) {
