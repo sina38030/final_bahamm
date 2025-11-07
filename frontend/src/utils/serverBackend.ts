@@ -7,14 +7,21 @@ function sanitizeBase(url: string): string {
 }
 
 function resolveBackendOrigin(): string {
-  const candidates = [
+  // Prefer absolute server-side URLs only. Ignore relative values like '/api'
+  const isAbsolute = (v?: string | undefined | null) => {
+    if (!v) return false;
+    const s = v.trim();
+    return /^https?:\/\//i.test(s);
+  };
+
+  const preferred: Array<string | undefined> = [
     process.env.BACKEND_URL,
     process.env.INTERNAL_BACKEND_URL,
     process.env.API_BASE_URL,
-    process.env.NEXT_PUBLIC_API_URL,
-  ].filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+  ];
 
-  const raw = candidates.length > 0 ? candidates[0]! : 'http://127.0.0.1:8001';
+  const abs = preferred.find(isAbsolute);
+  const raw = abs || 'http://127.0.0.1:8001';
   return sanitizeBase(raw.trim());
 }
 
