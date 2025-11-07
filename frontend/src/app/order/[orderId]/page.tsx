@@ -117,6 +117,7 @@ export default function OrderTrackingPage() {
         } else {
           // API returns { success, order }
           const order = j.order as any;
+          console.log('Order data received:', order); // DEBUG: Log received data
           // Normalize to PublicOrder shape
           const normalized: PublicOrder = {
             id: Number(order?.id ?? order?.order_id ?? orderId),
@@ -138,6 +139,7 @@ export default function OrderTrackingPage() {
             delivery_slot: order?.delivery_slot ?? null,
             shipping_details: order?.shipping_details ?? null,
           };
+          console.log('Normalized order data:', normalized); // DEBUG: Log normalized data
           // If address/time are missing, try authenticated backend admin endpoint from client
           const needsDetails = !normalized.address && !normalized.shipping_details && !normalized.delivery_slot;
           if (needsDetails) {

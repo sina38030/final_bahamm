@@ -57,6 +57,9 @@ export async function GET(
     }
 
     const data = await response.json().catch(() => ({}));
+    console.log('API Response status:', response.status); // DEBUG
+    console.log('API Response data:', data); // DEBUG
+
     if (!response.ok) {
       return NextResponse.json(
         { success: false, error: data?.detail || 'Failed to fetch order' },
