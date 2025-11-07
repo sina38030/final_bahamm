@@ -193,11 +193,9 @@ function sanitizeAddress(addr?: string | null): string | null {
         if (obj && typeof obj === 'object') {
           const full = String(obj.full_address || obj.address || '').trim();
           const details = String(obj.details || obj.receiver_name || '').trim();
-          const postal = String(obj.postal_code || obj.postalCode || '').trim();
           const parts: string[] = [];
           if (full) parts.push(full);
           if (details) parts.push(details);
-          if (postal) parts.push(`کدپستی: ${postal}`);
           const combined = parts.join('، ');
           if (combined) return combined;
         }
@@ -253,7 +251,7 @@ function getFaStatus(statusRaw?: string | null): { label: string; bg: string; te
   if (raw.includes('تحویل')) return { label: 'تحویل داده شده', bg: 'bg-green-50', text: 'text-green-700' };
   if (raw.includes('مرجوع')) return { label: 'مرجوع شده', bg: 'bg-rose-50', text: 'text-rose-700' };
   if (raw.includes('لغو')) return { label: 'لغو شده', bg: 'bg-gray-100', text: 'text-gray-700' };
-  if (raw.includes('تکمیل')) return { label: 'تکمیل شده', bg: 'bg-green-50', text: 'text-green-700' };
+  if (raw.includes('تکمیل') || raw.includes('تحویل')) return { label: 'تحویل داده شده', bg: 'bg-green-50', text: 'text-green-700' };
   if (raw.includes('آماده')) return { label: 'در حال آماده‌سازی', bg: 'bg-amber-50', text: 'text-amber-700' };
   if (raw.includes('انتظار')) return { label: 'در انتظار', bg: 'bg-yellow-50', text: 'text-yellow-700' };
 
@@ -264,7 +262,7 @@ function getFaStatus(statusRaw?: string | null): { label: string; bg: string; te
   if (/deliver|delivered|delivering/.test(s)) return { label: 'تحویل داده شده', bg: 'bg-green-50', text: 'text-green-700' };
   if (/return|returned|refund|refunded/.test(s)) return { label: 'مرجوع شده', bg: 'bg-rose-50', text: 'text-rose-700' };
   if (/cancel|canceled|cancelled|void/.test(s)) return { label: 'لغو شده', bg: 'bg-gray-100', text: 'text-gray-700' };
-  if (/complete|completed|done|fulfilled|success/.test(s)) return { label: 'تکمیل شده', bg: 'bg-green-50', text: 'text-green-700' };
+  if (/complete|completed|done|fulfilled|success|delivered|delivery/.test(s)) return { label: 'تحویل داده شده', bg: 'bg-green-50', text: 'text-green-700' };
 
   // Fallback
   return { label: raw || 'نامشخص', bg: 'bg-gray-100', text: 'text-gray-700' };
@@ -711,7 +709,7 @@ export default function GroupsOrdersPage() {
 
       // Final statuses should NOT be active (applies to ALL orders, including leader)
       const finalStatuses = [
-        'تکمیل شده', 'completed',
+        'تحویل داده شده', 'تکمیل شده', 'completed',
         'لغو شده', 'cancelled', 'canceled',
         'success', 'finalized', 'group_finalized', 'failed', 'expired'
       ];
@@ -748,7 +746,7 @@ export default function GroupsOrdersPage() {
   // Previous (inactive) orders: explicitly those marked completed by admin.
   const previousOrders = useMemo(() => {
     const finalStatuses = [
-      'تکمیل شده', 'completed',
+      'تحویل داده شده', 'تکمیل شده', 'completed',
       'لغو شده', 'cancelled', 'canceled',
       'success', 'finalized', 'group_finalized', 'failed', 'expired'
     ];
@@ -1035,7 +1033,7 @@ export default function GroupsOrdersPage() {
                         {deriveDisplayAddress(o) && (
                           <div className="text-gray-600 text-xs mt-1 break-words">آدرس: {deriveDisplayAddress(o)}</div>
                         )}
-                        <div className="text-gray-800 text-xs mt-1">مبلغ فاکتور: {o.total_amount?.toLocaleString('fa-IR')} تومان</div>
+                        <div className="text-gray-800 text-xs mt-1">مبلغ سفارش: {o.total_amount?.toLocaleString('fa-IR')} تومان</div>
                       </div>
                       <div className="mt-3 flex flex-col gap-2">
                         {/* دکمه جزییات سفارش */}
@@ -1085,7 +1083,7 @@ export default function GroupsOrdersPage() {
                         {deriveDisplayAddress(o) && (
                           <div className="text-gray-600 text-xs mt-1 break-words">آدرس: {deriveDisplayAddress(o)}</div>
                         )}
-                        <div className="text-gray-800 text-xs mt-1">مبلغ فاکتور: {o.total_amount?.toLocaleString('fa-IR')} تومان</div>
+                        <div className="text-gray-800 text-xs mt-1">مبلغ سفارش: {o.total_amount?.toLocaleString('fa-IR')} تومان</div>
                         {failedLeader && (
                           <div className="text-xs text-gray-600 mt-1">این گروه به حداقل اعضا نرسید.</div>
                         )}
@@ -2018,10 +2016,7 @@ function LazyTrackEmbed({
 
   return (
     <div ref={containerRef} className="bg-white rounded-2xl shadow overflow-hidden">
-      
-      <div className="px-4 pt-4 text-sm font-medium flex items-center">
-        گروه {gid}
-      </div>
+
       <div className="border-t">
         {finalized ? (
           status === 'success' ? (

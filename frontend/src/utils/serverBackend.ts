@@ -14,7 +14,7 @@ function resolveBackendOrigin(): string {
     process.env.NEXT_PUBLIC_API_URL,
   ].filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
 
-  const raw = candidates.length > 0 ? candidates[0]! : 'http://127.0.0.1:8001';
+  const raw = candidates.length > 0 ? candidates[0]! : 'http://127.0.0.1:8080';
   return sanitizeBase(raw.trim());
 }
 

@@ -39,7 +39,7 @@ export default function BottomNavigation() {
             const orders = Array.isArray(data?.orders) ? data.orders : [];
 
             // Active orders similar to groups-orders page
-            const finalStatuses = ['تکمیل شده', 'completed', 'لغو شده', 'cancelled'];
+            const finalStatuses = ['تحویل داده شده', 'تکمیل شده', 'completed', 'لغو شده', 'cancelled'];
             const activeOrders = orders.filter((o: any) => {
                 if (o?.is_settlement_payment === true) return false;
                 if (o?.is_leader_order === true) {
@@ -93,7 +93,7 @@ export default function BottomNavigation() {
             const groups = Array.isArray(data?.groups) ? data.groups : [];
             const orders = Array.isArray(data?.orders) ? data.orders : [];
 
-            const finalStatuses = ['تکمیل شده', 'completed', 'لغو شده', 'cancelled'];
+            const finalStatuses = ['تحویل داده شده', 'تکمیل شده', 'completed', 'لغو شده', 'cancelled'];
             const activeOrders = orders.filter((o: any) => {
                 if (o?.is_settlement_payment === true) return false;
                 if (o?.is_leader_order === true) {

@@ -3027,7 +3027,7 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
                            <option value="pending">در انتظار</option>
                            <option value="processing">در حال پردازش</option>
                            <option value="shipped">ارسال شده</option>
-                           <option value="completed">تکمیل شده</option>
+                           <option value="completed">تحویل داده شده</option>
                            <option value="cancelled">لغو شده</option>
                            <option value="pending_approval">در انتظار تایید</option>
                          </select>
@@ -3080,13 +3080,13 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
          pending: "bg-yellow-100 text-yellow-800",
          "تایید نشده": "bg-orange-100 text-orange-800",
        }[s] ?? "bg-gray-100 text-gray-800");
-   
+
      const label = (s: string) =>
        ({
          pending: "در انتظار",
          processing: "در حال پردازش",
          shipped: "ارسال شده",
-         completed: "تکمیل شده",
+         completed: "تحویل داده شده",
          cancelled: "لغو شده",
          "تایید نشده": "تایید نشده",
        }[s] ?? s);

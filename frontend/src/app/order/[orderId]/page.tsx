@@ -40,7 +40,7 @@ function toFaStatusLabel(raw?: string | null): string {
   if (/deliver|delivered|delivering/.test(s)) return "تحویل داده شده";
   if (/return|returned|refund|refunded/.test(s)) return "مرجوع شده";
   if (/cancel|canceled|cancelled|void/.test(s)) return "لغو شده";
-  if (/complete|completed|done|fulfilled|success/.test(s)) return "تکمیل شده";
+  if (/complete|completed|done|fulfilled|success|delivered|delivery/.test(s)) return "تحویل داده شده";
   return String(raw || "نامشخص");
 }
 
@@ -61,11 +61,9 @@ function sanitizeAddressString(raw?: string | null): string {
         if (obj && typeof obj === "object") {
           const full = String((obj.full_address ?? obj.address ?? "")).trim();
           const details = String((obj.details ?? obj.receiver_name ?? "")).trim();
-          const postal = String((obj.postal_code ?? obj.postalCode ?? "")).trim();
           const parts: string[] = [];
           if (full) parts.push(full);
           if (details) parts.push(details);
-          if (postal) parts.push(`کدپستی: ${postal}`);
           const combined = parts.join("، ");
           if (combined) return toFaDigits(combined);
         }
@@ -263,7 +261,6 @@ export default function OrderTrackingPage() {
         d.alley,
         d.no,
         d.unit,
-        d.postal_code ? `کد پستی: ${d.postal_code}` : undefined,
         d.recipient_name ? `گیرنده: ${d.recipient_name}` : undefined,
         d.phone ? `تلفن: ${d.phone}` : undefined,
       ].filter(Boolean);
@@ -354,7 +351,7 @@ export default function OrderTrackingPage() {
             const label = step === "PENDING" ? "در انتظار"
               : step === "PROCESSING" ? "در حال پردازش"
               : step === "SHIPPED" ? "ارسال شده"
-              : "تکمیل شده";
+              : "تحویل داده شده";
             return (
               <li key={step} className="mb-6 ml-4">
                 <div className={`absolute w-3 h-3 rounded-full -right-1.5 border ${done ? 'bg-rose-500 border-rose-500' : 'bg-white border-gray-300'}`} />

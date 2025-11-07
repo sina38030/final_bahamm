@@ -68,7 +68,6 @@
 /*  ============ قیمت‌ها ============ */
 .pricing{font-size:15px;line-height:2}
 .pricing div{display:flex;gap:4px}
-.pricing span:first-child{flex:1}
 .price{font-weight:600}
 .free{color:#e50063;font-weight:700}
 .toggleRow{cursor:pointer;align-items:center}

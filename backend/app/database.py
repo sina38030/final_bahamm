@@ -12,16 +12,22 @@ load_dotenv()
 # Get the database URL from environment
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+# If DATABASE_URL is set to a wrong/incorrect path, ignore it
+if DATABASE_URL and "OneDrive" in DATABASE_URL and "bahamm.db" in DATABASE_URL:
+    print(f"Warning: Ignoring incorrect DATABASE_URL from environment: {DATABASE_URL}")
+    DATABASE_URL = None
+
 # Force database path to the project root bahamm1.db (one level above backend)
 if not DATABASE_URL:
-    # backend/app/__file__ -> backend/app -> backend -> project_root
-    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    project_root = os.path.dirname(backend_dir)
+    # Get the directory containing this file (backend/app), then go up two levels to project root
+    current_file_dir = os.path.dirname(os.path.abspath(__file__))  # backend/app
+    backend_dir = os.path.dirname(current_file_dir)  # backend
+    project_root = os.path.dirname(backend_dir)  # project root
     db_path = os.path.join(project_root, 'bahamm1.db')
     # Normalize Windows backslashes to forward slashes for SQLAlchemy URL
     db_path = db_path.replace('\\', '/')
     DATABASE_URL = f"sqlite:///{db_path}"
-    print(f"🔧 USING database: {DATABASE_URL}")
+    print(f"Using database: {DATABASE_URL}")
 
 # Fix common URL mistake: change postgres:// to postgresql://
 # SQLAlchemy requires postgresql:// but many services provide postgres:// URLs
@@ -35,11 +41,12 @@ try:
         url = make_url(DATABASE_URL)
         db_fs_path = url.database or ''
         if db_fs_path and not os.path.exists(db_fs_path):
-            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            project_root = os.path.dirname(backend_dir)
+            current_file_dir = os.path.dirname(os.path.abspath(__file__))  # backend/app
+            backend_dir = os.path.dirname(current_file_dir)  # backend
+            project_root = os.path.dirname(backend_dir)  # project root
             candidate = os.path.join(project_root, 'bahamm1.db').replace('\\', '/')
             if os.path.exists(candidate):
-                print(f"⚠️ SQLite path not found: {db_fs_path} → switching to project root DB: {candidate}")
+                print(f"Warning: SQLite path not found: {db_fs_path} -> switching to project root DB: {candidate}")
                 DATABASE_URL = f"sqlite:///{candidate}"
 except Exception as _e:
     print(f"Warning: could not validate/adjust DATABASE_URL: {_e}")
