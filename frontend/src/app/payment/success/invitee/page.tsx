@@ -9,7 +9,6 @@ import { Group } from "@/types/group";
 import { orderApi, groupApi } from "@/lib/api"; // pricingApi removed - secondary groups disabled
 
 // Components
-import SuccessCard from "./_components/SuccessCard";
 import PaymentDetails from "./_components/PaymentDetails";
 // Secondary groups disabled for now
 
@@ -223,17 +222,8 @@ function InviteeSuccessContent() {
 
         {/* Content */}
         <div className="px-4 space-y-6">
-          {/* Success Card */}
-          <SuccessCard order={data.order} />
-
           {/* Payment Details */}
           <PaymentDetails order={data.order} />
-
-          {/* Guidance Box */}
-          <div className="rounded-2xl p-4 text-center border border-gray-200">
-            <h2 className="text-gray-800 font-bold text-base mb-1">پرداخت شما با موفقیت ثبت شد</h2>
-            <div className="text-gray-600 text-sm">برای پیگیری وضعیت، به صفحه سفارش‌ها بروید.</div>
-          </div>
 
           {/* CTAs */}
           <div className="grid grid-cols-2 gap-3">
