@@ -52,9 +52,43 @@ export default function ModalMap({ onLocationSelect, initialPosition, isOpen }: 
         },
         (error) => {
           console.error("Error getting user location:", error);
-          alert("لطفاً دسترسی به موقعیت خود را فعال کنید.");
+          
+          let msg = '';
+          switch (error.code) {
+            case 1: // PERMISSION_DENIED
+              msg = 'دسترسی به موقعیت رد شد. لطفاً در تنظیمات مرورگر اجازه دهید.';
+              break;
+            case 2: // POSITION_UNAVAILABLE
+              msg = 'موقعیت در دسترس نیست. لطفاً موقعیت را دستی روی نقشه انتخاب کنید.';
+              break;
+            case 3: // TIMEOUT
+              msg = 'زمان درخواست تمام شد. لطفاً دوباره تلاش کنید.';
+              break;
+            default:
+              msg = 'خطا در دریافت موقعیت. لطفاً موقعیت را دستی انتخاب کنید.';
+          }
+          // Try IP-based approximate location for code 2/3
+          if (error.code === 2 || error.code === 3) {
+            fetch('/api/ip-geolocate')
+              .then((r) => r.ok ? r.json() : null)
+              .then((data) => {
+                if (data && typeof data.lat === 'number' && typeof data.lng === 'number') {
+                  setPosition([data.lat, data.lng]);
+                  onLocationSelect(data.lat, data.lng);
+                } else {
+                  alert(msg);
+                }
+              })
+              .catch(() => alert(msg));
+          } else {
+            alert(msg);
+          }
         },
-        { timeout: 10000 }
+        { 
+          enableHighAccuracy: true, // Prefer GPS over network location
+          timeout: 15000,
+          maximumAge: 60000 // Cache location for 60 seconds
+        }
       );
     } else {
       alert("مرورگر شما از قابلیت موقعیت‌یابی پشتیبانی نمی‌کند.");

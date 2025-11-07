@@ -239,6 +239,20 @@ export default function AddressMapModal({ isOpen, onClose, onAddressSave, userTo
     }
   };
 
+  // Fallback: approximate location via IP if precise geolocation fails
+  const fallbackToIpLocation = async (): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/ip-geolocate', { method: 'GET' });
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (typeof data?.lat === 'number' && typeof data?.lng === 'number') {
+        await updateAddressDisplay(data.lat, data.lng);
+        return true;
+      }
+    } catch {}
+    return false;
+  };
+
   // Try geolocation with fallback options
   const tryGeolocation = (options: PositionOptions, isFallback = false) => {
     console.log(`Trying geolocation ${isFallback ? '(fallback)' : '(primary)'} with options:`, options);
@@ -306,8 +320,19 @@ export default function AddressMapModal({ isOpen, onClose, onAddressSave, userTo
           }, 1000);
           return;
         }
-        
-        // If fallback also failed, show error
+
+        // If fallback also failed, attempt approximate IP-based location
+        if (errorCode === 2 || errorCode === 3) {
+          console.log('Trying IP-based approximate location as last resort...');
+          fallbackToIpLocation().then((ok) => {
+            if (!ok) {
+              alert(userMessage);
+            }
+          });
+          return;
+        }
+
+        // Otherwise show error
         alert(userMessage);
         setIsLocating(false);
       },
@@ -328,11 +353,11 @@ export default function AddressMapModal({ isOpen, onClose, onAddressSave, userTo
 
     setIsLocating(true);
     
-    // Simple, working options
+    // Optimized options to avoid Google API fallback
     const options = {
-      enableHighAccuracy: false,
+      enableHighAccuracy: true, // Prefer GPS over network location
       timeout: 15000,
-      maximumAge: 300000
+      maximumAge: 60000 // Cache location for 60 seconds
     };
     
     navigator.geolocation.getCurrentPosition(
@@ -347,11 +372,28 @@ export default function AddressMapModal({ isOpen, onClose, onAddressSave, userTo
         console.log('Location error message:', error.message);
         setIsLocating(false);
         
-        let msg = 'خطا در دریافت موقعیت. ';
-        if (error.code === 2) {
-          msg += 'لطفاً موقعیت را دستی روی نقشه انتخاب کنید.';
+        let msg = '';
+        switch (error.code) {
+          case 1: // PERMISSION_DENIED
+            msg = 'دسترسی به موقعیت رد شد. لطفاً در تنظیمات مرورگر اجازه دهید.';
+            break;
+          case 2: // POSITION_UNAVAILABLE
+            msg = 'موقعیت در دسترس نیست. لطفاً موقعیت را دستی روی نقشه انتخاب کنید.';
+            break;
+          case 3: // TIMEOUT
+            msg = 'زمان درخواست تمام شد. لطفاً دوباره تلاش کنید یا موقعیت را دستی انتخاب کنید.';
+            break;
+          default:
+            msg = 'خطا در دریافت موقعیت. لطفاً موقعیت را دستی روی نقشه انتخاب کنید.';
         }
-        alert(msg);
+        // Try IP-based approximate location for code 2/3
+        if (error.code === 2 || error.code === 3) {
+          fallbackToIpLocation().then((ok) => {
+            if (!ok) alert(msg);
+          });
+        } else {
+          alert(msg);
+        }
       },
       options
     );
