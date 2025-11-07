@@ -19,13 +19,13 @@ export async function GET(
 
     // Prefer admin details endpoint (includes shipping_address, shipping_details, delivery_slot)
     // Try with auth token if available (for production environments)
-    const authHeader = process.env.ADMIN_API_TOKEN ? { 'Authorization': `Bearer ${process.env.ADMIN_API_TOKEN}` } : {};
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (process.env.ADMIN_API_TOKEN) {
+      headers['Authorization'] = `Bearer ${process.env.ADMIN_API_TOKEN}`;
+    }
     let response = await fetch(`${apiBase}/admin/orders/${encodeURIComponent(orderId)}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...authHeader
-      },
+      headers,
       cache: 'no-store',
     });
 
