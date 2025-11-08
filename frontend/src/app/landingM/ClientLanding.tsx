@@ -540,13 +540,6 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
     return () => {};
   }, [isSheetOpen]);
 
-  useEffect(() => {
-    if (!isSearchOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); closeSearch(); }};
-    document.addEventListener('keydown', onKey);
-    const id = setTimeout(() => searchInputRef.current?.focus?.(), 0);
-    return () => { document.removeEventListener('keydown', onKey); clearTimeout(id); };
-  }, [isSearchOpen]);
 
   useEffect(() => {
     if (!isSheetOpen) return;
