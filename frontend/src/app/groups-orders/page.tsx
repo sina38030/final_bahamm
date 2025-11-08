@@ -1095,6 +1095,15 @@ export default function GroupsOrdersPage() {
                         >
                           جزییات سفارش
                         </button>
+                        {/* دکمه انتخاب/تغییر زمان ارسال برای سرگروه پس از نهایی شدن سفارش گروهی */}
+                        {o.group_order_id && o.is_leader_order && !isCancelledStatus(o.status) && (
+                          <button
+                            className="text-sm px-3 py-1 rounded-full bg-blue-500 text-white"
+                            onClick={() => handleSelectDeliveryTime(String(o.group_order_id))}
+                          >
+                            {o.delivery_slot ? 'تغییر زمان ارسال' : 'انتخاب زمان ارسال'}
+                          </button>
+                        )}
                         {/* نمایش دکمه بازگشت وجه تا زمانی که تایمر صفر نشده، حتی برای سفارش تکمیل‌شده */}
                         {o.group_order_id && !o.is_leader_order && o.payment_authority && !isCancelledStatus(o.status) && (
                           <RefundButtonWithTimer authority={String(o.payment_authority)} />
@@ -2220,43 +2229,6 @@ function LazyTrackEmbed({
                     />
                   )}
 
-                {/* Delivery Time Selection - hidden for secondary groups */}
-                {!isSecondary && (
-                  <div className="p-4 border-t border-gray-200">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-medium text-gray-900">زمان تحویل</h3>
-                      <button
-                        onClick={() => onSelectDeliveryTime(gid)}
-                        className="text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md transition-colors"
-                      >
-                        {(() => {
-                          const leaderOrder = propOrders.find(order =>
-                            order.group_order_id === parseInt(gid) &&
-                            (isLeader === true || order.is_leader_order === true)
-                          );
-                          return leaderOrder?.delivery_slot ? 'تغییر زمان ارسال' : 'انتخاب زمان ارسال';
-                        })()}
-                      </button>
-                    </div>
-
-                    {(() => {
-                      // Find the leader's order for this group to show current delivery slot
-                      const leaderOrder = propOrders.find(order =>
-                        order.group_order_id === parseInt(gid) &&
-                        (isLeader === true || order.is_leader_order === true)
-                      );
-                      return leaderOrder?.delivery_slot ? (
-                        <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                          زمان انتخاب شده: {formatDeliverySlot(leaderOrder.delivery_slot)}
-                        </div>
-                      ) : (
-                        <div className="text-sm text-gray-500">
-                          هنوز زمان تحویل انتخاب نشده است
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
 
                 {!isSecondary && settlement && settlement.remainder < 0 && !refundSubmitted && (
                   <div className="p-4 border-t border-gray-200" dir="rtl">

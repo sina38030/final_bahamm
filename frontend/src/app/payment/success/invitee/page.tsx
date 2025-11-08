@@ -24,6 +24,7 @@ function InviteeSuccessContent() {
   const [data, setData] = useState<PageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   // const [isCountdownExpired, setIsCountdownExpired] = useState(false);
 
   const orderIdParam = searchParams.get("orderId");
@@ -135,6 +136,17 @@ function InviteeSuccessContent() {
       }
     } catch {}
   }, [data?.order?.id, inviteAuthority, authorityParam]);
+
+  // Show bottom sheet after 1 second
+  useEffect(() => {
+    if (!data || loading) return;
+
+    const timer = setTimeout(() => {
+      setIsSheetOpen(true);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [data, loading]);
 
   // const handleCountdownExpired = () => {
   //   setIsCountdownExpired(true);
@@ -248,6 +260,59 @@ function InviteeSuccessContent() {
           </div>
         </div>
       </div>
+
+      {/* Bottom Sheet */}
+      {isSheetOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300"
+            onClick={() => setIsSheetOpen(false)}
+          />
+          <div className="fixed bottom-0 left-0 right-0 h-1/2 bg-white rounded-t-3xl z-50 transform transition-transform duration-300 ease-out">
+            <div className="w-full max-w-md mx-auto h-full">
+              {/* Handle */}
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+              </div>
+
+              {/* Content */}
+              <div className="flex flex-col h-full px-6 pb-6">
+                <div className="flex-1 space-y-4">
+                <div className="text-center">
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">
+                    دوستات رو دعوت کن و مبلغی که الان پرداخت کردی رو پس بگیر!!
+                  </h3>
+                  <p className="text-gray-600 text-sm">
+                    با دعوت دوستانت به گروه، مبلغ پرداختیت رو پس بگیر
+                  </p>
+                </div>
+                </div>
+
+                <div className="space-y-3">
+                  <button
+                    onClick={() => {
+                      setIsSheetOpen(false);
+                      if (inviteAuthority) {
+                        router.push(`/invite?authority=${encodeURIComponent(inviteAuthority)}`);
+                      }
+                    }}
+                    className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 px-4 rounded-xl font-semibold text-sm hover:from-pink-600 hover:to-purple-700 transition-all duration-200 transform hover:scale-105"
+                  >
+                    مبلغ پرداختیت رو پس بگیر!
+                  </button>
+
+                  <button
+                    onClick={() => setIsSheetOpen(false)}
+                    className="w-full text-gray-500 py-2 px-4 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+                  >
+                    بعداً
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
