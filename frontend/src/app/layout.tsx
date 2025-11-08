@@ -13,6 +13,7 @@ import ChunkErrorReload from '@/components/ChunkErrorReload';
 
 import FontAwesomeSetup from '@/components/FontAwesomeSetup';
 import { ProductModalProvider } from '@/hooks/useProductModal';
+import ProductModal from '@/components/ProductModal';
 
 export const metadata: Metadata = {
   title: 'فروشگاه باهم',
@@ -68,6 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <ChunkErrorReload />
               <ProductModalProvider>
                 {children}
+                <ProductModal />
               </ProductModalProvider>
             </PageWrapper>
           </CartProvider>
