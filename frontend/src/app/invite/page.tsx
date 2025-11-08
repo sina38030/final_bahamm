@@ -70,7 +70,6 @@ function InvitePageContent() {
   const [progressReady, setProgressReady] = useState(false);
   const [isSecondaryFlow, setIsSecondaryFlow] = useState(false);
   const [isSecondaryGroup, setIsSecondaryGroup] = useState(false);
-  const [isLeader, setIsLeader] = useState(false);
  
 
   const markSecondaryFlow = (payload?: any, fallbackRequiredMembers?: number) => {
@@ -89,11 +88,6 @@ function InvitePageContent() {
 
   // Convert numbers to Persian digits
   const toFa = (n: number | string) => n.toString().replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[parseInt(d)]);
-
-  // Leader status is determined from order data
-  useEffect(() => {
-    setIsLeader(false);
-  }, []);
 
   // Fetch order data with retry logic for fresh payments
   useEffect(() => {
@@ -114,10 +108,14 @@ function InvitePageContent() {
           setOrder(data.order);
           setLoading(false);
           // Show success banner when returning from bank with ref_id or confirmed order
-          // Only show for leaders, not for invited users
+          // Show for actual payments, not just order registration
           const refIdParam = searchParams.get('ref_id');
-          if ((refIdParam || data.order?.payment_ref_id) && isLeader) {
+          if (refIdParam || data.order?.payment_ref_id) {
             setShowSuccess(true);
+            // Auto-hide the banner after 4 seconds
+            setTimeout(() => {
+              setShowSuccess(false);
+            }, 4000);
           }
           
           
@@ -145,7 +143,7 @@ function InvitePageContent() {
     };
 
     fetchOrder();
-  }, [searchParams, isLeader]);
+  }, [searchParams]);
 
   
 
@@ -825,19 +823,10 @@ function InvitePageContent() {
             <div className="success-title">پرداخت با موفقیت انجام شد ✅</div>
             <div className="success-details">
               <div>
-                <span>کد پیگیری:</span>
-                <b>{order.payment_ref_id || searchParams.get('ref_id') || '-'}</b>
-              </div>
-              <div>
                 <span>مبلغ پرداخت:</span>
                 <b>{toFa(Math.round(order.total_amount || 0).toLocaleString())} تومان</b>
               </div>
-              <div>
-                <span>کاربر:</span>
-                <b>{(user?.first_name || '') + (user?.last_name ? ' ' + user.last_name : '') || user?.phone_number || 'کاربر دعوت‌شده'}</b>
-              </div>
             </div>
-            <button className="success-close" onClick={() => setShowSuccess(false)} aria-label="بستن">×</button>
           </div>
         </div>
       )}
@@ -1097,12 +1086,11 @@ function InvitePageContent() {
 
       {/* Minimal styles for success banner */}
       <style jsx>{`
-        .success-banner { position: fixed; top: 10px; right: 10px; left: 10px; z-index: 1000; }
+        .success-banner { position: fixed; bottom: 80px; right: 10px; left: 10px; z-index: 1000; }
         .success-content { background: #e6f7ec; border: 1px solid #95d5a0; color: #14532d; border-radius: 12px; padding: 12px 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.06); position: relative; }
         .success-title { font-weight: 800; margin-bottom: 6px; }
         .success-details { display: grid; grid-template-columns: 1fr; gap: 2px; font-size: 0.9rem; }
         .success-details span { color: #3f8360; margin-left: 6px; }
-        .success-close { position: absolute; top: 8px; left: 10px; background: transparent; border: none; font-size: 20px; color: #2f6b4d; cursor: pointer; }
         @media (min-width: 480px){ .success-banner { left: auto; width: 420px; } }
       `}</style>
     </>
