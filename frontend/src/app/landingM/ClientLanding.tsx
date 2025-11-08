@@ -345,6 +345,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
           setDisabledJoin(true);
         } else {
           setGroupStatus('ongoing');
+          setDisabledJoin(false);
         }
       } else {
         if (!apiBase) return;
@@ -365,6 +366,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
                 setDisabledJoin(true);
               } else {
                 setGroupStatus('ongoing');
+                setDisabledJoin(false);
               }
               debugLog('🎯 Group order data loaded successfully');
             } else {
@@ -475,6 +477,13 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
           }
         }
         if (targetMs != null) setExpiryMs(targetMs);
+
+        // Also enforce CTA enabled state based on canonical groups status
+        const statusStr = String(data?.status || '').toLowerCase();
+        if (statusStr) {
+          setGroupStatus(statusStr as any);
+          setDisabledJoin(statusStr !== 'ongoing');
+        }
       } catch (e) { if (process.env.NODE_ENV !== 'production') console.error(e); }
     })();
     return () => { abort = true; };
@@ -953,14 +962,14 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
         <span className="countdown-label">تا پایان این خرید گروهی زمان باقیست</span>
       </div>
 
-      <button 
+      <button
         className={`cta-btn ${disabledJoin ? 'opacity-60 cursor-not-allowed' : ''}`}
         onClick={handleJoinGroup}
         disabled={disabledJoin}
         aria-disabled={disabledJoin}
-        title={disabledJoin ? 'گروه تکمیل شده است' : 'پیوستن به گروه'}
+        title={disabledJoin ? (groupStatus === 'failed' ? 'گروه ناموفق بوده است' : 'گروه تکمیل شده است') : 'پیوستن به گروه'}
       >
-        {disabledJoin ? 'گروه تکمیل شده است' : 'پیوستن به گروه با خرید سبد دوستت'}
+        پیوستن به گروه با خرید سبد دوستت
       </button>
 
       <hr className="divider" />
