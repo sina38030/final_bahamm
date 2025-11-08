@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.models import Product, Category, SubCategory, Order, User, Store, ProductImage, OrderItem, GroupOrder, Favorite, OrderState, Banner, Review, GroupOrderStatus, DeliverySlot
 from app.services.group_settlement_service import GroupSettlementService
+from app.services import notification_service
 from app.utils.logging import get_logger
 
 admin_router = APIRouter(prefix="/admin", tags=["admin"])
@@ -3616,13 +3617,18 @@ async def mark_refund_paid(
             if len(masked) >= 16:
                 masked = f"****-****-****-{masked[-4:]}"
             
-            # Send SMS notification to leader
-            message = f"باهم: بازپرداخت {amount:,} تومان به کارت {masked} واریز شد. گروه #{group.id}"
+            # Send refund notification to leader
+            message = f"بازپرداخت {amount:,} تومان به کارت {masked} واریز شد."
             try:
-                await sms_service.send_sms(leader.phone_number, message)
-                logger.info(f"Refund notification sent to leader {leader.phone_number}: {amount} tomans to card {masked}")
-            except Exception as sms_error:
-                logger.error(f"Failed to send refund notification SMS: {sms_error}")
+                await notification_service.send_notification(
+                    user=leader,
+                    title="بازپرداخت انجام شد",
+                    message=message,
+                    group_id=group.id
+                )
+                logger.info(f"Refund notification sent to leader {leader.id}: {amount} tomans to card {masked}")
+            except Exception as notif_error:
+                logger.error(f"Failed to send refund notification: {notif_error}")
                 # Still log for testing/backup
                 logger.info(f"[FALLBACK LOG] Refund {amount} paid to leader {leader.phone_number} card {masked}")
     except Exception as e:

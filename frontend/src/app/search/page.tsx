@@ -40,33 +40,64 @@ function SearchContent() {
   }, [query]);
 
   const fetchSearchResults = async (searchQuery: string) => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      // Updated API endpoint to use correct path and parameter name
-      const response = await fetch(`${API_BASE_URL}/products/search?query=${encodeURIComponent(searchQuery)}`);
-      
-      if (!response.ok) {
-        throw new Error(`Search failed with status: ${response.status}`);
+      // Try preferred backend route first: /api/search?q=
+      let res = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(searchQuery)}&limit=20`);
+      if (!res.ok) {
+        // Fallback to products route: /api/products/search?query=
+        res = await fetch(`${API_BASE_URL}/products/search?query=${encodeURIComponent(searchQuery)}`);
       }
-      
-      const data = await response.json();
-      
-      // Transform data to match our Product type
-      const formattedProducts = data.map((item: any) => ({
-        id: item.id,
-        name: item.name,
-        description: item.description || '',
-        price: item.price,
-        imageUrl: item.image,
-        discountPrice: item.discount_price,
-        free_shipping: item.free_shipping
+      if (res.ok) {
+        const data = await res.json();
+        const arr: any[] = Array.isArray(data) ? data : [];
+        const formattedProducts = arr.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          description: item.description || "",
+          // Prefer discounted price if available, fallback to base/market
+          price: item.discount_price ?? item.base_price ?? item.market_price ?? 0,
+          imageUrl: item.image || item.image_url,
+          image: item.image || item.image_url,
+          discountPrice: item.discount_price ?? null,
+          free_shipping: item.free_shipping ?? (item.shipping_cost === 0),
+        }));
+        setProducts(formattedProducts);
+        return;
+      }
+
+      // Final fallback: fetch admin products and filter client-side
+      const adminRes = await fetch(`${API_BASE_URL}/admin/products?limit=1000`);
+      if (!adminRes.ok) {
+        const text = await adminRes.text().catch(() => "");
+        throw new Error(`Search failed with status: ${adminRes.status} ${text.slice(0, 120)}`);
+      }
+      const adminData = await adminRes.json();
+      const list: any[] = Array.isArray(adminData) ? adminData : [];
+      const q = searchQuery.trim().toLowerCase();
+      const filtered = list.filter((p: any) => {
+        try {
+          return String(p.name || "").toLowerCase().includes(q) || String(p.description || "").toLowerCase().includes(q);
+        } catch {
+          return false;
+        }
+      });
+      const formattedFromAdmin = filtered.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        description: p.description || "",
+        price: p.discount_price ?? p.base_price ?? p.market_price ?? 0,
+        imageUrl: (Array.isArray(p.images) && p.images[0]?.image_url) || p.image_url || p.image || "",
+        image: (Array.isArray(p.images) && p.images[0]?.image_url) || p.image_url || p.image || "",
+        discountPrice: p.discount_price ?? null,
+        free_shipping: p.free_shipping ?? (p.shipping_cost === 0),
       }));
-      
-      setProducts(formattedProducts);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching search results:", error);
+      setProducts(formattedFromAdmin);
+    } catch (e) {
+      console.error("Error fetching search results:", e);
       setError("خطا در جستجو. لطفا دوباره تلاش کنید.");
+    } finally {
       setLoading(false);
     }
   };

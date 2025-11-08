@@ -133,7 +133,7 @@ class SMSService:
                     logger.error(f"HTTP request to Melipayamak failed: {str(e)}", exc_info=True)
                     # Try alternative SMS API on request failure
                     logger.info(f"Trying alternative SMS API due to request failure for phone: {phone_number}")
-                    alt_success = await self._try_alternative_sms_api(phone_number, code)
+                    alt_success = await self._try_alternative_sms_api(phone_number, code, is_verification=True)
                     if alt_success:
                         return True, None
                     # Try SOAP API as final attempt
@@ -205,8 +205,8 @@ class SMSService:
             logger.error(f"SOAP API failed: {str(e)}")
             return False
 
-    async def _try_alternative_sms_api(self, phone_number: str, code: str) -> bool:
-        """Try alternative Melipayamak SMS API as fallback"""
+    async def _try_alternative_sms_api(self, phone_number: str, message: str, is_verification: bool = False) -> bool:
+        """Try alternative Melipayamak SMS API for sending messages"""
         try:
             # Format phone number
             formatted_phone = phone_number
@@ -216,59 +216,66 @@ class SMSService:
                 formatted_phone = '0' + formatted_phone[2:]
             elif formatted_phone.startswith('+'):
                 formatted_phone = phone_number[1:]
-            
+
             if not formatted_phone.startswith('09'):
                 logger.error(f"Invalid phone format for alternative SMS: {phone_number}")
                 return False
-            
+
             # Extract API key for SMS API
             api_key = settings.MELIPAYAMAK_API_KEY
             sms_url = f'https://console.melipayamak.com/api/send/simple/{api_key}'
-            
-            message = f"کد تایید شما: {code}\nاین کد تا 15 دقیقه معتبر است."
+
+            # If this is for verification, format the message accordingly
+            if is_verification:
+                final_message = f"کد تایید شما: {message}\nاین کد تا 15 دقیقه معتبر است."
+            else:
+                final_message = message
+
             data = {
                 'to': formatted_phone,
-                'text': message
+                'text': final_message
             }
-            
+
             logger.info(f"Trying alternative SMS API for {formatted_phone}")
             logger.debug(f"Alternative SMS data: {json.dumps(data)}")
-            
+
             response = requests.post(sms_url, json=data, timeout=15)
             logger.debug(f"Alternative SMS response status: {response.status_code}")
-            
+
             if response.status_code == 200:
                 try:
                     response_data = response.json()
                     logger.debug(f"Alternative SMS response: {json.dumps(response_data)}")
-                    
+
                     # Check for success indicators
                     status_msg = response_data.get('status', '')
-                    if ('ارسال شده' in status_msg or 
-                        'sent' in status_msg.lower() or 
+                    if ('ارسال شده' in status_msg or
+                        'sent' in status_msg.lower() or
                         response_data.get('success') == True or
                         'ok' in status_msg.lower()):
                         logger.info(f"SMS sent successfully via alternative API to {formatted_phone}")
-                        test_verification_codes[formatted_phone] = code
+                        if is_verification:
+                            test_verification_codes[formatted_phone] = message
                         return True
                     else:
                         logger.warning(f"Alternative SMS API returned: {status_msg}")
                         return False
-                        
+
                 except Exception as e:
                     logger.warning(f"Could not parse alternative SMS response: {str(e)}")
                     logger.debug(f"Raw response: {response.text}")
                     # If we got 200 but can't parse, assume success for development
                     if response.status_code == 200:
                         logger.info(f"Alternative SMS assumed successful (unparseable response)")
-                        test_verification_codes[formatted_phone] = code
+                        if is_verification:
+                            test_verification_codes[formatted_phone] = message
                         return True
                     return False
             else:
                 logger.warning(f"Alternative SMS API returned HTTP {response.status_code}")
                 logger.debug(f"Response: {response.text}")
                 return False
-                
+
         except Exception as e:
             logger.error(f"Alternative SMS API failed: {str(e)}")
             return False
@@ -276,39 +283,42 @@ class SMSService:
     async def send_sms(self, phone_number: str, message: str) -> bool:
         """
         Send a general SMS message to a phone number
-        
+
         Args:
             phone_number: The recipient's phone number
             message: The message to send
-            
+
         Returns:
             bool: True if SMS was sent successfully, False otherwise
         """
         logger.info(f"Sending SMS to {phone_number}: {message[:50]}...")
-        
+
         if self.is_test_mode:
             logger.info(f"[TEST MODE] SMS to {phone_number}: {message}")
             print(f"*** SMS TO {phone_number}: {message} ***")
             return True
-        
+
         try:
             if self.provider == "melipayamak":
                 # Format phone number for Melipayamak (remove '+' and country code if necessary)
                 formatted_phone = phone_number
                 if formatted_phone.startswith('+98'):
                     formatted_phone = '0' + formatted_phone[3:]  # Convert +98... to 0...
+                elif formatted_phone.startswith('98'):
+                    formatted_phone = '0' + formatted_phone[2:]  # Convert 98... to 0...
                 elif formatted_phone.startswith('+'):
                     formatted_phone = phone_number[1:]  # Just remove the + sign
-                
+
+                # Ensure it starts with 09
+                if not formatted_phone.startswith('09'):
+                    logger.error(f"Invalid phone number format: {phone_number} -> {formatted_phone}")
+                    return False
+
                 logger.info(f"Sending SMS via Melipayamak to original: {phone_number}, formatted: {formatted_phone}")
-                
-                # For general SMS, we would need a different endpoint than OTP
-                # For now, log the message in test mode
-                logger.warning("General SMS sending via Melipayamak not implemented yet. Using test mode.")
-                logger.info(f"[FALLBACK TEST MODE] SMS to {phone_number}: {message}")
-                print(f"*** SMS TO {phone_number}: {message} ***")
-                return True
-                
+
+                # Use the alternative SMS API for general SMS messages
+                return await self._try_alternative_sms_api(formatted_phone, message, is_verification=False)
+
             else:
                 logger.error(f"Unsupported SMS provider: {self.provider}")
                 return False

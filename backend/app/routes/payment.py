@@ -1275,6 +1275,59 @@ async def get_group_invite_by_code(
         if group_order:
             allow_consolidation = bool(getattr(group_order, 'allow_consolidation', False))
 
+        # Calculate remaining time - for finalized groups, should be 0
+        remaining_seconds = None
+        expires_at_ms = None
+        server_now_ms = None
+        current_time = datetime.now(TEHRAN_TZ)
+
+        if group_order:
+            # For finalized groups (success or failed), remaining time should always be 0
+            if getattr(group_order, "status", None) in [GroupOrderStatus.GROUP_FINALIZED, GroupOrderStatus.GROUP_FAILED]:
+                remaining_seconds = 0
+                expires_at_ms = int(current_time.timestamp() * 1000)  # Set to current time
+                server_now_ms = int(current_time.timestamp() * 1000)
+            elif getattr(group_order, 'expires_at', None):
+                expires_at = group_order.expires_at
+                if expires_at.tzinfo is None:
+                    # If naive, assume it's UTC and convert to Tehran time
+                    from datetime import timezone as tz_module
+                    expires_at = expires_at.replace(tzinfo=tz_module.utc).astimezone(TEHRAN_TZ)
+                remaining_seconds = max(0, int((expires_at - current_time).total_seconds()))
+
+                # If group has expired and is still ongoing, mark it as failed
+                if remaining_seconds == 0 and getattr(group_order, "status", None) == GroupOrderStatus.GROUP_FORMING:
+                    try:
+                        # Count paid followers to determine if it should be success or failed
+                        orders = db.query(Order).filter(Order.group_order_id == group_order.id, Order.is_settlement_payment == False).all()
+                        paid_followers = sum(1 for o in orders if o.user_id != group_order.leader_id and (o.payment_ref_id is not None or o.paid_at is not None))
+
+                        if paid_followers >= 1:
+                            group_order.status = GroupOrderStatus.GROUP_FINALIZED
+                            status = "success"
+                        else:
+                            group_order.status = GroupOrderStatus.GROUP_FAILED
+                            status = "failed"
+
+                        # Save the changes
+                        db.commit()
+                        logger.info(f"Auto-marked expired group {group_order.id} as {status} (paid followers: {paid_followers})")
+                    except Exception as e:
+                        logger.error(f"Error auto-marking expired group {group_order.id}: {e}")
+                        db.rollback()
+                expires_at_ms = int(expires_at.timestamp() * 1000)
+                server_now_ms = int(current_time.timestamp() * 1000)
+
+        # Get group status
+        status = "ongoing"
+        if group_order:
+            status_map = {
+                GroupOrderStatus.GROUP_FORMING: "ongoing",
+                GroupOrderStatus.GROUP_FINALIZED: "success",
+                GroupOrderStatus.GROUP_FAILED: "failed",
+            }
+            status = status_map.get(getattr(group_order, "status", GroupOrderStatus.GROUP_FORMING), "ongoing")
+
         # Canonical invite code should reflect the group returned
         canonical_code = None
         try:
@@ -1289,6 +1342,10 @@ async def get_group_invite_by_code(
             "leader_phone": leader_phone or "",
             "items": items,
             "allow_consolidation": allow_consolidation,
+            "status": status,
+            "remaining_seconds": remaining_seconds,
+            "expires_at_ms": expires_at_ms,
+            "server_now_ms": server_now_ms,
         }
     except HTTPException:
         raise

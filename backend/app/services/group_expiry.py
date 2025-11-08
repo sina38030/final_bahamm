@@ -12,7 +12,8 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Order, OrderState, GroupOrder, GroupOrderStatus
+from app.models import Order, OrderState, GroupOrder, GroupOrderStatus, User
+from app.services import notification_service
 
 # Tehran timezone: UTC+3:30
 TEHRAN_TZ = timezone(timedelta(hours=3, minutes=30))
@@ -139,6 +140,20 @@ class GroupExpiryService:
                                 except Exception:
                                     pass
                                 logger.info(f"Group {group_id} expired with >=1 follower paid; marked successful.")
+
+                                # Send success notification to leader
+                                try:
+                                    leader = db.query(User).filter(User.id == group.leader_id).first()
+                                    if leader:
+                                        await notification_service.send_notification(
+                                            user=leader,
+                                            title="گروه تکمیل شد",
+                                            message=f"گروه شما با {paid_followers} عضو تکمیل شد و سفارش‌ها آماده ارسال هستند.",
+                                            group_id=group_id
+                                        )
+                                except Exception as e:
+                                    logger.error(f"Failed to send group success notification: {str(e)}")
+
                             else:
                                 # Mark group failed on expiry without any follower payment
                                 # Also compute refund policy for regular groups:
@@ -152,6 +167,19 @@ class GroupExpiryService:
                                 except Exception:
                                     pass
                                 logger.info(f"Group {group_id} expired with no followers; marked failed.")
+
+                                # Send failure notification to leader
+                                try:
+                                    leader = db.query(User).filter(User.id == group.leader_id).first()
+                                    if leader:
+                                        await notification_service.send_notification(
+                                            user=leader,
+                                            title="گروه منقضی شد",
+                                            message="متاسفانه گروه شما تکمیل نشد. مبلغ پرداخت شده قابل استرداد است.",
+                                            group_id=group_id
+                                        )
+                                except Exception as e:
+                                    logger.error(f"Failed to send group failure notification: {str(e)}")
                         except Exception as e:
                             logger.error(f"Expiry check error for group {group_id}: {e}")
                     db.commit()

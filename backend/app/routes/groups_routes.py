@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, timedelta
+import logging
 
 # Tehran timezone: UTC+3:30
 TEHRAN_TZ = timezone(timedelta(hours=3, minutes=30))
@@ -12,6 +13,8 @@ import json
 from app.database import get_db
 from app.models import GroupOrder, Order, User, GroupOrderStatus
 from app.utils.security import get_current_user
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix="/groups", tags=["groups"])
@@ -101,15 +104,44 @@ def _serialize_group(g: GroupOrder, db: Session) -> Dict[str, Any]:
     remaining_seconds = None
     expires_at_ms = None
     server_now_ms = None
-    if g.expires_at:
+    current_time = datetime.now(TEHRAN_TZ)
+
+    # For finalized groups (success or failed), remaining time should always be 0
+    if getattr(g, "status", None) in [GroupOrderStatus.GROUP_FINALIZED, GroupOrderStatus.GROUP_FAILED]:
+        remaining_seconds = 0
+        expires_at_ms = int(current_time.timestamp() * 1000)  # Set to current time
+        server_now_ms = int(current_time.timestamp() * 1000)
+    elif g.expires_at:
         # اطمینان از اینکه هر دو datetime در یک timezone هستند
         expires_at = g.expires_at
         if expires_at.tzinfo is None:
             # If naive, assume it's UTC and convert to Tehran time
             from datetime import timezone as tz_module
             expires_at = expires_at.replace(tzinfo=tz_module.utc).astimezone(TEHRAN_TZ)
-        current_time = datetime.now(TEHRAN_TZ)
+
         remaining_seconds = max(0, int((expires_at - current_time).total_seconds()))
+
+        # If group has expired and is still ongoing, mark it as failed
+        if remaining_seconds == 0 and getattr(g, "status", None) == GroupOrderStatus.GROUP_FORMING:
+            try:
+                # Count paid followers to determine if it should be success or failed
+                orders = db.query(Order).filter(Order.group_order_id == g.id, Order.is_settlement_payment == False).all()
+                paid_followers = sum(1 for o in orders if o.user_id != g.leader_id and (o.payment_ref_id is not None or o.paid_at is not None))
+
+                if paid_followers >= 1:
+                    g.status = GroupOrderStatus.GROUP_FINALIZED
+                    status = "success"
+                else:
+                    g.status = GroupOrderStatus.GROUP_FAILED
+                    status = "failed"
+
+                # Save the changes
+                db.commit()
+                logger.info(f"Auto-marked expired group {g.id} as {status} (paid followers: {paid_followers})")
+            except Exception as e:
+                logger.error(f"Error auto-marking expired group {g.id}: {e}")
+                db.rollback()
+
         # Also provide millisecond timestamps for more precise client-side countdown
         expires_at_ms = int(expires_at.timestamp() * 1000)
         server_now_ms = int(current_time.timestamp() * 1000)

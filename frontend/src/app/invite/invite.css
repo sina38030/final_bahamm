@@ -279,6 +279,11 @@ input[type="range"]:active::-moz-range-thumb::after {
   cursor: pointer;
 }
 
+.invite-btn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Description Card */
 .description-card {
   margin: 0.75rem;

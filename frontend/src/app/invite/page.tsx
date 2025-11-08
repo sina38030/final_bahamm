@@ -147,7 +147,7 @@ function InvitePageContent() {
 
   
 
-  // Disable invite if group is already completed (success)
+  // Disable invite if group is already completed (success) or expired
   useEffect(() => {
     // Determine invite code from order info
     const authoritySource = searchParams.get('authority') || '';
@@ -164,9 +164,12 @@ function InvitePageContent() {
         const status = String(data?.status || '').toLowerCase();
         if (abort) return;
         setGroupStatus(status);
-        // Do not disable invite; invited users can start their own group even if original is success
-        if (status === 'success') {
+        // Disable invite for groups that are not ongoing (finalized groups)
+        if (status !== 'ongoing') {
+          setInviteDisabled(true);
           try { setShareSheetOpen(false); } catch {}
+        } else {
+          setInviteDisabled(false);
         }
       } catch {}
     })();
@@ -194,6 +197,12 @@ function InvitePageContent() {
             ? 'failed'
             : 'ongoing';
         setGroupStatus(prev => prev || normalized);
+        // Disable invite for groups that are not ongoing (finalized groups)
+        if (normalized !== 'ongoing') {
+          setInviteDisabled(true);
+        } else {
+          setInviteDisabled(false);
+        }
       } catch {}
     })();
     return () => { abort = true; };
@@ -298,8 +307,12 @@ function InvitePageContent() {
         const data = await res.json();
         if (abort) return;
         const status = String(data?.status || '').toLowerCase();
-        if (status === 'success') {
+        // Disable invite for groups that are not ongoing (finalized groups)
+        if (status !== 'ongoing') {
+          setInviteDisabled(true);
           try { setShareSheetOpen(false); } catch {}
+        } else {
+          setInviteDisabled(false);
         }
         // Determine group type from payload (regular logic)
         const isSecondary = markSecondaryFlow(data);
@@ -900,8 +913,10 @@ function InvitePageContent() {
                   : `قیمت از ${toFa(Math.round(originalTotal).toLocaleString())} تومان به ${currentTotal === 0 ? 'رایگان' : `${toFa(Math.round(currentTotal).toLocaleString())} تومان`} کاهش یافته!`}
               </p>
             ) : null}
-            {groupStatus === 'success' && (
-              <div className="text-green-600 text-sm mt-1">این خرید گروهی به اتمام رسیده است.</div>
+            {(groupStatus === 'success' || groupStatus === 'failed') && (
+              <div className={`text-sm mt-1 ${groupStatus === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                {groupStatus === 'success' ? 'این خرید گروهی به اتمام رسیده است.' : 'این خرید گروهی ناموفق بوده است.'}
+              </div>
             )}
           </div>
           {progressReady && requiredMembers !== null && nonLeaderPaid !== null ? (
@@ -916,10 +931,10 @@ function InvitePageContent() {
           ) : null}
  
           <button
-            className={`invite-btn${creating ? ' disabled' : ''}`}
+            className={`invite-btn${(creating || inviteDisabled) ? ' disabled' : ''}`}
             onClick={ensureSecondaryGroupThenShare}
-            disabled={creating}
-            aria-disabled={creating}
+            disabled={creating || inviteDisabled}
+            aria-disabled={creating || inviteDisabled}
             title={'اشتراک‌گذاری لینک دعوت'}
           >
              {creating ? 'در حال آماده‌سازی...' : 'دعوت دوستان'}

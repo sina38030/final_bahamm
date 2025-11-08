@@ -8,6 +8,7 @@ from app.utils.logging import get_logger
 from app.config import get_settings
 from app.services.group_settlement_service import GroupSettlementService
 from app.services.order_post_processor import OrderPostProcessor
+from app.services import notification_service
 
 # Tehran timezone: UTC+3:30
 TEHRAN_TZ = timezone(timedelta(hours=3, minutes=30))
@@ -322,6 +323,19 @@ class PaymentService:
                 order.payment_ref_id = verification_result["ref_id"]
                 order.paid_at = datetime.now(TEHRAN_TZ)
 
+                # Send payment success notification
+                try:
+                    user = self.db.query(User).filter(User.id == order.user_id).first()
+                    if user:
+                        await notification_service.send_notification(
+                            user=user,
+                            title="پرداخت موفق",
+                            message="پرداخت شما با موفقیت انجام شد و سفارش شما در حال آماده‌سازی است.",
+                            order_id=order.id
+                        )
+                except Exception as e:
+                    logger.error(f"Failed to send payment success notification: {str(e)}")
+
                 # Simplified: Only handle invited flow via PENDING_INVITE. No PENDING_GROUP branch.
                 logger.info(f"🔍 Checking if order {order.id} is invited: shipping_address={order.shipping_address[:100] if order.shipping_address else None}")
                 if order.shipping_address and order.shipping_address.startswith("PENDING_INVITE:"):
@@ -591,6 +605,20 @@ class PaymentService:
                     if result and result.get("success"):
                         settlement_paid_flag = True
                         settlement_message = result.get("message") or "پرداخت مبلغ باقیمانده با موفقیت انجام شد و سفارش شما در زمان تعیین شده ارسال خواهد شد."
+
+                        # Send settlement success notification
+                        try:
+                            user = self.db.query(User).filter(User.id == order.user_id).first()
+                            if user:
+                                await notification_service.send_notification(
+                                    user=user,
+                                    title="تسویه گروه",
+                                    message=settlement_message,
+                                    order_id=order.id,
+                                    group_id=order.group_order_id
+                                )
+                        except Exception as e:
+                            logger.error(f"Failed to send settlement success notification: {str(e)}")
                 
                 # If this order is part of a group, update group status/metrics
                 elif order.group_order_id:
