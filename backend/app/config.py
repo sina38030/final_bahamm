@@ -34,7 +34,7 @@ class Settings(BaseSettings):
         
         # Auto-detect: if localhost, use direct backend URL
         if "localhost" in self.FRONTEND_URL or "127.0.0.1" in self.FRONTEND_URL:
-            return "http://localhost:8080/api"
+            return "http://localhost:8001/api"
         else:
             # Production: use nginx proxy path
             return f"{self.FRONTEND_URL}/backend/api"
@@ -78,4 +78,8 @@ class Settings(BaseSettings):
 
 @lru_cache()
 def get_settings():
-    return Settings() 
+    return Settings()
+
+def clear_settings_cache():
+    """Clear the settings cache - useful for testing or config reloads"""
+    get_settings.cache_clear()
