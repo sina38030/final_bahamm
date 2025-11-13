@@ -7,7 +7,9 @@ from dotenv import load_dotenv
 from sqlalchemy.engine.url import make_url
 from sqlalchemy import event
 
-load_dotenv()
+# Load .env file if it exists
+if os.path.exists('.env'):
+    load_dotenv()
 
 # Get the database URL from environment
 DATABASE_URL = os.getenv("DATABASE_URL")

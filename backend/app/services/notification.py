@@ -97,3 +97,5 @@ class NotificationService:
 
 # Create singleton instance
 notification_service = NotificationService()
+
+

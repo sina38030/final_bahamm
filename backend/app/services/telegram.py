@@ -83,3 +83,5 @@ class TelegramService:
 
 # Create singleton instance
 telegram_service = TelegramService()
+
+

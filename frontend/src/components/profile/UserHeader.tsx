@@ -16,9 +16,18 @@ export default function UserHeader() {
     const [editIsOpen, setEditIsOpen] = useState(false);
     const [linksIsOpen, setLinksIsOpen] = useState(false);
     const [showPhoneAuth, setShowPhoneAuth] = useState(false);
-    
+    const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+
     const { user, isAuthenticated, refreshCoins } = useAuth();
     const router = useRouter();
+
+    // Handle navigation after modal closes
+    useEffect(() => {
+        if (!linksIsOpen && pendingNavigation) {
+            router.push(pendingNavigation);
+            setPendingNavigation(null);
+        }
+    }, [linksIsOpen, pendingNavigation, router]);
 
     // Helper function to get the display name
     const getDisplayName = () => {
@@ -125,17 +134,33 @@ export default function UserHeader() {
                 title="پشتیبانی"
             >
                 <div className="space-y-4">
-                    <button className="w-full flex items-center gap-3 bg-blue-50 p-3 rounded-lg">
+                    <button
+                        className="w-full flex items-center gap-3 bg-blue-50 p-3 rounded-lg hover:bg-blue-100 transition-colors"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setPendingNavigation('/chat');
+                            setLinksIsOpen(false);
+                        }}
+                    >
                         <FaComments className="text-blue-600" size={20} />
                         <span className="font-medium">گفتگو با پشتیبانی</span>
                     </button>
-                    
+
                     <button className="w-full flex items-center gap-3 bg-green-50 p-3 rounded-lg">
                         <FaPhone className="text-green-600" size={20} />
                         <span className="font-medium">تماس با پشتیبانی</span>
                     </button>
-                    
-                    <button className="w-full flex items-center gap-3 bg-yellow-50 p-3 rounded-lg">
+
+                    <button
+                        className="w-full flex items-center gap-3 bg-yellow-50 p-3 rounded-lg hover:bg-yellow-100 transition-colors"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setPendingNavigation('/profile/faq');
+                            setLinksIsOpen(false);
+                        }}
+                    >
                         <FaQuestionCircle className="text-yellow-600" size={20} />
                         <span className="font-medium">سوالات متداول</span>
                     </button>

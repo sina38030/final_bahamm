@@ -3,11 +3,32 @@ import type {NextConfig} from "next";
 const nextConfig: NextConfig = {
     // Enable React strict mode for better debugging
     reactStrictMode: true,
+	
+	// Add permissive headers for static assets/fonts to avoid 403 via tunnels/proxies
+	async headers() {
+		return [
+			{
+				source: '/_next/static/:path*',
+				headers: [
+					{ key: 'Access-Control-Allow-Origin', value: '*' },
+					{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+					{ key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
+				],
+			},
+			{
+				source: '/fonts/:path*',
+				headers: [
+					{ key: 'Access-Control-Allow-Origin', value: '*' },
+					{ key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
+				],
+			},
+		];
+	},
     
     // Environment variables
     env: {
-        NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080',
-        NEXT_PUBLIC_ADMIN_API_URL: process.env.NEXT_PUBLIC_ADMIN_API_URL || 'https://bahamm.ir/api',
+        NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8001',
+        NEXT_PUBLIC_ADMIN_API_URL: process.env.NEXT_PUBLIC_ADMIN_API_URL || 'http://127.0.0.1:8001/api',
         NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || 'https://bahamm.ir',
         NEXT_PUBLIC_FRONTEND_URL: process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://bahamm.ir',
     },

@@ -113,7 +113,7 @@ header#mainHeader.compact .top-card{padding-right:16px;padding-left:16px}
 .slide-cta:hover{opacity:.9}
 
 /* --- Bottom-sheet Popup --- */
-.popup{position:fixed;inset:0;background:rgba(0,0,0,.35);visibility:hidden;opacity:0;transition:visibility .3s,opacity .3s;z-index:30}
+.popup{position:fixed;inset:0;background:rgba(0,0,0,.35);visibility:hidden;opacity:0;transition:visibility .3s,opacity .3s;z-index:50}
 .popup.show{visibility:visible;opacity:1}
 .popup-box{position:fixed;right:0;left:0;bottom:0;height:50vh;background:#fff;border-radius:18px 18px 0 0;padding:24px 20px;box-shadow:0 -4px 10px rgba(0,0,0,.12);transform:translateY(100%);transition:transform .35s ease;overflow-y:auto}
 .popup.show .popup-box{transform:translateY(0)}

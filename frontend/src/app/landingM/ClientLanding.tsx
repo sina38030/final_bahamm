@@ -6,6 +6,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus as faPlusSolid, faMinus as faMinusSolid, faStar, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
 import { useRouter } from 'next/navigation';
 import { useProductModal } from '@/hooks/useProductModal';
+import { useCart } from '@/contexts/CartContext';
 import { generateInviteLink, generateShareUrl, extractInviteCode } from '@/utils/linkGenerator';
 
 // Resilient dynamic import to auto-recover once from transient ChunkLoadError after HMR/build changes
@@ -50,6 +51,7 @@ interface SelectionProduct extends Product {
 
 export default function ClientLanding({ invite, initialProducts, initialGroupOrderData, initialGroupMeta, initialServerNowMs }: { invite: string; initialProducts?: any[]; initialGroupOrderData?: any; initialGroupMeta?: any; initialServerNowMs?: number }) {
   const router = useRouter();
+  const { items: globalCartItems, addItem, updateQuantity, removeItem } = useCart();
   const [rotatingTextIndex, setRotatingTextIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('all');
   const [customCart, setCustomCart] = useState<Record<number, number>>({});
@@ -65,6 +67,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
   const [pendingAction, setPendingAction] = useState<null | 'leader' | 'custom'>(null);
   const [groupStatus, setGroupStatus] = useState<'ongoing' | 'success' | 'failed' | null>(null);
   const [disabledJoin, setDisabledJoin] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [categorySettings, setCategorySettings] = useState({ 
     all_label: 'همه', 
@@ -98,6 +101,9 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  const closeSearch = () => { setIsSearchOpen(false); setSearchQuery(''); };
 
   const defaultTargetAmount = 150000;
   const rotatingMessages = ["مستقیم از مزرعه", "تازه و با کیفیت", "با هم بخریم، ارزان بخریم"];
@@ -514,8 +520,52 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
     setTotalAmount(amount);
   }, [customCart, productMap]);
 
-  const handleAddToCart = (productId: number) => { setCustomCart(prev => ({ ...prev, [productId]: 1 })); };
-  const handleIncrement = (productId: number) => { setCustomCart(prev => ({ ...prev, [productId]: (prev[productId] || 0) + 1 })); };
+  const buildCartItem = (productId: number) => {
+    const pid = Number(productId);
+    const bp: any = productsData.find((p: any) => Number(p.id) === pid);
+    if (!bp) return null;
+    const solo = Number(bp.solo_price ?? bp.market_price ?? bp.base_price ?? 0) || 0;
+    const friend1Raw = Number(bp.friend_1_price ?? 0) || 0;
+    const base_price = friend1Raw > 0 ? friend1Raw : (Number(bp.base_price ?? 0) || Math.round(solo / 2) || solo);
+    const market_price = solo > 0 ? solo : (Number(bp.market_price ?? 0) || base_price);
+    const image =
+      (Array.isArray(bp.images) && bp.images[0]) ||
+      bp.image_url ||
+      bp.image ||
+      '/images/placeholder-300.svg';
+    return {
+      id: pid,
+      name: String(bp.name || `محصول ${pid}`),
+      base_price,
+      market_price,
+      image,
+      quantity: 1,
+      // admin price fields (optional but useful for pricing elsewhere)
+      solo_price: solo,
+      friend_1_price: friend1Raw || base_price,
+      friend_2_price: Number(bp.friend_2_price ?? 0) || 0,
+      friend_3_price: Number(bp.friend_3_price ?? 0) || 0,
+    };
+  };
+
+  const handleAddToCart = (productId: number) => {
+    setCustomCart(prev => ({ ...prev, [productId]: 1 }));
+    try {
+      const item = buildCartItem(productId);
+      if (item) addItem(item, 1);
+    } catch {}
+  };
+  const handleIncrement = (productId: number) => {
+    setCustomCart(prev => ({ ...prev, [productId]: (prev[productId] || 0) + 1 }));
+    try {
+      const existing = globalCartItems.find(i => i.id === productId);
+      if (existing) updateQuantity(productId, existing.quantity + 1);
+      else {
+        const item = buildCartItem(productId);
+        if (item) addItem(item, 1);
+      }
+    } catch {}
+  };
   const handleDecrement = (productId: number) => {
     setCustomCart(prev => {
       const newCart: Record<number, number> = { ...prev };
@@ -523,6 +573,14 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
       if (current > 1) newCart[productId] = current - 1; else delete newCart[productId];
       return newCart;
     });
+    try {
+      const existing = globalCartItems.find(i => i.id === productId);
+      if (existing) {
+        const next = existing.quantity - 1;
+        if (next <= 0) removeItem(productId);
+        else updateQuantity(productId, next);
+      }
+    } catch {}
   };
 
   const sheetRef = useRef<HTMLDivElement | null>(null);
@@ -540,6 +598,13 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
     return () => {};
   }, [isSheetOpen]);
 
+  useEffect(() => {
+    if (!isSearchOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); closeSearch(); }};
+    document.addEventListener('keydown', onKey);
+    const id = setTimeout(() => searchInputRef.current?.focus?.(), 0);
+    return () => { document.removeEventListener('keydown', onKey); clearTimeout(id); };
+  }, [isSearchOpen]);
 
   useEffect(() => {
     if (!isSheetOpen) return;
@@ -1035,74 +1100,25 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
         <nav className="tabs" id="tabs">
           <div className="tabs-row">
             <div className="tabs-left">
-              <button className="tab search-btn" aria-label="جستجو" onClick={() => {
-                openSheet("جستجوی محصولات", (
-                  <div className="search-modal">
-                    <div className="search-input-wrapper">
-                      <FontAwesomeIcon icon={faMagnifyingGlass} className="search-icon" />
-                      <input
-                        type="text"
-                        placeholder="نام محصول را جستجو کنید..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="search-modal-input"
-                        autoFocus
-                      />
-                      {searchQuery && (
-                        <button className="clear-search" onClick={() => setSearchQuery('')}>&times;</button>
-                      )}
-                    </div>
-                    <div className="search-results">
-                      {(() => {
-                        const filteredProducts = selectionProducts
-                          .filter(p => activeTab === 'all' || p.category === activeTab)
-                          .filter(p => {
-                            const q = searchQuery.trim();
-                            if (!q) return true;
-                            try { return String(p.name || '').toLowerCase().includes(q.toLowerCase()); } catch { return true; }
-                          });
-
-                        if (searchQuery.trim() === '') {
-                          return <p className="search-placeholder">برای جستجو، نام محصول را تایپ کنید</p>;
-                        }
-
-                        if (filteredProducts.length === 0) {
-                          return <p className="no-results">محصولی با این نام یافت نشد</p>;
-                        }
-
-                        return filteredProducts.slice(0, 20).map((product) => {
-                          const pid = product.id;
-                          const qty = customCart[pid] || 0;
-                          return (
-                            <div key={pid} className="search-product-item" onClick={() => openModalWithProduct(product)}>
-                              <img src={product.img} alt={product.name} className="search-product-img" />
-                              <div className="search-product-info">
-                                <h4 className="search-product-name">{product.name}</h4>
-                                <p className="search-product-weight">{product.weight}</p>
-                                <div className="search-product-prices">
-                                  <span className="search-price-old">{product.oldPrice} تومان</span>
-                                  <span className="search-price-new">{product.newPrice} تومان</span>
-                                </div>
-                              </div>
-                              {!qty ? (
-                                <button className="search-add-btn" onClick={(e) => { e.stopPropagation(); handleAddToCart(pid); }}>+</button>
-                              ) : (
-                                <div className="search-qty-box">
-                                  <button className="search-plus" onClick={(e) => { e.stopPropagation(); handleIncrement(pid); }}>+</button>
-                                  <span className="search-count">{toFaDigits(String(qty))}</span>
-                                  <button className="search-minus" onClick={(e) => { e.stopPropagation(); handleDecrement(pid); }}>-</button>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        });
-                      })()}
-                    </div>
-                  </div>
-                ));
-              }}>
-                <FontAwesomeIcon icon={faMagnifyingGlass} />
-              </button>
+              {!isSearchOpen && (
+                <button className="tab search-btn" aria-label="جستجو" onClick={() => setIsSearchOpen(true)}>
+                  <FontAwesomeIcon icon={faMagnifyingGlass} />
+                </button>
+              )}
+              {isSearchOpen && (
+                <div className="inline-search">
+                  <FontAwesomeIcon icon={faMagnifyingGlass} className="inline-icon" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder="جستجوی محصولات"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="search-input"
+                  />
+                  <button className="close-x" aria-label="بستن" onClick={closeSearch}>&times;</button>
+                </div>
+              )}
               <span className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')} data-category="all">
                 {categorySettings.all_image && (
                   <img src={categorySettings.all_image} alt={categorySettings.all_label} style={{ width: '20px', height: '20px', marginLeft: '5px', verticalAlign: 'middle' }} />
@@ -1128,6 +1144,11 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
         <section id="productGrid" className="products">
           {selectionProducts
             .filter(p => activeTab === 'all' || p.category === activeTab)
+            .filter(p => {
+              const q = searchQuery.trim();
+              if (!q) return true;
+              try { return String(p.name || '').toLowerCase().includes(q.toLowerCase()); } catch { return true; }
+            })
             .slice(0, loadedProducts)
             .map((product, idx) => {
               const pid = product.id;
@@ -1259,29 +1280,6 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
         /* Ensure overlays cover sticky elements */
         .sheet-overlay { z-index: 10000; }
         .bottom-sheet { z-index: 10001; }
-
-        /* Search Modal Styles */
-        .search-modal { padding: 16px 0; }
-        .search-input-wrapper { position: relative; margin-bottom: 20px; }
-        .search-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 16px; }
-        .search-modal-input { width: 100%; padding: 12px 40px 12px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; outline: none; direction: rtl; }
-        .search-modal-input:focus { border-color: #007bff; }
-        .clear-search { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 18px; color: #666; cursor: pointer; }
-        .search-results { max-height: 60vh; overflow-y: auto; }
-        .search-placeholder, .no-results { text-align: center; color: #666; padding: 40px 20px; font-size: 16px; }
-        .search-product-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; cursor: pointer; transition: background-color 0.2s; }
-        .search-product-item:hover { background-color: #f8f9fa; }
-        .search-product-img { width: 60px; height: 60px; border-radius: 8px; object-fit: cover; }
-        .search-product-info { flex: 1; }
-        .search-product-name { margin: 0 0 4px 0; font-size: 16px; font-weight: 500; }
-        .search-product-weight { margin: 0 0 8px 0; font-size: 14px; color: #666; }
-        .search-product-prices { display: flex; gap: 8px; align-items: center; }
-        .search-price-old { font-size: 14px; color: #999; text-decoration: line-through; }
-        .search-price-new { font-size: 16px; font-weight: 600; color: #007bff; }
-        .search-add-btn { width: 32px; height: 32px; border-radius: 50%; background: #007bff; color: white; border: none; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .search-qty-box { display: flex; align-items: center; gap: 8px; }
-        .search-plus, .search-minus { width: 24px; height: 24px; border-radius: 4px; background: #f0f0f0; border: none; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .search-count { font-weight: 500; min-width: 20px; text-align: center; }
 
         /* Removed drawer styles; inline only */
       `}</style>

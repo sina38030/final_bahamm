@@ -50,7 +50,11 @@ export default function CustomModal({
     isSubmitDisabled = false,
 }: CustomModalProps) {
     const handleContentClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
+        // Only stop propagation if clicking directly on modal content, not on interactive elements
+        const target = e.target as HTMLElement;
+        if (target.tagName !== 'BUTTON' && target.tagName !== 'A' && !target.closest('button') && !target.closest('a')) {
+            e.stopPropagation();
+        }
     };
 
     return (

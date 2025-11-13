@@ -7,6 +7,7 @@ import ProductCard from "@/components/ProductCard";
 import { Product as ProductCardType } from "@/data/products";
 import { FaSearch } from "react-icons/fa";
 import { API_BASE_URL } from "@/utils/api";
+import CartBar from "@/components/CartBar";
 
 // Define Product type
 type Product = {
@@ -233,6 +234,9 @@ function SearchContent() {
           )}
         </div>
       )}
+      
+      {/* Floating cart bar to reflect add-to-cart actions */}
+      <CartBar />
     </div>
   );
 } 

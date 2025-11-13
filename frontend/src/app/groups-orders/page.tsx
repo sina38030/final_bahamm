@@ -498,33 +498,7 @@ export default function GroupsOrdersPage() {
   }, []);
 
   // Gate: If user is not authenticated and no token is stored, show login prompt (client-only)
-  if (noSession) {
-    return (
-      <div dir="rtl" className="min-h-screen bg-gray-50 pb-20">
-        <div className="sticky top-0 bg-white z-10">
-          <div className="px-4 py-3 border-b">
-            <div className="relative flex items-center justify-between">
-              <h1 className="absolute left-1/2 -translate-x-1/2 text-sm font-bold">گروه و سفارش‌ها</h1>
-              <button onClick={() => router.back()} className="ml-auto p-2 hover:bg-gray-100 rounded-full" aria-label="بازگشت">
-                <span className="inline-block">❮</span>
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className="p-4">
-          <div className="bg-white border rounded-xl p-6 text-center shadow-sm max-w-md mx-auto">
-            <div className="text-sm text-gray-700 mb-4">برای دیدن گروه و سفارش‌ها وارد شوید</div>
-            <button
-              onClick={() => router.push('/auth/login')}
-              className="w-full bg-rose-600 hover:bg-rose-700 text-white font-medium py-2.5 px-4 rounded-lg"
-            >
-              ورود
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // NOTE: Do not early-return before hooks. Render login branch in JSX instead.
 
   // Local toast listener (unified toast surface for this page)
   useEffect(() => {
@@ -873,6 +847,31 @@ export default function GroupsOrdersPage() {
   }, [initialLoading, hasLeaderGroup]);
 
   return (
+    noSession ? (
+      <div dir="rtl" className="min-h-screen bg-gray-50 pb-20">
+        <div className="sticky top-0 bg-white z-10">
+          <div className="px-4 py-3 border-b">
+            <div className="relative flex items-center justify-between">
+              <h1 className="absolute left-1/2 -translate-x-1/2 text-sm font-bold">گروه و سفارش‌ها</h1>
+              <button onClick={() => router.back()} className="ml-auto p-2 hover:bg-gray-100 rounded-full" aria-label="بازگشت">
+                <span className="inline-block">❮</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="p-4">
+          <div className="bg-white border rounded-xl p-6 text-center shadow-sm max-w-md mx-auto">
+            <div className="text-sm text-gray-700 mb-4">برای دیدن گروه و سفارش‌ها وارد شوید</div>
+            <button
+              onClick={() => router.push('/auth/login')}
+              className="w-full bg-rose-600 hover:bg-rose-700 text-white font-medium py-2.5 px-4 rounded-lg"
+            >
+              ورود
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : (
       <div dir="rtl" className="min-h-screen bg-gray-50 pb-20">
       <div className="sticky top-0 bg-white z-10">
         <div className="px-4 py-3 border-b">
@@ -1152,7 +1151,7 @@ export default function GroupsOrdersPage() {
         </div>
       )}
     </div>
-  );
+  ));
 }
 
 function FailedLeaderRefundControls({ groupId }: { groupId: number }) {
@@ -1232,7 +1231,7 @@ function FailedLeaderRefundControls({ groupId }: { groupId: number }) {
     }
   };
 
-  if (submitted) {
+  return submitted ? (() => {
     const method = (() => {
       try { return localStorage.getItem(`gb-refund-method-${groupId}`) || 'bank'; } catch { return 'bank'; }
     })();
@@ -1241,9 +1240,7 @@ function FailedLeaderRefundControls({ groupId }: { groupId: number }) {
         {method === 'wallet' ? 'واریز به کیف پول با موفقیت انجام شد.' : 'اطلاعات کارت ثبت شد. مبلغ به کارت شما واریز خواهد شد.'}
       </div>
     );
-  }
-
-  return (
+  })() : (
     <div className="space-y-2" dir="rtl">
       <div className="flex gap-2">
         <button
@@ -1412,11 +1409,7 @@ function RefundButtonWithTimer({ authority }: { authority: string }) {
   const toFa = (val: string | number) => String(val).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[parseInt(d)]);
 
   // Hide the button once countdown reaches zero
-  if (hide || (typeof timeLeft === 'number' && timeLeft === 0)) {
-    return null;
-  }
-
-  return (
+  return hide || (typeof timeLeft === 'number' && timeLeft === 0) ? null : (
     <button
       className="text-sm px-3 py-1 rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
       onClick={() => router.push(`/invite?authority=${encodeURIComponent(String(authority))}`)}
