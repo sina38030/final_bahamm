@@ -8,7 +8,6 @@ from app.utils.logging import get_logger
 from app.config import get_settings
 from app.services.group_settlement_service import GroupSettlementService
 from app.services.order_post_processor import OrderPostProcessor
-from app.services import notification_service
 
 # Tehran timezone: UTC+3:30
 TEHRAN_TZ = timezone(timedelta(hours=3, minutes=30))
@@ -81,17 +80,15 @@ class PaymentService:
             # Create order with simple working approach
             # Store mode and group target info in delivery_slot as JSON if provided
             delivery_info = delivery_slot
-            if (mode or friends is not None or max_friends is not None or allow_consolidation is not None or expected_friends is not None) and delivery_slot:
+            if (mode or friends is not None or max_friends is not None) and delivery_slot:
                 import json
                 delivery_info = json.dumps({
                     "delivery_slot": delivery_slot,
                     **({"mode": mode} if mode else {}),
                     **({"friends": friends} if friends is not None else {}),
                     **({"max_friends": max_friends} if max_friends is not None else {}),
-                    **({"allow_consolidation": allow_consolidation} if allow_consolidation is not None else {}),
-                    **({"expected_friends": expected_friends} if expected_friends is not None else {}),
                 })
-            elif mode or friends is not None or max_friends is not None or allow_consolidation is not None or expected_friends is not None:
+            elif mode or friends is not None or max_friends is not None:
                 import json
                 payload = {}
                 if mode:
@@ -100,10 +97,6 @@ class PaymentService:
                     payload["friends"] = friends
                 if max_friends is not None:
                     payload["max_friends"] = max_friends
-                if allow_consolidation is not None:
-                    payload["allow_consolidation"] = allow_consolidation
-                if expected_friends is not None:
-                    payload["expected_friends"] = expected_friends
                 delivery_info = json.dumps(payload)
                 
             order = Order(
@@ -323,19 +316,6 @@ class PaymentService:
                 order.payment_ref_id = verification_result["ref_id"]
                 order.paid_at = datetime.now(TEHRAN_TZ)
 
-                # Send payment success notification
-                try:
-                    user = self.db.query(User).filter(User.id == order.user_id).first()
-                    if user:
-                        await notification_service.send_notification(
-                            user=user,
-                            title="پرداخت موفق",
-                            message="پرداخت شما با موفقیت انجام شد و سفارش شما در حال آماده‌سازی است.",
-                            order_id=order.id
-                        )
-                except Exception as e:
-                    logger.error(f"Failed to send payment success notification: {str(e)}")
-
                 # Simplified: Only handle invited flow via PENDING_INVITE. No PENDING_GROUP branch.
                 logger.info(f"🔍 Checking if order {order.id} is invited: shipping_address={order.shipping_address[:100] if order.shipping_address else None}")
                 if order.shipping_address and order.shipping_address.startswith("PENDING_INVITE:"):
@@ -518,26 +498,8 @@ class PaymentService:
                             prefix = authority[:8] if authority else ""
                             invite_token = f"GB{order.id}{prefix}"
 
-                            # Extract allow_consolidation and expected_friends from delivery_slot JSON if present
-                            allow_consolidation_value = False
-                            expected_friends_value = None
                             try:
-                                # Parse delivery_slot JSON to get group metadata
-                                if order.delivery_slot:
-                                    import json
-                                    delivery_metadata = json.loads(order.delivery_slot)
-                                    if isinstance(delivery_metadata, dict):
-                                        allow_consolidation_value = delivery_metadata.get('allow_consolidation', False)
-                                        expected_friends_value = delivery_metadata.get('expected_friends')
-                                        # Also check friends/max_friends as fallback
-                                        if expected_friends_value is None:
-                                            expected_friends_value = delivery_metadata.get('friends') or delivery_metadata.get('max_friends')
-                            except Exception as e:
-                                logger.debug(f"Could not parse delivery_slot metadata: {e}")
-                                pass
-
-                            try:
-                                # Create GroupOrder with allow_consolidation and expected_friends
+                                # Create GroupOrder
                                 group = GroupOrder(
                                     leader_id=leader_user.id,
                                     invite_token=invite_token,
@@ -545,9 +507,7 @@ class PaymentService:
                                     created_at=datetime.now(TEHRAN_TZ),
                                     leader_paid_at=datetime.now(TEHRAN_TZ),
                                     expires_at=datetime.now(TEHRAN_TZ) + timedelta(hours=24),
-                                    basket_snapshot=snapshot_json,
-                                    allow_consolidation=bool(allow_consolidation_value) if allow_consolidation_value is not None else False,
-                                    expected_friends=expected_friends_value
+                                    basket_snapshot=snapshot_json
                                 )
                                 self.db.add(group)
                                 self.db.flush()
@@ -562,8 +522,8 @@ class PaymentService:
                                         pass
                                     from sqlalchemy import text
                                     insert_stmt = text(
-                                        "INSERT INTO group_orders (leader_id, invite_token, status, created_at, leader_paid_at, expires_at, allow_consolidation, expected_friends) "
-                                        "VALUES (:leader_id, :invite_token, :status, :created_at, :leader_paid_at, :expires_at, :allow_consolidation, :expected_friends)"
+                                        "INSERT INTO group_orders (leader_id, invite_token, status, created_at, leader_paid_at, expires_at) "
+                                        "VALUES (:leader_id, :invite_token, :status, :created_at, :leader_paid_at, :expires_at)"
                                     )
                                     now = datetime.now(TEHRAN_TZ)
                                     self.db.execute(insert_stmt, {
@@ -573,8 +533,6 @@ class PaymentService:
                                         "created_at": now,
                                         "leader_paid_at": now,
                                         "expires_at": now + timedelta(hours=24),
-                                        "allow_consolidation": 1 if (allow_consolidation_value is True) else 0,
-                                        "expected_friends": expected_friends_value,
                                     })
                                     # Retrieve last inserted id (SQLite)
                                     group_id = self.db.execute(text("SELECT last_insert_rowid()")).scalar()
@@ -586,7 +544,6 @@ class PaymentService:
                                 order.group_order_id = group_id
                                 order.order_type = OrderType.GROUP
                                 # Invite token already set at creation
-                                logger.info(f"✅ GroupOrder {group_id} created after successful payment verification for order {order.id}")
                                     
                         except Exception as e:
                             logger.error(f"Failed to create GroupOrder after payment: {e}")
@@ -605,20 +562,6 @@ class PaymentService:
                     if result and result.get("success"):
                         settlement_paid_flag = True
                         settlement_message = result.get("message") or "پرداخت مبلغ باقیمانده با موفقیت انجام شد و سفارش شما در زمان تعیین شده ارسال خواهد شد."
-
-                        # Send settlement success notification
-                        try:
-                            user = self.db.query(User).filter(User.id == order.user_id).first()
-                            if user:
-                                await notification_service.send_notification(
-                                    user=user,
-                                    title="تسویه گروه",
-                                    message=settlement_message,
-                                    order_id=order.id,
-                                    group_id=order.group_order_id
-                                )
-                        except Exception as e:
-                            logger.error(f"Failed to send settlement success notification: {str(e)}")
                 
                 # If this order is part of a group, update group status/metrics
                 elif order.group_order_id:
