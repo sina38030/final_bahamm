@@ -42,11 +42,31 @@ function PaymentCallbackContent() {
         if (alreadyProcessed) {
           console.log('[PaymentCallback] Authority already processed, redirecting to appropriate page');
           const processedData = JSON.parse(alreadyProcessed);
+          console.log('[PaymentCallback] Cached processedData:', processedData);
           
           if (processedData.isInvited && processedData.orderId) {
-            // Redirect to success page instead of re-processing (preserve invited parameter)
+            // Redirect to invitee success page
             const target = `/payment/success/invitee?orderId=${processedData.orderId}${processedData.groupId ? `&groupId=${processedData.groupId}` : ''}`;
-            console.log('[PaymentCallback] Redirecting to success page:', target);
+            console.log('[PaymentCallback] Redirecting invited user to success page:', target);
+            if (typeof window !== 'undefined') {
+              window.location.replace(target);
+            } else {
+              router.replace(target);
+            }
+            return;
+          } else if (processedData.groupId && processedData.orderId) {
+            // Group leader - redirect to groups page
+            console.log('[PaymentCallback] Redirecting group leader to groups page');
+            if (typeof window !== 'undefined') {
+              window.location.replace('/groups-orders?tab=orders');
+            } else {
+              router.replace('/groups-orders?tab=orders');
+            }
+            return;
+          } else if (processedData.orderId && !processedData.groupId && !processedData.isInvited) {
+            // Solo purchase - redirect to solo success page
+            const target = `/payment/success/solo?orderId=${processedData.orderId}&authority=${encodeURIComponent(authority)}`;
+            console.log('[PaymentCallback] Redirecting solo buyer to solo success page:', target);
             if (typeof window !== 'undefined') {
               window.location.replace(target);
             } else {
@@ -54,64 +74,77 @@ function PaymentCallbackContent() {
             }
             return;
           } else {
-            // For non-invited users: on reload or if success page was reached before, stay and show success
-            try {
-              const navs: any = (typeof performance !== 'undefined') ? performance.getEntriesByType('navigation') : null;
-              const isReload = Array.isArray(navs) && navs[0] && navs[0].type === 'reload';
-              // Fallback deprecated API
-              // @ts-ignore
-              const isReloadDeprecated = typeof performance !== 'undefined' && performance.navigation && performance.navigation.type === 1;
-              const successReached = typeof window !== 'undefined' && localStorage.getItem('payment_success_reached') === 'true';
-              if (isReload || isReloadDeprecated || successReached) {
-                setStatus('success');
-                setMessage('سفارش شما با موفقیت ثبت شد');
-                try {
-                  const url = `${API_BASE_URL}/payment/order/${authority}`;
-                  console.log('[Payment Callback] Fetching order from:', url);
-                  const res = await fetch(url);
-                  const data = await res.json();
-                  if (data?.success && data.order) setOrder(data.order);
-                } catch {}
-                return;
-              }
-            } catch {}
-            
-            // Fallback: determine redirect client-side to avoid getting stuck on callback page
-            console.log('[PaymentCallback] Backend redirect hint missing; resolving order client-side');
-            try {
-              const res = await fetch(`${API_BASE_URL}/payment/order/${authority}`);
-              const data = await res.json();
-              if (data?.success && data.order?.id) {
-                const orderId = data.order.id;
-                const groupId = data.order.group_order_id || data.order.groupId || '';
-                const invited = !!data.order.is_invited;
-                // Persist processing result to prevent re-processing on refresh
-                const processedKey = `processed_${authority}`;
-                const processedData = {
-                  isInvited: invited,
-                  orderId,
-                  groupId,
-                  timestamp: Date.now()
-                };
-                try { localStorage.setItem(processedKey, JSON.stringify(processedData)); } catch {}
-                const target = invited
-                  ? `/payment/success/invitee?orderId=${orderId}${groupId ? `&groupId=${groupId}` : ''}`
-                  : '/groups-orders?tab=orders';
-                if (typeof window !== 'undefined') {
-                  window.location.replace(target);
-                } else {
-                  router.replace(target);
-                }
-                return;
-              }
-            } catch (e) {
-              console.warn('[PaymentCallback] Fallback resolution failed:', e);
-            }
-            // As a last resort, stay and show inline success
+            // Invalid or incomplete cached data - clear it and re-process
+            console.warn('[PaymentCallback] Cached data incomplete, clearing and re-processing:', processedData);
+            try { localStorage.removeItem(processedKey); } catch {}
+            // Fall through to re-process the payment
+          }
+        }
+        
+        // If we get here, either no cached data or cached data was incomplete
+        // Check for reload to show inline success
+        try {
+          const navs: any = (typeof performance !== 'undefined') ? performance.getEntriesByType('navigation') : null;
+          const isReload = Array.isArray(navs) && navs[0] && navs[0].type === 'reload';
+          // Fallback deprecated API
+          // @ts-ignore
+          const isReloadDeprecated = typeof performance !== 'undefined' && performance.navigation && performance.navigation.type === 1;
+          const successReached = typeof window !== 'undefined' && localStorage.getItem('payment_success_reached') === 'true';
+          if (isReload || isReloadDeprecated || successReached) {
             setStatus('success');
-            setMessage('پرداخت شما با موفقیت انجام شد');
+            setMessage('سفارش شما با موفقیت ثبت شد');
+            try {
+              const url = `${API_BASE_URL}/payment/order/${authority}`;
+              console.log('[Payment Callback] Fetching order from:', url);
+              const res = await fetch(url);
+              const data = await res.json();
+              if (data?.success && data.order) setOrder(data.order);
+            } catch {}
             return;
           }
+        } catch {}
+        
+        // Fallback: determine redirect client-side to avoid getting stuck on callback page
+        console.log('[PaymentCallback] Backend redirect hint missing; resolving order client-side');
+        try {
+          const res = await fetch(`${API_BASE_URL}/payment/order/${authority}`);
+          const data = await res.json();
+          if (data?.success && data.order?.id) {
+            const orderId = data.order.id;
+            const groupId = data.order.group_order_id || data.order.groupId || '';
+            const invited = !!data.order.is_invited;
+            // Persist processing result to prevent re-processing on refresh
+            const processedKey = `processed_${authority}`;
+            const processedData = {
+              isInvited: invited,
+              orderId,
+              groupId,
+              timestamp: Date.now()
+            };
+            try { localStorage.setItem(processedKey, JSON.stringify(processedData)); } catch {}
+            
+            // Determine target based on order type
+            let target;
+            if (invited) {
+              // Invited user
+              target = `/payment/success/invitee?orderId=${orderId}${groupId ? `&groupId=${groupId}` : ''}`;
+            } else if (groupId) {
+              // Group leader
+              target = '/groups-orders?tab=orders';
+            } else {
+              // Solo purchase
+              target = `/payment/success/solo?orderId=${orderId}&authority=${encodeURIComponent(authority)}`;
+            }
+            
+            if (typeof window !== 'undefined') {
+              window.location.replace(target);
+            } else {
+              router.replace(target);
+            }
+            return;
+          }
+        } catch (e) {
+          console.warn('[PaymentCallback] Fallback resolution failed:', e);
         }
         
         // Detect invited-user from URL parameter (Backend adds &invited=1 for invited users)

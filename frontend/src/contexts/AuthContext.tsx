@@ -259,6 +259,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     user_id: order.user_id,
                     order_type: order.order_type
                   });
+                  
+                  // ✅ DECISION LOGIC DEBUG
+                  console.log('[AuthContext] Redirect decision logic:');
+                  console.log('  - is_invited:', order.is_invited, '→', order.is_invited ? 'Go to INVITEE page' : 'Not invited');
+                  console.log('  - group_order_id:', order.group_order_id, '→', order.group_order_id ? 'Go to INVITE page (leader)' : 'No group');
+                  console.log('  - Final decision:', 
+                    order.is_invited ? 'INVITEE SUCCESS' : 
+                    order.group_order_id ? 'INVITE PAGE (leader)' : 
+                    'SOLO SUCCESS');
+                  
                   // Redirect to appropriate page based on order type
                   setTimeout(() => {
                     // ✅ CHECK is_invited FIRST - this is the specific condition for invited users
@@ -273,9 +283,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                       console.log('[AuthContext] Group leader detected - going to INVITE page');
                       router.push(`/invite?authority=${encodeURIComponent(authority)}`);
                     } else {
-                      // Default: go to orders list
-                      console.log('[AuthContext] Solo order detected - going to ORDERS page');
-                      router.push('/orders');
+                      // Solo purchase: redirect to dedicated solo success page
+                      console.log('[AuthContext] Solo order detected - going to SOLO SUCCESS page');
+                      const orderId = order.id;
+                      const target = `/payment/success/solo?orderId=${orderId}&authority=${encodeURIComponent(authority)}`;
+                      router.push(target);
                     }
                   }, 500);
                 } else {

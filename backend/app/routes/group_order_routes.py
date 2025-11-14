@@ -657,12 +657,20 @@ async def get_user_groups_and_orders(
         from sqlalchemy.orm import joinedload
         
         # گرفتن همه سفارشات کاربر با اطلاعات گروه
+        # IMPORTANT: Only show orders that have been paid (exclude pending payment orders)
         user_orders = db.query(Order).options(
             joinedload(Order.group_order),
             joinedload(Order.items).joinedload(OrderItem.product)
         ).filter(
             Order.user_id == current_user.id,
-            Order.is_settlement_payment == False
+            Order.is_settlement_payment == False,
+            # Explicitly exclude unpaid orders
+            Order.status != "در انتظار پرداخت",
+            # Only show orders that have payment evidence (paid orders)
+            or_(
+                Order.payment_ref_id.isnot(None),
+                Order.paid_at.isnot(None)
+            )
         ).all()
         
         # استخراج گروه‌ها از سفارشات
@@ -801,9 +809,17 @@ async def get_user_groups_and_orders(
         for group in leader_groups:
             if group.id not in [o.get("group_order_id") for o in orders_data if o.get("group_order_id")]:
                 # پیدا کردن سفارش رهبر برای این گروه
+                # IMPORTANT: Only show leader orders that have been paid (exclude pending payment orders)
                 leader_order = db.query(Order).filter(
                     Order.group_order_id == group.id,
-                    Order.user_id == group.leader_id
+                    Order.user_id == group.leader_id,
+                    # Explicitly exclude unpaid orders
+                    Order.status != "در انتظار پرداخت",
+                    # Only show orders that have payment evidence (paid orders)
+                    or_(
+                        Order.payment_ref_id.isnot(None),
+                        Order.paid_at.isnot(None)
+                    )
                 ).first()
                 
                 if leader_order:

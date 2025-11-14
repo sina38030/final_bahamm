@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Debug Tool</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .danger {
+            background: #dc3545;
+        }
+        .danger:hover {
+            background: #c82333;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        input {
+            padding: 8px;
+            width: 400px;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Payment Debug Tool</h1>
+    
+    <div class="section">
+        <h2>1. Clear Payment Cache</h2>
+        <button onclick="clearCache()">Clear All Cached Payment Data</button>
+        <pre id="cacheResult"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>2. Check Order Details</h2>
+        <input type="text" id="authority" placeholder="Enter payment authority (e.g., A00000000...)">
+        <button onclick="checkOrder()">Check Order</button>
+        <pre id="orderResult"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>3. View All Cached Data</h2>
+        <button onclick="viewCache()">View All LocalStorage</button>
+        <pre id="allCache"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>4. Nuclear Option</h2>
+        <button class="danger" onclick="clearAll()">Clear ALL LocalStorage</button>
+        <p style="color: red; font-size: 12px;">⚠️ This will log you out and clear all local data</p>
+    </div>
+
+    <script>
+        function clearCache() {
+            const result = document.getElementById('cacheResult');
+            let cleared = [];
+            
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('processed_')) {
+                    cleared.push(key);
+                    localStorage.removeItem(key);
+                }
+            });
+            
+            if (cleared.length > 0) {
+                result.textContent = '✅ Cleared ' + cleared.length + ' cached items:\n' + cleared.join('\n');
+            } else {
+                result.textContent = '✅ No cached payment data found';
+            }
+        }
+        
+        async function checkOrder() {
+            const authority = document.getElementById('authority').value;
+            const result = document.getElementById('orderResult');
+            
+            if (!authority) {
+                result.textContent = '❌ Please enter an authority';
+                return;
+            }
+            
+            result.textContent = '🔄 Fetching...';
+            
+            try {
+                const response = await fetch(`http://127.0.0.1:8001/api/payment/order/${authority}`);
+                const data = await response.json();
+                
+                if (data.success && data.order) {
+                    const order = data.order;
+                    const decision = order.is_invited ? 'INVITEE SUCCESS PAGE' : 
+                                    order.group_order_id ? 'INVITE PAGE (leader)' : 
+                                    'SOLO SUCCESS PAGE';
+                    
+                    result.textContent = '✅ Order found!\n\n' +
+                        'Order ID: ' + order.id + '\n' +
+                        'is_invited: ' + order.is_invited + '\n' +
+                        'group_order_id: ' + order.group_order_id + '\n' +
+                        'order_type: ' + order.order_type + '\n' +
+                        'status: ' + order.status + '\n\n' +
+                        '👉 REDIRECT TARGET: ' + decision + '\n\n' +
+                        'Full order data:\n' + JSON.stringify(data.order, null, 2);
+                } else {
+                    result.textContent = '❌ Order not found or error:\n' + JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                result.textContent = '❌ Error: ' + error.message;
+            }
+        }
+        
+        function viewCache() {
+            const result = document.getElementById('allCache');
+            const allData = {};
+            
+            Object.keys(localStorage).forEach(key => {
+                try {
+                    allData[key] = JSON.parse(localStorage.getItem(key));
+                } catch {
+                    allData[key] = localStorage.getItem(key);
+                }
+            });
+            
+            result.textContent = JSON.stringify(allData, null, 2);
+        }
+        
+        function clearAll() {
+            if (confirm('⚠️ Are you sure? This will clear ALL localStorage data including your session!')) {
+                localStorage.clear();
+                alert('✅ All localStorage cleared!');
+                location.reload();
+            }
+        }
+    </script>
+</body>
+</html>
+

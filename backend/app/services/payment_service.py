@@ -429,9 +429,13 @@ class PaymentService:
                             delivery_info = json.loads(order.delivery_slot)
                             if isinstance(delivery_info, dict):
                                 order_mode = delivery_info.get('mode')
-                        except:
+                                logger.info(f"📦 Order {order.id} mode extracted from delivery_slot: {order_mode}")
+                        except Exception as e:
                             # If not JSON, treat as regular delivery_slot
+                            logger.info(f"📦 Order {order.id} delivery_slot is not JSON: {e}")
                             pass
+                    
+                    logger.info(f"🔍 Order {order.id} GroupOrder creation check: mode={order_mode}, order_type={order.order_type}")
                     
                     # Also check if this is a leader order by checking if it's not an invited user
                     # and has group-related characteristics
@@ -442,12 +446,27 @@ class PaymentService:
                          order.shipping_address.startswith('PENDING_GROUP:'))
                     )
                     
-                    # ✅ FIX: Don't create new group for invited users
+                    # ✅ FIX: Don't create new group for invited users or solo purchases
+                    # Check BOTH 'solo' and 'alone' for backwards compatibility
                     if is_invited_user:
                         logger.info(f"⏳ Invited user order {order.id} - skipping GroupOrder creation")
                         pass
-                    elif order.order_type == OrderType.ALONE and (order_mode == 'group' or not is_invited_user):
+                    elif order_mode in ('solo', 'alone'):
+                        logger.info(f"⏳ Solo/Alone purchase order {order.id} (mode={order_mode}) - skipping GroupOrder creation")
+                        pass
+                    elif order_mode == 'group' and order.order_type == OrderType.ALONE:
                         # This is a group buy leader payment - create GroupOrder now
+                        logger.info(f"✅ Creating GroupOrder for leader order {order.id}")
+                    elif order_mode is None:
+                        # No mode specified - default to solo behavior (don't create group)
+                        logger.info(f"⏳ Order {order.id} has no mode specified - treating as solo, skipping GroupOrder creation")
+                        pass
+                    else:
+                        logger.warning(f"⚠️ Order {order.id} unexpected mode: {order_mode} - skipping GroupOrder creation")
+                        pass
+                    
+                    # Only proceed with group creation if we explicitly want to create one
+                    if order_mode == 'group' and order.order_type == OrderType.ALONE and not is_invited_user:
                         try:
                             # Try to resolve leader user by order's user_id or create a minimal one
                             leader_user = None

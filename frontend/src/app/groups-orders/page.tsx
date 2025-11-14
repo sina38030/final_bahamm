@@ -251,7 +251,7 @@ function getFaStatus(statusRaw?: string | null): { label: string; bg: string; te
   if (raw.includes('تحویل')) return { label: 'تحویل داده شده', bg: 'bg-green-50', text: 'text-green-700' };
   if (raw.includes('مرجوع')) return { label: 'مرجوع شده', bg: 'bg-rose-50', text: 'text-rose-700' };
   if (raw.includes('لغو')) return { label: 'لغو شده', bg: 'bg-gray-100', text: 'text-gray-700' };
-  if (raw.includes('تکمیل') || raw.includes('تحویل')) return { label: 'تحویل داده شده', bg: 'bg-green-50', text: 'text-green-700' };
+  if (raw.includes('تکمیل')) return { label: 'تکمیل شده', bg: 'bg-green-50', text: 'text-green-700' };
   if (raw.includes('آماده')) return { label: 'در حال آماده‌سازی', bg: 'bg-amber-50', text: 'text-amber-700' };
   if (raw.includes('انتظار')) return { label: 'در انتظار', bg: 'bg-yellow-50', text: 'text-yellow-700' };
 
@@ -262,7 +262,7 @@ function getFaStatus(statusRaw?: string | null): { label: string; bg: string; te
   if (/deliver|delivered|delivering/.test(s)) return { label: 'تحویل داده شده', bg: 'bg-green-50', text: 'text-green-700' };
   if (/return|returned|refund|refunded/.test(s)) return { label: 'مرجوع شده', bg: 'bg-rose-50', text: 'text-rose-700' };
   if (/cancel|canceled|cancelled|void/.test(s)) return { label: 'لغو شده', bg: 'bg-gray-100', text: 'text-gray-700' };
-  if (/complete|completed|done|fulfilled|success|delivered|delivery/.test(s)) return { label: 'تحویل داده شده', bg: 'bg-green-50', text: 'text-green-700' };
+  if (/complete|completed|done|fulfilled|success/.test(s)) return { label: 'تکمیل شده', bg: 'bg-green-50', text: 'text-green-700' };
 
   // Fallback
   return { label: raw || 'نامشخص', bg: 'bg-gray-100', text: 'text-gray-700' };
@@ -498,7 +498,33 @@ export default function GroupsOrdersPage() {
   }, []);
 
   // Gate: If user is not authenticated and no token is stored, show login prompt (client-only)
-  // NOTE: Do not early-return before hooks. Render login branch in JSX instead.
+  if (noSession) {
+    return (
+      <div dir="rtl" className="min-h-screen bg-gray-50 pb-20">
+        <div className="sticky top-0 bg-white z-10">
+          <div className="px-4 py-3 border-b">
+            <div className="relative flex items-center justify-between">
+              <h1 className="absolute left-1/2 -translate-x-1/2 text-sm font-bold">گروه و سفارش‌ها</h1>
+              <button onClick={() => router.back()} className="ml-auto p-2 hover:bg-gray-100 rounded-full" aria-label="بازگشت">
+                <span className="inline-block">❮</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="p-4">
+          <div className="bg-white border rounded-xl p-6 text-center shadow-sm max-w-md mx-auto">
+            <div className="text-sm text-gray-700 mb-4">برای دیدن گروه و سفارش‌ها وارد شوید</div>
+            <button
+              onClick={() => router.push('/auth/login')}
+              className="w-full bg-rose-600 hover:bg-rose-700 text-white font-medium py-2.5 px-4 rounded-lg"
+            >
+              ورود
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Local toast listener (unified toast surface for this page)
   useEffect(() => {
@@ -683,7 +709,7 @@ export default function GroupsOrdersPage() {
 
       // Final statuses should NOT be active (applies to ALL orders, including leader)
       const finalStatuses = [
-        'تحویل داده شده', 'تکمیل شده', 'completed',
+        'تکمیل شده', 'completed',
         'لغو شده', 'cancelled', 'canceled',
         'success', 'finalized', 'group_finalized', 'failed', 'expired'
       ];
@@ -720,7 +746,7 @@ export default function GroupsOrdersPage() {
   // Previous (inactive) orders: explicitly those marked completed by admin.
   const previousOrders = useMemo(() => {
     const finalStatuses = [
-      'تحویل داده شده', 'تکمیل شده', 'completed',
+      'تکمیل شده', 'completed',
       'لغو شده', 'cancelled', 'canceled',
       'success', 'finalized', 'group_finalized', 'failed', 'expired'
     ];
@@ -847,31 +873,6 @@ export default function GroupsOrdersPage() {
   }, [initialLoading, hasLeaderGroup]);
 
   return (
-    noSession ? (
-      <div dir="rtl" className="min-h-screen bg-gray-50 pb-20">
-        <div className="sticky top-0 bg-white z-10">
-          <div className="px-4 py-3 border-b">
-            <div className="relative flex items-center justify-between">
-              <h1 className="absolute left-1/2 -translate-x-1/2 text-sm font-bold">گروه و سفارش‌ها</h1>
-              <button onClick={() => router.back()} className="ml-auto p-2 hover:bg-gray-100 rounded-full" aria-label="بازگشت">
-                <span className="inline-block">❮</span>
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className="p-4">
-          <div className="bg-white border rounded-xl p-6 text-center shadow-sm max-w-md mx-auto">
-            <div className="text-sm text-gray-700 mb-4">برای دیدن گروه و سفارش‌ها وارد شوید</div>
-            <button
-              onClick={() => router.push('/auth/login')}
-              className="w-full bg-rose-600 hover:bg-rose-700 text-white font-medium py-2.5 px-4 rounded-lg"
-            >
-              ورود
-            </button>
-          </div>
-        </div>
-      </div>
-    ) : (
       <div dir="rtl" className="min-h-screen bg-gray-50 pb-20">
       <div className="sticky top-0 bg-white z-10">
         <div className="px-4 py-3 border-b">
@@ -1094,15 +1095,6 @@ export default function GroupsOrdersPage() {
                         >
                           جزییات سفارش
                         </button>
-                        {/* دکمه انتخاب/تغییر زمان ارسال برای سرگروه پس از نهایی شدن سفارش گروهی */}
-                        {o.group_order_id && o.is_leader_order && !isCancelledStatus(o.status) && (
-                          <button
-                            className="text-sm px-3 py-1 rounded-full bg-blue-500 text-white"
-                            onClick={() => handleSelectDeliveryTime(String(o.group_order_id))}
-                          >
-                            {o.delivery_slot ? 'تغییر زمان ارسال' : 'انتخاب زمان ارسال'}
-                          </button>
-                        )}
                         {/* نمایش دکمه بازگشت وجه تا زمانی که تایمر صفر نشده، حتی برای سفارش تکمیل‌شده */}
                         {o.group_order_id && !o.is_leader_order && o.payment_authority && !isCancelledStatus(o.status) && (
                           <RefundButtonWithTimer authority={String(o.payment_authority)} />
@@ -1151,7 +1143,7 @@ export default function GroupsOrdersPage() {
         </div>
       )}
     </div>
-  ));
+  );
 }
 
 function FailedLeaderRefundControls({ groupId }: { groupId: number }) {
@@ -1231,7 +1223,7 @@ function FailedLeaderRefundControls({ groupId }: { groupId: number }) {
     }
   };
 
-  return submitted ? (() => {
+  if (submitted) {
     const method = (() => {
       try { return localStorage.getItem(`gb-refund-method-${groupId}`) || 'bank'; } catch { return 'bank'; }
     })();
@@ -1240,7 +1232,9 @@ function FailedLeaderRefundControls({ groupId }: { groupId: number }) {
         {method === 'wallet' ? 'واریز به کیف پول با موفقیت انجام شد.' : 'اطلاعات کارت ثبت شد. مبلغ به کارت شما واریز خواهد شد.'}
       </div>
     );
-  })() : (
+  }
+
+  return (
     <div className="space-y-2" dir="rtl">
       <div className="flex gap-2">
         <button
@@ -1409,7 +1403,11 @@ function RefundButtonWithTimer({ authority }: { authority: string }) {
   const toFa = (val: string | number) => String(val).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[parseInt(d)]);
 
   // Hide the button once countdown reaches zero
-  return hide || (typeof timeLeft === 'number' && timeLeft === 0) ? null : (
+  if (hide || (typeof timeLeft === 'number' && timeLeft === 0)) {
+    return null;
+  }
+
+  return (
     <button
       className="text-sm px-3 py-1 rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
       onClick={() => router.push(`/invite?authority=${encodeURIComponent(String(authority))}`)}
@@ -2018,7 +2016,10 @@ function LazyTrackEmbed({
 
   return (
     <div ref={containerRef} className="bg-white rounded-2xl shadow overflow-hidden">
-
+      
+      <div className="px-4 pt-4 text-sm font-medium flex items-center">
+        گروه {gid}
+      </div>
       <div className="border-t">
         {finalized ? (
           status === 'success' ? (
@@ -2222,6 +2223,43 @@ function LazyTrackEmbed({
                     />
                   )}
 
+                {/* Delivery Time Selection - hidden for secondary groups */}
+                {!isSecondary && (
+                  <div className="p-4 border-t border-gray-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-medium text-gray-900">زمان تحویل</h3>
+                      <button
+                        onClick={() => onSelectDeliveryTime(gid)}
+                        className="text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md transition-colors"
+                      >
+                        {(() => {
+                          const leaderOrder = propOrders.find(order =>
+                            order.group_order_id === parseInt(gid) &&
+                            (isLeader === true || order.is_leader_order === true)
+                          );
+                          return leaderOrder?.delivery_slot ? 'تغییر زمان ارسال' : 'انتخاب زمان ارسال';
+                        })()}
+                      </button>
+                    </div>
+
+                    {(() => {
+                      // Find the leader's order for this group to show current delivery slot
+                      const leaderOrder = propOrders.find(order =>
+                        order.group_order_id === parseInt(gid) &&
+                        (isLeader === true || order.is_leader_order === true)
+                      );
+                      return leaderOrder?.delivery_slot ? (
+                        <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                          زمان انتخاب شده: {formatDeliverySlot(leaderOrder.delivery_slot)}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-gray-500">
+                          هنوز زمان تحویل انتخاب نشده است
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
 
                 {!isSecondary && settlement && settlement.remainder < 0 && !refundSubmitted && (
                   <div className="p-4 border-t border-gray-200" dir="rtl">
