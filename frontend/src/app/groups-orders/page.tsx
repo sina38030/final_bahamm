@@ -11,6 +11,7 @@ import { fetchGroupBuyData } from "@/hooks/useGroupBuyResultModal";
 import DeliveryTimeModal from "@/components/modals/DeliveryTimeModal";
 import GroupTrackContent from "@/components/GroupTrackContent";
 import { generateInviteLink, extractInviteCode } from "@/utils/linkGenerator";
+import { isReviewEligibleStatus } from "@/utils/orderStatus";
 // import { requestSlot, releaseSlot } from "@/utils/queue";
 
 // Debounce utility to prevent excessive updates
@@ -710,10 +711,12 @@ export default function GroupsOrdersPage() {
       // Final statuses should NOT be active (applies to ALL orders, including leader)
       const finalStatuses = [
         'تکمیل شده', 'completed',
+        'تحویل داده شده', 'تحویل',
         'لغو شده', 'cancelled', 'canceled',
-        'success', 'finalized', 'group_finalized', 'failed', 'expired'
+        'success', 'finalized', 'group_finalized', 'failed', 'expired',
+        'delivered', 'delivery', 'deliver', 'fulfilled', 'done'
       ];
-      const isFinal = finalStatuses.includes(status) || finalStatuses.includes(statusLower);
+      const isFinal = finalStatuses.includes(status) || finalStatuses.includes(statusLower) || isReviewEligibleStatus(status);
       if (isFinal) {
         return false;
       }
@@ -747,15 +750,17 @@ export default function GroupsOrdersPage() {
   const previousOrders = useMemo(() => {
     const finalStatuses = [
       'تکمیل شده', 'completed',
+      'تحویل داده شده', 'تحویل',
       'لغو شده', 'cancelled', 'canceled',
-      'success', 'finalized', 'group_finalized', 'failed', 'expired'
+      'success', 'finalized', 'group_finalized', 'failed', 'expired',
+      'delivered', 'delivery', 'deliver', 'fulfilled', 'done'
     ];
     const filtered = (orders || []).filter((o) => {
       // Exclude settlement payments
       if (o.is_settlement_payment === true) return false;
       const status = String(o?.status || '').trim();
       const statusLower = status.toLowerCase();
-      const isFinal = finalStatuses.includes(status) || finalStatuses.includes(statusLower);
+      const isFinal = finalStatuses.includes(status) || finalStatuses.includes(statusLower) || isReviewEligibleStatus(status);
       // Also include leader orders of failed groups so user can see failure in Orders tab
       let isFailedLeader = Boolean(o.group_order_id && o.is_leader_order === true && o.group_status === 'failed');
       // Fallback: treat as failed if group's expiry has passed and no paid members
@@ -1056,6 +1061,14 @@ export default function GroupsOrdersPage() {
                         {o.group_order_id && !o.is_leader_order && o.payment_authority && !isCancelledStatus(o.status) && (
                           <RefundButtonWithTimer authority={String(o.payment_authority)} />
                         )}
+                        {isReviewEligibleStatus(o.status) && (
+                          <button
+                            className="text-sm px-3 py-1 rounded-full bg-emerald-600 text-white"
+                            onClick={() => router.push(`/order/${o.id}/review`)}
+                          >
+                            امتیاز خود رو برای این سفارش ثبت کنید
+                          </button>
+                        )}
                       </div>
                     </div>
                   );})}
@@ -1098,6 +1111,14 @@ export default function GroupsOrdersPage() {
                         {/* نمایش دکمه بازگشت وجه تا زمانی که تایمر صفر نشده، حتی برای سفارش تکمیل‌شده */}
                         {o.group_order_id && !o.is_leader_order && o.payment_authority && !isCancelledStatus(o.status) && (
                           <RefundButtonWithTimer authority={String(o.payment_authority)} />
+                        )}
+                        {isReviewEligibleStatus(o.status) && !failedLeader && (
+                          <button
+                            className="text-sm px-3 py-1 rounded-full bg-emerald-600 text-white"
+                            onClick={() => router.push(`/order/${o.id}/review`)}
+                          >
+                            امتیاز خود رو برای این سفارش ثبت کنید
+                          </button>
                         )}
                         {failedLeader && o.group_order_id && (
                           <div className="mt-2">

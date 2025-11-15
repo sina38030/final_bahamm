@@ -349,11 +349,24 @@ export default function TrackPage() {
 
   const nonLeaderPaid = useMemo(() => {
     if (!data) return 0;
-    // Only count paid non-leaders
-    return (data.participants || []).reduce(
-      (acc, p: Participant) => acc + (!p.isLeader && p.paid ? 1 : 0),
-      0
-    );
+    const participants = Array.isArray(data.participants) ? data.participants : [];
+
+    const hasJoined = (p: Participant) => {
+      if (p.paid) return true;
+      if (p.hasUser) return true;
+      const username = (p.username || "").trim();
+      if (username && username !== "@member") return true;
+      const phone = (p.phone || "").trim();
+      if (phone) return true;
+      const telegramId = (p.telegramId || "").trim();
+      if (telegramId) return true;
+      return false;
+    };
+
+    return participants.reduce((acc, p) => {
+      if (p.isLeader) return acc;
+      return acc + (hasJoined(p) ? 1 : 0);
+    }, 0);
   }, [data]);
 
   // button enablement for "اعلام تکمیل گروه"
@@ -386,47 +399,50 @@ export default function TrackPage() {
     return { solo: basketValue, current: Math.max(0, current) };
   };
 
-  // Calculate current pricing based on secondary group logic
+  // Calculate current pricing: TRUST the API pricing for regular groups,
+  // and only fall back when pricing is missing. This avoids double-calculation bugs.
   const currentPricing = useMemo(() => {
     if (!data) return { originalTotal: 0, currentTotal: 0 };
 
-    const safeOriginal = Number(
-      (data as any)?.pricing?.originalTotal ||
-      (data as any)?.orderSummary?.originalPrice ||
-      (data as any)?.initialPayment ||
+    const apiPricing = (data as any)?.pricing || {};
+
+    // Base totals from API (what /api/groups/[groupId] already calculated)
+    let originalTotal = Number(
+      apiPricing.originalTotal ??
+      (data as any)?.orderSummary?.originalPrice ??
+      (data as any)?.initialPayment ??
       0
     );
-    const safeCurrent = Number(
-      (data as any)?.pricing?.currentTotal ||
-      (data as any)?.orderSummary?.finalItemsPrice ||
-      safeOriginal ||
+    let currentTotal = Number(
+      apiPricing.currentTotal ??
+      (data as any)?.orderSummary?.finalItemsPrice ??
+      apiPricing.expectedTotal ??
+      originalTotal ??
       0
     );
 
-    // Fallback to basket-derived totals if server totals are zero
-    const basket = Array.isArray((data as any)?.basket) ? (data as any).basket : [];
-    const basketOriginal = basket.reduce((sum: number, it: any) => sum + Number(it?.unitPrice || 0) * Number(it?.qty || 0), 0);
-    const basketCurrentRegular = basket.reduce((sum: number, it: any) => sum + Number((it?.discountedUnitPrice ?? it?.unitPrice) || 0) * Number(it?.qty || 0), 0);
-
+    // Secondary groups: keep using dedicated helper so the explanatory text matches
     if (isSecondaryGroup) {
-      const base = safeOriginal > 0 ? safeOriginal : basketOriginal;
+      const base = originalTotal > 0 ? originalTotal : Number((data as any)?.initialPayment ?? 0);
       const secondaryTotals = computeSecondaryTotals(nonLeaderPaid, Number(base || 0));
       return {
         originalTotal: Number(secondaryTotals.solo || 0),
-        currentTotal: Number(secondaryTotals.current || 0)
+        currentTotal: Number(secondaryTotals.current || 0),
       };
     }
 
-    const outOriginal = safeOriginal > 0 ? safeOriginal : basketOriginal;
-    const outCurrent = safeCurrent > 0 ? safeCurrent : (basketCurrentRegular > 0 ? basketCurrentRegular : outOriginal);
+    // Regular groups: enforce business rule → 3+ paid friends = free for leader
+    // This is the CORE business logic and must override any API data
+    if (!isSecondaryGroup && nonLeaderPaid >= 3) {
+      currentTotal = 0;
+    }
+
     return {
-      originalTotal: Number(outOriginal || 0),
-      currentTotal: Number(outCurrent || 0)
+      originalTotal: Number(originalTotal || 0),
+      currentTotal: Number(currentTotal || 0),
     };
   }, [data, isSecondaryGroup, nonLeaderPaid]);
 
-  // Debug log for secondary group detection
-  console.log(`[Track] Group ${groupId}: isSecondaryGroup = ${isSecondaryGroup}, required = ${required}, currentPricing:`, currentPricing, 'data.pricing:', data?.pricing);
   const buttonDisabledReason = !data
     ? ""
     : nonLeaderPaid < 1
@@ -668,7 +684,7 @@ export default function TrackPage() {
             </p>
           ) : (
             <p>
-              قیمت از {currentPricing.originalTotal.toLocaleString("fa-IR")} تومان به {currentPricing.currentTotal.toLocaleString("fa-IR")} تومان کاهش یافته!
+              قیمت از {currentPricing.originalTotal.toLocaleString("fa-IR")} تومان به {currentPricing.currentTotal === 0 ? 'رایگان' : `${currentPricing.currentTotal.toLocaleString("fa-IR")} تومان`} کاهش یافت!
             </p>
           )}
           {data.status === "success" && (

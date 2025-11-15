@@ -26,7 +26,7 @@ import SettlementsContent from "@/components/SettlementsContent";
 import Image from "next/image";
 import { API_BASE_URL } from "@/utils/api";
 import { syncTokenFromURL } from "@/utils/crossDomainAuth";
-   
+
    /* --------------------------------------------------------------------------
       Config - Backend URL computed at runtime
       -------------------------------------------------------------------------- */
@@ -185,22 +185,6 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
      signal?: AbortSignal
    ): Promise<T> {
      console.log('fetchJSON called with URL:', url);
-     // Always enforce a 5s timeout while respecting an external AbortSignal
-     const localController = new AbortController();
-     const timeoutId = setTimeout(() => localController.abort(), 5000);
-    if (signal) {
-      if (signal.aborted) {
-        localController.abort();
-      } else {
-        const abortHandler = () => localController.abort();
-        signal.addEventListener('abort', abortHandler, { once: true });
-
-        // Cleanup when local controller is aborted
-        localController.signal.addEventListener('abort', () => {
-          signal.removeEventListener('abort', abortHandler);
-        }, { once: true });
-      }
-    }
      // Attach Bearer token if present (admin chat endpoints require auth)
      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
      const mergedHeaders: HeadersInit = {
@@ -208,10 +192,9 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
        ...(init?.headers as any),
        ...(token ? { Authorization: `Bearer ${token}` } : {}),
      };
-     const mergedInit = { ...API_INIT, ...init, headers: mergedHeaders, signal: localController.signal } as RequestInit;
-     console.log('fetchJSON config:', { hasSignal: true, timeoutMs: 5000 });
+     const mergedInit = { ...API_INIT, ...init, headers: mergedHeaders, signal } as RequestInit;
+     console.log('fetchJSON config:', { hasSignal: !!signal });
      const res = await fetch(url, mergedInit);
-     clearTimeout(timeoutId);
      console.log('fetchJSON response:', res.status, res.statusText);
    
      // Read body once for reuse in error or JSON parse

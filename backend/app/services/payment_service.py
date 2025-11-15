@@ -315,6 +315,10 @@ class PaymentService:
                 order.status = "در انتظار"
                 order.payment_ref_id = verification_result["ref_id"]
                 order.paid_at = datetime.now(TEHRAN_TZ)
+                
+                # Initialize notification tracking
+                notification_group_id = None
+                notification_order = None
 
                 # Simplified: Only handle invited flow via PENDING_INVITE. No PENDING_GROUP branch.
                 logger.info(f"🔍 Checking if order {order.id} is invited: shipping_address={order.shipping_address[:100] if order.shipping_address else None}")
@@ -360,6 +364,10 @@ class PaymentService:
                             logger.info(f"✅✅✅ SUCCESSFULLY LINKED invited order {order.id} to group {pending_group_id} via invite token {invite_token}")
                             logger.info(f"   Order type updated to: {order.order_type}")
                             logger.info(f"   Order group_order_id updated to: {order.group_order_id}")
+                            
+                            # Store group_id and order for notification after commit
+                            notification_group_id = pending_group_id
+                            notification_order = order
                         else:
                             logger.error(f"❌❌❌ Could not resolve group for invite token {invite_token} on order {order.id}")
                     except Exception as e:
@@ -711,6 +719,14 @@ class PaymentService:
                 
                 self.db.commit()
                 
+                # Send SMS notification AFTER commit so API can see the new member
+                if notification_group_id and notification_order:
+                    try:
+                        logger.info(f"🔔 Sending notification for group {notification_group_id} after commit")
+                        await self._notify_leader_new_member(notification_group_id, notification_order)
+                    except Exception as notif_error:
+                        logger.error(f"Error sending notification to leader for group {notification_group_id}: {notif_error}")
+                
                 # Run post-processor to ensure settlement is properly checked
                 try:
                     post_processor = OrderPostProcessor(self.db)
@@ -878,4 +894,104 @@ class PaymentService:
             import traceback
             logger.error(f"Exception creating settlement payment: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
-            return {"success": False, "error": f"Failed to create settlement payment: {str(e)}"} 
+            return {"success": False, "error": f"Failed to create settlement payment: {str(e)}"}
+    
+    async def _notify_leader_new_member(self, group_id: int, new_member_order: Order):
+        """
+        Send SMS notification to group leader when a new member joins and pays.
+        Message includes the new member's phone number and the updated basket price.
+        """
+        try:
+            # Get group order
+            group_order = self.db.query(GroupOrder).filter(GroupOrder.id == group_id).first()
+            if not group_order or not group_order.leader_id:
+                logger.warning(f"Cannot notify leader: group {group_id} not found or has no leader")
+                return
+            
+            # Get leader user
+            from app.models import User
+            leader = self.db.query(User).filter(User.id == group_order.leader_id).first()
+            if not leader:
+                logger.warning(f"Cannot notify leader: leader user {group_order.leader_id} not found")
+                return
+            
+            # Only send SMS to website users (not Telegram mini app users)
+            if not leader.phone_number or not leader.is_phone_verified:
+                logger.info(f"Leader {leader.id} has no verified phone number, skipping SMS notification")
+                return
+            
+            if leader.telegram_id is not None:
+                logger.info(f"Leader {leader.id} is a Telegram user, skipping SMS notification (will fix Telegram notifications later)")
+                return
+            
+            # Get new member's phone number
+            new_member = self.db.query(User).filter(User.id == new_member_order.user_id).first()
+            new_member_phone = "نامشخص"
+            if new_member and new_member.phone_number:
+                new_member_phone = new_member.phone_number
+            
+            # Get current basket price from the track API (same calculation as frontend)
+            leader_price = await self._get_leader_price_from_api(group_id)
+            
+            # Format price with thousand separators
+            formatted_price = f"{int(leader_price):,}".replace(",", "٬")
+            
+            # Send SMS notification
+            from app.services.notification import notification_service
+            message = f"دوستت با شماره {new_member_phone} به عضو گروهت شد! قیمت سبد به {formatted_price} تومان کاهش یافت!"
+            
+            await notification_service.send_notification(
+                user=leader,
+                title="عضو جدید به گروه پیوست",
+                message=message,
+                group_id=group_id
+            )
+            
+            logger.info(f"✅ Sent new member notification to leader {leader.id} for group {group_id}")
+            
+        except Exception as e:
+            logger.error(f"Error in _notify_leader_new_member: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+    
+    async def _get_leader_price_from_api(self, group_id: int) -> float:
+        """
+        Get the current basket price for the leader from the track API.
+        This uses the same calculation logic as the frontend track page.
+        """
+        try:
+            import httpx
+            from app.config import get_settings
+            
+            settings = get_settings()
+            
+            # Determine the API base URL
+            # Try to use the frontend public URL, fallback to localhost
+            api_base = settings.get_frontend_public_url or "http://localhost:3000"
+            
+            # Call the frontend API endpoint that has the correct pricing logic
+            api_url = f"{api_base}/api/groups/{group_id}"
+            
+            logger.info(f"🔍 Fetching leader price from API: {api_url}")
+            
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(api_url)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    # Extract currentTotal from pricing object
+                    pricing = data.get('pricing', {})
+                    current_total = pricing.get('currentTotal', 0)
+                    
+                    logger.info(f"✅ Retrieved leader price from API: {current_total} تومان")
+                    return float(current_total)
+                else:
+                    logger.error(f"❌ API returned status {response.status_code}: {response.text[:200]}")
+                    return 0.0
+                    
+        except Exception as e:
+            logger.error(f"❌ Error fetching leader price from API for group {group_id}: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return 0.0 

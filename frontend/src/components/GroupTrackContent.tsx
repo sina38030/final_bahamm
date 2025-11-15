@@ -75,10 +75,24 @@ export default function GroupTrackContent({
 
   const nonLeaderPaid = useMemo(() => {
     if (!data) return 0;
-    return (data.participants || []).reduce(
-      (acc, p: Participant) => acc + (!p.isLeader && p.paid ? 1 : 0),
-      0
-    );
+    const participants = Array.isArray(data.participants) ? data.participants : [];
+
+    const hasJoined = (p: Participant) => {
+      if (p.paid) return true;
+      if (p.hasUser) return true;
+      const username = (p.username || "").trim();
+      if (username && username !== "@member") return true;
+      const phone = (p.phone || "").trim();
+      if (phone) return true;
+      const telegramId = (p.telegramId || "").trim();
+      if (telegramId) return true;
+      return false;
+    };
+
+    return participants.reduce((acc, p) => {
+      if (p.isLeader) return acc;
+      return acc + (hasJoined(p) ? 1 : 0);
+    }, 0);
   }, [data]);
 
   const isSecondaryGroup = useMemo(() => {
@@ -104,25 +118,23 @@ export default function GroupTrackContent({
   const currentPricing = useMemo(() => {
     if (!data) return { originalTotal: 0, currentTotal: 0 };
 
-    const safeOriginal = Number(
-      (data as any)?.pricing?.originalTotal ||
-      (data as any)?.orderSummary?.originalPrice ||
-      (data as any)?.initialPayment ||
-      0
-    );
-    const safeCurrent = Number(
-      (data as any)?.pricing?.currentTotal ||
-      (data as any)?.orderSummary?.finalItemsPrice ||
-      safeOriginal ||
-      0
-    );
+    // DIRECT use of API pricing data - trust it completely
+    const apiPricing = (data as any)?.pricing;
+    if (apiPricing && typeof apiPricing.originalTotal === 'number' && typeof apiPricing.currentTotal === 'number') {
+      console.log(`[GroupTrackContent] Using API pricing directly:`, apiPricing);
+      return {
+        originalTotal: apiPricing.originalTotal,
+        currentTotal: apiPricing.currentTotal
+      };
+    }
 
+    // Fallback: compute from basket only if API didn't provide pricing
     const basket = Array.isArray((data as any)?.basket) ? (data as any).basket : [];
     const basketOriginal = basket.reduce((sum: number, it: any) => sum + Number(it?.unitPrice || 0) * Number(it?.qty || 0), 0);
     const basketCurrentRegular = basket.reduce((sum: number, it: any) => sum + Number((it?.discountedUnitPrice ?? it?.unitPrice) || 0) * Number(it?.qty || 0), 0);
 
     if (isSecondaryGroup) {
-      const base = safeOriginal > 0 ? safeOriginal : basketOriginal;
+      const base = basketOriginal;
       const secondaryTotals = computeSecondaryTotals(nonLeaderPaid, Number(base || 0));
       return {
         originalTotal: Number(secondaryTotals.solo || 0),
@@ -130,8 +142,15 @@ export default function GroupTrackContent({
       };
     }
 
-    const outOriginal = safeOriginal > 0 ? safeOriginal : basketOriginal;
-    const outCurrent = safeCurrent > 0 ? safeCurrent : (basketCurrentRegular > 0 ? basketCurrentRegular : outOriginal);
+    let outOriginal = basketOriginal;
+    let outCurrent = basketCurrentRegular > 0 ? basketCurrentRegular : basketOriginal;
+
+    // Regular groups become free for the leader as soon as 3 paid friends join
+    if (!isSecondaryGroup && nonLeaderPaid >= 3) {
+      outCurrent = 0;
+    }
+
+    console.log(`[GroupTrackContent] Computed from basket:`, { outOriginal, outCurrent, nonLeaderPaid });
     return {
       originalTotal: Number(outOriginal || 0),
       currentTotal: Number(outCurrent || 0)
@@ -302,7 +321,7 @@ export default function GroupTrackContent({
             </p>
           ) : (
             <p>
-              قیمت از {currentPricing.originalTotal.toLocaleString("fa-IR")} تومان به {currentPricing.currentTotal.toLocaleString("fa-IR")} تومان کاهش یافته!
+              قیمت از {currentPricing.originalTotal.toLocaleString("fa-IR")} تومان به {currentPricing.currentTotal === 0 ? 'رایگان' : `${currentPricing.currentTotal.toLocaleString("fa-IR")} تومان`} کاهش یافته!
             </p>
           )}
           {data.status === "success" && (

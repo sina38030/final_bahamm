@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiBase } from '@/utils/serverBackend';
 
-export const revalidate = 30;
-// Force rebuild - track page pricing fix
+export const revalidate = 0;
+// Force rebuild - track page pricing fix - disable caching
 
 const BACKEND_BASE = getApiBase();
 
@@ -64,12 +64,9 @@ export async function GET(
   { params }: { params: Promise<{ groupId: string }> }
 ) {
   try {
-    console.log('[GET /api/groups] Starting, params:', params);
     const resolvedParams = await params;
-    console.log('[GET /api/groups] Resolved params:', resolvedParams);
     const { groupId: rawGroupId } = resolvedParams;
     let groupId = rawGroupId;
-    console.log('[GET /api/groups] Group ID:', groupId);
 
     // If groupId is not numeric, try to resolve from list by invite_code
     if (!/^\d+$/.test(groupId)) {
@@ -95,7 +92,7 @@ export async function GET(
       }
     }
 
-  // Fetch details and list in parallel with tight timeouts to avoid long stalls
+  // Fetch details, list, and groups API in parallel with tight timeouts to avoid long stalls
   const fetchWithTimeout = async (url: string, ms: number) => {
     const c = new AbortController();
     const t = setTimeout(() => c.abort(), ms);
@@ -107,22 +104,54 @@ export async function GET(
     }
   };
 
-  const [detailsRes, listRes] = await Promise.allSettled([
+  const [detailsRes, listRes, groupsRes] = await Promise.allSettled([
     fetchWithTimeout(`${BACKEND_BASE}/admin/group-buys/${groupId}`, 3000),
     fetchWithTimeout(`${BACKEND_BASE}/admin/group-buys`, 2500),
+    fetchWithTimeout(`${BACKEND_BASE}/groups/${groupId}`, 2000),
   ]);
 
+  
   let details: any | null = null;
   if (detailsRes.status === 'fulfilled' && detailsRes.value?.ok) {
-    try { details = await detailsRes.value.json(); } catch { details = null; }
+    try {
+      details = await detailsRes.value.json();
+    } catch (e) {
+      console.error(`[${timestamp}] [GET /api/groups] Failed to parse details:`, e);
+      details = null;
+    }
+  } else if (detailsRes.status === 'rejected') {
+    console.error(`[${timestamp}] [GET /api/groups] detailsRes rejected:`, detailsRes.reason);
+  } else if (detailsRes.status === 'fulfilled' && !detailsRes.value?.ok) {
+    console.error(`[${timestamp}] [GET /api/groups] detailsRes not ok, status:`, detailsRes.value?.status);
+  }
+
+  let groupsData: any | null = null;
+  if (groupsRes.status === 'fulfilled' && groupsRes.value?.ok) {
+    try {
+      groupsData = await groupsRes.value.json();
+    } catch (e) {
+      console.error(`[${timestamp}] [GET /api/groups] Failed to parse groups data:`, e);
+      groupsData = null;
+    }
+  } else if (groupsRes.status === 'rejected') {
+    console.error(`[${timestamp}] [GET /api/groups] groupsRes rejected:`, groupsRes.reason);
+  } else if (groupsRes.status === 'fulfilled' && !groupsRes.value?.ok) {
+    console.error(`[${timestamp}] [GET /api/groups] groupsRes not ok, status:`, groupsRes.value?.status);
   }
 
   let listRow: any | null = null;
   if (listRes.status === 'fulfilled' && listRes.value?.ok) {
     try {
       const list: any[] = await listRes.value.json().catch(() => []);
+      console.log('[GET /api/groups] list fetched, length:', list.length);
       listRow = Array.isArray(list) ? list.find((r: any) => String(r.id) === String(groupId)) : null;
-    } catch { listRow = null; }
+      console.log('[GET /api/groups] listRow found:', !!listRow);
+    } catch (e) { 
+      console.error('[GET /api/groups] Failed to parse list:', e);
+      listRow = null;
+    }
+  } else if (listRes.status === 'rejected') {
+    console.error('[GET /api/groups] listRes rejected:', listRes.reason);
   }
 
   const inviteLink: string | undefined = listRow?.invite_link || (listRow?.invite_code ? `/landingM?invite=${listRow.invite_code}` : undefined);
@@ -245,19 +274,52 @@ export async function GET(
 
   let participants: Array<{ id: string; username: string; isLeader: boolean; phone?: string; telegramId?: string; paid?: boolean; hasUser?: boolean }> = (() => {
     const leaderIdStr = String(details?.leader_id ?? '');
-    const list = Array.isArray(details?.participants) ? details.participants : [];
-    return list.map((p: any) => {
+
+    // Prefer groups API data for participant list, fall back to admin API
+    let sourceList = [];
+    if (groupsData && Array.isArray(groupsData.participants)) {
+      // Use groups API data - convert to admin API format
+      sourceList = groupsData.participants.map((p: any) => ({
+        user_id: p.userId || p.user_id,
+        is_leader: p.isLeader || p.is_leader,
+        phone: p.phone || p.phone_number,
+        user_name: p.username || '',
+      }));
+    } else if (Array.isArray(details?.participants)) {
+      sourceList = details.participants;
+    } else {
+      sourceList = [];
+    }
+
+    return sourceList.map((p: any) => {
       const rawName = (p.user_name ?? p.name ?? '').toString();
       const normalizedHandle = rawName ? `@${rawName.replace(/^@*/, '')}` : '';
-      const phoneRaw = (p.user_phone ?? p.phone);
+      const phoneRaw = (p.user_phone ?? p.phone ?? p.phone_number);
       const phone = phoneRaw ? String(phoneRaw) : undefined;
       const participantUserIdStr = p.user_id != null ? String(p.user_id) : '';
       let isLeader = leaderIdStr !== '' && participantUserIdStr !== '' && participantUserIdStr === leaderIdStr;
-      if (!isLeader && (p.is_creator === true || p.is_leader === true)) {
+      if (!isLeader && (p.is_creator === true || p.is_leader === true || p.isLeader === true)) {
         isLeader = true;
       }
       const statusStr = (p.status || '').toString().toLowerCase();
-      const paid = !!(p.paid_at || statusStr.includes('paid') || statusStr.includes('success') || statusStr.includes('تکمیل'));
+
+      // For payment status, check admin API data if available, otherwise assume paid for groups API
+      let paid = false;
+      if (groupsData && Array.isArray(groupsData.participants)) {
+        // Groups API doesn't provide payment status, so we need to cross-reference with admin API
+        const adminParticipant = Array.isArray(details?.participants) ?
+          details.participants.find((ap: any) => String(ap.user_id) === participantUserIdStr) : null;
+        if (adminParticipant) {
+          paid = !!(adminParticipant.paid_at || statusStr.includes('paid') || statusStr.includes('success') || statusStr.includes('تکمیل'));
+        } else {
+          // If no admin data, assume paid for now (they're in the group)
+          paid = true;
+        }
+      } else {
+        // Admin API data
+        paid = !!(p.paid_at || statusStr.includes('paid') || statusStr.includes('success') || statusStr.includes('تکمیل'));
+      }
+
       const id = String(p.user_id ?? p.order_id ?? p.id ?? phone ?? '');
       const username = normalizedHandle || (phone || '@member');
       const hasUser = !!(p.user_id || phone || rawName);
@@ -454,8 +516,6 @@ export async function GET(
   const originalTotal = alone; // قیمت تنها خریدن (همان totals.alone در cart)
   const currentTotal = leaderPrice; // قیمت لیدر با دوستان واقعی (همان totals.your در cart)
   const expectedTotal = expectedLeaderPrice; // قیمت لیدر با دوستان مورد انتظار
-  
-  console.log(`[API] Group ${groupId} - Pricing: originalTotal=${originalTotal}, currentTotal=${currentTotal}, expectedTotal=${expectedTotal}, isSecondaryGroup=${isSecondaryGroup}, paidNonLeaders=${paidNonLeaders}`);
 
   // Prefer backend's authoritative expires_at if available, otherwise try groups endpoint, and avoid fabricating defaults
   const startRaw = (details?.leader_paid_at || details?.created_at || listRow?.created_at || null);
