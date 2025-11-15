@@ -64,6 +64,7 @@ export async function GET(
   { params }: { params: Promise<{ groupId: string }> }
 ) {
   try {
+    const timestamp = new Date().toISOString();
     const resolvedParams = await params;
     const { groupId: rawGroupId } = resolvedParams;
     let groupId = rawGroupId;
