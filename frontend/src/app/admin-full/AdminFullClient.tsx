@@ -4446,8 +4446,8 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
         try {
           setLoading(true);
           setError(null);
-          // Fetch secondary groups from admin API using auto-detected URL
-          const BASE = getAdminApiBaseUrl();
+          // Fetch secondary groups from admin API using standard API_BASE_URL
+          const BASE = ADMIN_API_BASE_URL;
           // Add timestamp to prevent browser caching
           const timestamp = new Date().getTime();
           const res = await fetch(`${BASE}/admin/secondary-groups?limit=1000&_t=${timestamp}`, { headers: { 'Accept': 'application/json' }, cache: 'no-store' });
