@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useProductModal } from '@/hooks/useProductModal';
 import { useCart } from '@/contexts/CartContext';
 import { generateInviteLink, generateShareUrl, extractInviteCode } from '@/utils/linkGenerator';
+import { API_BASE_URL } from '@/utils/api';
 
 // Resilient dynamic import to auto-recover once from transient ChunkLoadError after HMR/build changes
 async function safeImport<T>(importer: () => Promise<T>, key: string): Promise<T> {
@@ -124,8 +125,8 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
     return Number.isFinite(num) ? num : 0;
   };
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
-  const apiBase = API_BASE || (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production' ? 'http://localhost:8001' : '');
+  // Use the standard API_BASE_URL but remove the /api suffix for this component's usage
+  const apiBase = API_BASE_URL.replace(/\/api$/, '');
   const fetchJson = async (url: string, init?: RequestInit) => {
     const res = await fetch(url, init);
     const contentType = res.headers.get('content-type') || '';

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import AddressMapModal from '@/components/map/AddressMapModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { API_BASE_URL } from '@/utils/api';
 
 interface AddressSelectorProps {
   onAddressSelect?: (address: any) => void;
@@ -20,7 +21,7 @@ export default function AddressSelector({ onAddressSelect, className = '' }: Add
     const loadAddresses = async () => {
       if (isAuthenticated && token) {
         try {
-          const response = await fetch('http://localhost:8001/api/users/addresses', {
+          const response = await fetch(`${API_BASE_URL}/users/addresses`, {
             headers: {
               'Authorization': `Bearer ${token}`,
             },
@@ -49,7 +50,7 @@ export default function AddressSelector({ onAddressSelect, className = '' }: Add
     // Reload addresses after saving
     if (isAuthenticated && token) {
       try {
-        const response = await fetch('http://localhost:8001/api/users/addresses', {
+        const response = await fetch(`${API_BASE_URL}/users/addresses`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },

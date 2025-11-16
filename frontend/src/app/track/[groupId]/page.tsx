@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useParams, useSearchParams } from "next/navigation";
 import { useGroupBuyResult } from "@/components/providers/GroupBuyResultProvider";
 import { generateInviteLink, generateShareUrl, extractInviteCode } from "@/utils/linkGenerator";
+import { API_BASE_URL } from "@/utils/api";
 // Removed auth requirement for public access
 
 type GroupStatus = "ongoing" | "success" | "failed";
@@ -126,7 +127,7 @@ export default function TrackPage() {
   const { user } = useAuth();
   // Removed complex server time sync - using simple local time countdown
   // Public page: read-only for invitees, leader-only controls should be hidden
-  const PUBLIC_API = process.env.NEXT_PUBLIC_ADMIN_API_URL || "http://127.0.0.1:8001/api";
+  const PUBLIC_API = API_BASE_URL;
 
   const fetchWithTimeout = async (url: string, ms: number, options?: RequestInit) => {
     const c = new AbortController();

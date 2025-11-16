@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { API_BASE_URL } from '@/utils/api';
 
 interface PhoneAuthModalProps {
   isOpen: boolean;
@@ -66,7 +67,7 @@ export default function PhoneAuthModal({ isOpen, onClose, onSuccess }: PhoneAuth
     setError('');
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8001'}/api/auth/send-verification`, {
+      const response = await fetch(`${API_BASE_URL}/auth/send-verification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -115,7 +116,7 @@ export default function PhoneAuthModal({ isOpen, onClose, onSuccess }: PhoneAuth
     setError('');
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8001'}/api/auth/verify`, {
+      const response = await fetch(`${API_BASE_URL}/auth/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
