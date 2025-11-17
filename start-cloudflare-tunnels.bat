@@ -10,7 +10,7 @@ echo Starting Cloudflare tunnels...
 echo.
 echo Two PowerShell windows will open:
 echo 1. Frontend Tunnel (port 3000)
-echo 2. Backend Tunnel (port 8080)
+echo 2. Backend Tunnel (port 8001)
 echo.
 echo In each window, look for the line:
 echo   https://random-words.trycloudflare.com
@@ -25,7 +25,7 @@ REM Wait before starting second tunnel
 timeout /t 3 /nobreak >nul
 
 REM Start backend tunnel
-start "Cloudflare Tunnel - Backend (8080)" powershell.exe -NoExit -Command "Write-Host '============================================' -ForegroundColor Cyan; Write-Host '   Backend Tunnel (Port 8080)' -ForegroundColor Cyan; Write-Host '============================================' -ForegroundColor Cyan; Write-Host ''; Write-Host 'Starting tunnel...' -ForegroundColor Yellow; Write-Host ''; cd $env:USERPROFILE; .\cloudflared.exe tunnel --url http://localhost:8080"
+start "Cloudflare Tunnel - Backend (8001)" powershell.exe -NoExit -Command "Write-Host '============================================' -ForegroundColor Cyan; Write-Host '   Backend Tunnel (Port 8001)' -ForegroundColor Cyan; Write-Host '============================================' -ForegroundColor Cyan; Write-Host ''; Write-Host 'Starting tunnel...' -ForegroundColor Yellow; Write-Host ''; cd $env:USERPROFILE; .\cloudflared.exe tunnel --url http://localhost:8001"
 
 echo.
 echo ============================================
@@ -37,7 +37,7 @@ echo.
 echo In the FRONTEND window, find the URL like:
 echo   https://abc-def-ghi.trycloudflare.com
 echo.
-echo In the BACKEND window, find the URL like:
+echo In the BACKEND window (port 8001), find the URL like:
 echo   https://xyz-123-456.trycloudflare.com
 echo.
 echo.

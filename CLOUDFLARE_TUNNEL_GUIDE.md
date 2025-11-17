@@ -17,8 +17,8 @@
 - Copy this entire URL
 - This is your **FRONTEND URL**
 
-**Window 2 - "Backend Tunnel (8080)"**
-- Look for a line that says: `https://other-random-words.trycloudflare.com`  
+**Window 2 - "Backend Tunnel (8001)"**
+- Look for a line that says: `https://other-random-words.trycloudflare.com`
 - Copy this entire URL
 - This is your **BACKEND URL**
 
@@ -84,7 +84,7 @@ app.add_middleware(
 **Terminal 1 - Backend:**
 ```bash
 cd C:\Projects\final_bahamm\backend
-uvicorn main:app --reload --port 8080
+uvicorn main:app --reload --port 8001
 ```
 
 **Terminal 2 - Frontend:**
@@ -175,12 +175,12 @@ Compared to ngrok:
 **Problem:** "Connection refused" errors  
 **Solution:** Make sure both dev servers (frontend and backend) are running
 
-**Problem:** Backend API calls fail  
+**Problem:** Backend API calls fail
 **Solution:**
 1. Check that `frontend\.env.local` has correct backend URL
 2. Verify CORS in `backend\main.py` includes both tunnel URLs
 3. Restart backend server
-4. Check that backend tunnel (port 8080) is active
+4. Check that backend tunnel (port 8001) is active
 
 ---
 

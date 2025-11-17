@@ -79,7 +79,7 @@ echo Add them to BOTH allow_origins lists (lines ~98 and ~134)
 echo.
 echo After updating, restart your backend server:
 echo     cd backend
-echo     uvicorn main:app --reload --port 8080
+echo     uvicorn main:app --reload --port 8001
 echo.
 echo.
 echo ============================================
