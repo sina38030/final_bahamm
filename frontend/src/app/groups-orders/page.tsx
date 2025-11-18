@@ -315,6 +315,7 @@ export default function GroupsOrdersPage() {
   const [toast, setToast] = useState<{ type: ToastKind; message: string } | null>(null);
   const fetchLockRef = useRef(false);
   const lastFetchAtRef = useRef<number>(0);
+  const [orderIdsWithReviews, setOrderIdsWithReviews] = useState<Set<number>>(new Set());
 
   // Avoid SSR hydration mismatch: compute session state on client only
   const [noSession, setNoSession] = useState(false);
@@ -669,6 +670,50 @@ export default function GroupsOrdersPage() {
       window.removeEventListener('gb-refund-submitted', onRefundSubmitted as EventListener);
     };
   }, [isAuthenticated, apiCallInProgress, fetchUserGroupsAndOrders]);
+
+  // Check which orders have reviews from localStorage
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) {
+      setOrderIdsWithReviews(new Set());
+      return;
+    }
+
+    try {
+      const reviewedIds = new Set<number>();
+      for (const order of orders) {
+        const hasReview = localStorage.getItem(`order-${order.id}-reviewed-by-${user.id}`);
+        if (hasReview === 'true') {
+          reviewedIds.add(order.id);
+        }
+      }
+      setOrderIdsWithReviews(reviewedIds);
+    } catch (err) {
+      console.error('Error checking reviews from localStorage:', err);
+    }
+  }, [orders, user?.id, isAuthenticated]);
+
+  // Listen for review submission events to update button text
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const onReviewSubmitted = (e: Event) => {
+      try {
+        const ev = e as CustomEvent<{ orderId?: number }>;
+        const orderId = ev?.detail?.orderId;
+        if (orderId && user?.id) {
+          localStorage.setItem(`order-${orderId}-reviewed-by-${user.id}`, 'true');
+          setOrderIdsWithReviews(prev => new Set([...prev, orderId]));
+        }
+      } catch (err) {
+        console.error('Error handling review submission event:', err);
+      }
+    };
+
+    window.addEventListener('order-review-submitted', onReviewSubmitted as EventListener);
+    return () => {
+      window.removeEventListener('order-review-submitted', onReviewSubmitted as EventListener);
+    };
+  }, [user?.id]);
 
   // حذف شد - فقط از scanLocalGroups استفاده می‌کنیم
 
@@ -1066,7 +1111,7 @@ export default function GroupsOrdersPage() {
                             className="text-sm px-3 py-1 rounded-full bg-emerald-600 text-white"
                             onClick={() => router.push(`/order/${o.id}/review`)}
                           >
-                            امتیاز خود رو برای این سفارش ثبت کنید
+                            {orderIdsWithReviews.has(o.id) ? 'ویرایش امتیاز و نظر' : 'امتیاز خود رو برای این سفارش ثبت کنید'}
                           </button>
                         )}
                       </div>
@@ -1117,7 +1162,7 @@ export default function GroupsOrdersPage() {
                             className="text-sm px-3 py-1 rounded-full bg-emerald-600 text-white"
                             onClick={() => router.push(`/order/${o.id}/review`)}
                           >
-                            امتیاز خود رو برای این سفارش ثبت کنید
+                            {orderIdsWithReviews.has(o.id) ? 'ویرایش امتیاز و نظر' : 'امتیاز خود رو برای این سفارش ثبت کنید'}
                           </button>
                         )}
                         {failedLeader && o.group_order_id && (

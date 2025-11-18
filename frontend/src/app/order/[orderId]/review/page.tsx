@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { FaArrowRight, FaStar } from "react-icons/fa";
+import { FaArrowRight, FaStar, FaEdit } from "react-icons/fa";
 import apiClient from "@/utils/apiClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { isReviewEligibleStatus } from "@/utils/orderStatus";
@@ -18,6 +18,13 @@ type OrderForReview = {
   id: number;
   status: string;
   items: OrderProductItem[];
+};
+
+type ExistingReview = {
+  id: number;
+  rating: number;
+  comment: string | null;
+  created_at: string;
 };
 
 const RATING_VALUES = [1, 2, 3, 4, 5];
@@ -74,6 +81,9 @@ export default function OrderReviewPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [existingReview, setExistingReview] = useState<ExistingReview | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [loadingReview, setLoadingReview] = useState(false);
 
   useEffect(() => {
     if (!orderId) return;
@@ -109,6 +119,61 @@ export default function OrderReviewPage() {
     };
   }, [orderId]);
 
+  // Fetch existing review when user is authenticated and product is selected
+  useEffect(() => {
+    if (!selectedProductId || !user?.id || !isAuthenticated) {
+      setExistingReview(null);
+      return;
+    }
+
+    let alive = true;
+
+    const fetchExistingReview = async () => {
+      setLoadingReview(true);
+      try {
+        const res = await apiClient.get(`/product/${selectedProductId}/reviews`);
+        if (!res.ok) {
+          setExistingReview(null);
+          return;
+        }
+        const reviews = await res.json();
+        if (!alive) return;
+        
+        // Find review by current user
+        const userReview = reviews.find((r: any) => r.user_id === user.id);
+        if (userReview) {
+          setExistingReview({
+            id: userReview.id,
+            rating: userReview.rating,
+            comment: userReview.comment || null,
+            created_at: userReview.created_at,
+          });
+          // Mark in localStorage that this order has been reviewed
+          if (typeof window !== 'undefined' && orderId) {
+            localStorage.setItem(`order-${orderId}-reviewed-by-${user.id}`, 'true');
+          }
+          // Don't set rating and comment here - only when editing
+        } else {
+          setExistingReview(null);
+          // Remove localStorage flag if no review exists
+          if (typeof window !== 'undefined' && orderId) {
+            localStorage.removeItem(`order-${orderId}-reviewed-by-${user.id}`);
+          }
+        }
+      } catch (err) {
+        if (!alive) return;
+        setExistingReview(null);
+      } finally {
+        if (alive) setLoadingReview(false);
+      }
+    };
+
+    fetchExistingReview();
+    return () => {
+      alive = false;
+    };
+  }, [selectedProductId, user?.id, isAuthenticated, orderId]);
+
   const selectedProduct = useMemo(
     () => order?.items.find((item) => String(item.productId) === String(selectedProductId)),
     [order?.items, selectedProductId]
@@ -134,15 +199,27 @@ export default function OrderReviewPage() {
 
     try {
       const displayName = [user.first_name, user.last_name].filter(Boolean).join(" ").trim() || undefined;
-      const res = await apiClient.post(`/product/${selectedProduct.productId}/reviews`, {
-        rating,
-        comment: comment.trim() || null,
-        user_id: user.id,
-        display_name: displayName,
-      });
+      
+      let res;
+      if (existingReview && isEditing) {
+        // Update existing review
+        res = await apiClient.put(`/product/${selectedProduct.productId}/reviews/${existingReview.id}`, {
+          rating,
+          comment: comment.trim() || null,
+          display_name: displayName,
+        });
+      } else {
+        // Create new review
+        res = await apiClient.post(`/product/${selectedProduct.productId}/reviews`, {
+          rating,
+          comment: comment.trim() || null,
+          user_id: user.id,
+          display_name: displayName,
+        });
+      }
 
       if (!res.ok) {
-        let detail = "ثبت نظر با خطا مواجه شد";
+        let detail = existingReview && isEditing ? "ویرایش نظر با خطا مواجه شد" : "ثبت نظر با خطا مواجه شد";
         try {
           const data = await res.json();
           detail = data?.detail || data?.error || detail;
@@ -150,14 +227,54 @@ export default function OrderReviewPage() {
         throw new Error(detail);
       }
 
-      setSuccessMessage("نظر شما با موفقیت ثبت شد. از همراهی شما متشکریم!");
+      const responseData = await res.json();
+      
+      // Update existing review state
+      setExistingReview({
+        id: responseData.id,
+        rating: responseData.rating,
+        comment: responseData.comment || null,
+        created_at: responseData.created_at,
+      });
+      
+      // Store in localStorage and dispatch event
+      if (typeof window !== 'undefined' && orderId && user?.id) {
+        localStorage.setItem(`order-${orderId}-reviewed-by-${user.id}`, 'true');
+        window.dispatchEvent(new CustomEvent('order-review-submitted', { 
+          detail: { orderId: Number(orderId) } 
+        }));
+      }
+      
+      setSuccessMessage(
+        existingReview && isEditing 
+          ? "نظر شما با موفقیت ویرایش شد. از همراهی شما متشکریم!" 
+          : "نظر شما با موفقیت ثبت شد. از همراهی شما متشکریم!"
+      );
       setComment("");
       setRating(0);
+      setIsEditing(false);
     } catch (err: any) {
       setSubmitError(err?.message || "امکان ثبت نظر وجود ندارد");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleEdit = () => {
+    if (existingReview) {
+      setRating(existingReview.rating);
+      setComment(existingReview.comment || "");
+      setIsEditing(true);
+      setSuccessMessage(null);
+      setSubmitError(null);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setRating(0);
+    setComment("");
+    setSubmitError(null);
   };
 
   const handleLoginRedirect = () => {
@@ -197,17 +314,13 @@ export default function OrderReviewPage() {
 
       {!loading && order && (
         <>
-          <div className="bg-white rounded-xl shadow p-4 space-y-1">
-            <div className="flex items-center justify-between text-sm text-gray-600">
-              <span>کد سفارش: {order.id}</span>
-              <span className="font-medium text-rose-600">{toFaStatusLabel(order.status)}</span>
-            </div>
-            {!isReviewEligibleStatus(order.status) && (
+          {!isReviewEligibleStatus(order.status) && (
+            <div className="bg-white rounded-xl shadow p-4">
               <div className="text-xs text-gray-500">
                 این سفارش هنوز در وضعیت تحویل‌ داده شده/تکمیل شده نیست. پس از تحویل می‌توانید نظر بدهید.
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {!isAuthenticated && (
             <div className="bg-white rounded-xl shadow p-4 space-y-3">
@@ -223,123 +336,135 @@ export default function OrderReviewPage() {
 
           {isAuthenticated && isReviewEligibleStatus(order.status) && (
             <>
-              <div className="bg-white rounded-xl shadow p-4 space-y-3">
-                <div className="text-base font-bold">محصولات داخل این سفارش</div>
-                {order.items.length === 0 ? (
-                  <div className="text-sm text-gray-500">برای این سفارش محصولی ثبت نشده است.</div>
-                ) : (
-                  <div className="space-y-2">
-                    {order.items.map((item) => {
-                      const isSelected = String(item.productId) === String(selectedProductId);
-                      return (
-                        <button
-                          key={`${item.productId}`}
-                          type="button"
-                          className={`w-full border rounded-lg p-3 text-right transition ${
-                            isSelected ? "border-rose-500 bg-rose-50" : "border-gray-200 bg-gray-50"
-                          }`}
-                          onClick={() => setSelectedProductId(item.productId)}
-                        >
-                          <div className="flex items-center gap-3">
-                            {item.image ? (
-                              <img
-                                src={item.image}
-                                alt={item.name}
-                                className="w-12 h-12 rounded-lg object-cover border border-gray-100"
-                              />
-                            ) : (
-                              <div className="w-12 h-12 rounded-lg bg-gray-200 flex items-center justify-center text-xs text-gray-500">
-                                بدون تصویر
-                              </div>
-                            )}
-                            <div className="flex-1">
-                              <div className="text-sm font-semibold text-gray-800">{item.name}</div>
-                              <div className="text-xs text-gray-500">تعداد: {item.qty}</div>
-                            </div>
-                            {isSelected && (
-                              <span className="text-xs text-rose-600 font-semibold">انتخاب شده</span>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
               {order.items.length > 0 && (
-                <div className="bg-white rounded-xl shadow p-4 space-y-4">
-                  <div>
-                    <div className="text-base font-bold mb-2">امتیاز شما</div>
-                    <div className="flex items-center justify-between gap-2">
-                      {RATING_VALUES.map((value) => (
+                <>
+                  {loadingReview ? (
+                    <div className="bg-white rounded-xl shadow p-4">
+                      <div className="text-sm text-gray-600">در حال بررسی نظر قبلی...</div>
+                    </div>
+                  ) : existingReview && !isEditing ? (
+                    // Show existing review with edit button
+                    <div className="bg-white rounded-xl shadow p-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="text-base font-bold">نظر شما</div>
                         <button
-                          key={value}
-                          type="button"
-                          className={`flex flex-col items-center flex-1 py-2 rounded-lg border transition ${
-                            rating >= value ? "border-yellow-400 bg-yellow-50" : "border-gray-200 bg-gray-50"
-                          }`}
-                          onClick={() => setRating(value)}
+                          onClick={handleEdit}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition text-sm font-medium"
                         >
-                          <FaStar className={rating >= value ? "text-yellow-400" : "text-gray-300"} size={18} />
-                          <span className="text-xs text-gray-600 mt-1">{value}</span>
+                          <FaEdit size={14} />
+                          <span>ویرایش</span>
                         </button>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
 
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label htmlFor="review-comment" className="text-base font-bold">
-                        نظر شما
-                      </label>
-                      <span className="text-xs text-gray-400">اختیاری</span>
-                    </div>
-                    <textarea
-                      id="review-comment"
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      rows={4}
-                      className="w-full rounded-xl border border-gray-200 p-3 text-sm focus:border-rose-500 focus:ring focus:ring-rose-100 transition"
-                      placeholder="تجربه خود از دریافت این سفارش را برای ما بنویسید..."
-                    />
-                  </div>
+                      <div>
+                        <div className="text-sm text-gray-600 mb-2">امتیاز شما:</div>
+                        <div className="flex items-center gap-1">
+                          {RATING_VALUES.map((value) => (
+                            <FaStar
+                              key={value}
+                              className={existingReview.rating >= value ? "text-yellow-400" : "text-gray-300"}
+                              size={20}
+                            />
+                          ))}
+                          <span className="mr-2 text-sm font-semibold text-gray-700">
+                            {existingReview.rating} از 5
+                          </span>
+                        </div>
+                      </div>
 
-                  {submitError && (
-                    <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-2">
-                      {submitError}
+                      {existingReview.comment && (
+                        <div>
+                          <div className="text-sm text-gray-600 mb-2">نظر شما:</div>
+                          <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-800 border border-gray-200">
+                            {existingReview.comment}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="text-xs text-gray-500 pt-2 border-t border-gray-100">
+                        ثبت شده در: {new Date(existingReview.created_at).toLocaleDateString('fa-IR')}
+                      </div>
+                    </div>
+                  ) : (
+                    // Show form for new review or editing
+                    <div className="bg-white rounded-xl shadow p-4 space-y-4">
+                      {isEditing && (
+                        <div className="flex items-center justify-between pb-2 border-b border-gray-200">
+                          <div className="text-base font-bold">ویرایش نظر</div>
+                          <button
+                            onClick={handleCancelEdit}
+                            className="text-sm text-gray-600 hover:text-gray-800"
+                          >
+                            انصراف
+                          </button>
+                        </div>
+                      )}
+
+                      <div>
+                        <div className="text-base font-bold mb-2">امتیاز شما</div>
+                        <div className="flex items-center justify-between gap-2">
+                          {RATING_VALUES.map((value) => (
+                            <button
+                              key={value}
+                              type="button"
+                              className={`flex flex-col items-center flex-1 py-2 rounded-lg border transition ${
+                                rating >= value ? "border-yellow-400 bg-yellow-50" : "border-gray-200 bg-gray-50"
+                              }`}
+                              onClick={() => setRating(value)}
+                            >
+                              <FaStar className={rating >= value ? "text-yellow-400" : "text-gray-300"} size={18} />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label htmlFor="review-comment" className="text-base font-bold mb-1 block">
+                          نظر شما
+                        </label>
+                        <textarea
+                          id="review-comment"
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
+                          rows={4}
+                          className="w-full rounded-xl border border-gray-200 p-3 text-sm focus:border-rose-500 focus:ring focus:ring-rose-100 transition"
+                          placeholder="تجربه خود از دریافت این سفارش را برای ما بنویسید..."
+                        />
+                      </div>
+
+                      {submitError && (
+                        <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-2">
+                          {submitError}
+                        </div>
+                      )}
+
+                      {successMessage && (
+                        <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg p-2">
+                          {successMessage}
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        disabled={!canSubmit || submitting}
+                        onClick={handleSubmit}
+                        className={`w-full py-3 rounded-xl text-sm font-bold text-white transition ${
+                          canSubmit && !submitting
+                            ? "bg-emerald-600 hover:bg-emerald-700"
+                            : "bg-gray-400 cursor-not-allowed"
+                        }`}
+                      >
+                        {submitting 
+                          ? (isEditing ? "در حال ویرایش..." : "در حال ثبت...") 
+                          : (isEditing ? "ثبت ویرایش" : "ثبت امتیاز و نظر")
+                        }
+                      </button>
                     </div>
                   )}
-
-                  {successMessage && (
-                    <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg p-2">
-                      {successMessage}
-                    </div>
-                  )}
-
-                  <button
-                    type="button"
-                    disabled={!canSubmit || submitting}
-                    onClick={handleSubmit}
-                    className={`w-full py-3 rounded-xl text-sm font-bold text-white transition ${
-                      canSubmit && !submitting
-                        ? "bg-emerald-600 hover:bg-emerald-700"
-                        : "bg-gray-400 cursor-not-allowed"
-                    }`}
-                  >
-                    {submitting ? "در حال ثبت..." : "ثبت امتیاز و نظر"}
-                  </button>
-                </div>
+                </>
               )}
             </>
           )}
-
-          <button
-            onClick={handleBackToOrders}
-            className="w-full py-3 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 bg-white shadow-sm"
-          >
-            بازگشت به سفارش‌ها
-          </button>
         </>
       )}
     </div>
