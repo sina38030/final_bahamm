@@ -671,25 +671,87 @@ export default function GroupsOrdersPage() {
     };
   }, [isAuthenticated, apiCallInProgress, fetchUserGroupsAndOrders]);
 
-  // Check which orders have reviews from localStorage
+  // Check which orders have reviews - first check localStorage, then verify with API
   useEffect(() => {
-    if (!isAuthenticated || !user?.id) {
+    if (!isAuthenticated || !user?.id || orders.length === 0) {
       setOrderIdsWithReviews(new Set());
       return;
     }
 
-    try {
-      const reviewedIds = new Set<number>();
-      for (const order of orders) {
-        const hasReview = localStorage.getItem(`order-${order.id}-reviewed-by-${user.id}`);
-        if (hasReview === 'true') {
-          reviewedIds.add(order.id);
+    let alive = true;
+
+    const checkOrderReviews = async () => {
+      try {
+        const reviewedIds = new Set<number>();
+        
+        // First, quickly check localStorage for immediate UI update
+        for (const order of orders) {
+          const hasReview = localStorage.getItem(`order-${order.id}-reviewed-by-${user.id}`);
+          if (hasReview === 'true') {
+            reviewedIds.add(order.id);
+          }
         }
+        
+        // Update UI immediately with localStorage data
+        if (!alive) return;
+        setOrderIdsWithReviews(reviewedIds);
+        
+        // Then verify with API in background (only for eligible orders)
+        const eligibleOrders = orders.filter(o => isReviewEligibleStatus(o.status));
+        
+        for (const order of eligibleOrders) {
+          try {
+            // Fetch order details to get product IDs
+            const orderRes = await fetch(`/api/orders/${order.id}`, { cache: 'no-store' });
+            if (!orderRes.ok) continue;
+            
+            const orderData = await orderRes.json();
+            if (!orderData?.success || !orderData?.order) continue;
+            
+            // Get items
+            const items = orderData.order.items || orderData.order.order_items || orderData.order.OrderItems || [];
+            if (items.length === 0) continue;
+            
+            // Check first product for user review
+            const firstProduct = items[0];
+            const productId = firstProduct?.product_id || firstProduct?.productId || firstProduct?.id;
+            if (!productId) continue;
+            
+            const reviewsRes = await apiClient.get(`/product/${productId}/reviews`);
+            if (reviewsRes.ok) {
+              const reviews = await reviewsRes.json();
+              const userReview = reviews.find((r: any) => r.user_id === user.id);
+              
+              if (userReview) {
+                // Mark as reviewed
+                localStorage.setItem(`order-${order.id}-reviewed-by-${user.id}`, 'true');
+                if (!alive) return;
+                setOrderIdsWithReviews(prev => new Set([...prev, order.id]));
+              } else {
+                // Remove localStorage if no review found
+                localStorage.removeItem(`order-${order.id}-reviewed-by-${user.id}`);
+                if (!alive) return;
+                setOrderIdsWithReviews(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(order.id);
+                  return newSet;
+                });
+              }
+            }
+          } catch (err) {
+            // Silently continue
+          }
+        }
+      } catch (err) {
+        console.error('Error checking order reviews:', err);
       }
-      setOrderIdsWithReviews(reviewedIds);
-    } catch (err) {
-      console.error('Error checking reviews from localStorage:', err);
-    }
+    };
+
+    checkOrderReviews();
+
+    return () => {
+      alive = false;
+    };
   }, [orders, user?.id, isAuthenticated]);
 
   // Listen for review submission and review found events to update button text
