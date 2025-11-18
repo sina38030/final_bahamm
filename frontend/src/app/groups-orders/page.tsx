@@ -692,11 +692,11 @@ export default function GroupsOrdersPage() {
     }
   }, [orders, user?.id, isAuthenticated]);
 
-  // Listen for review submission events to update button text
+  // Listen for review submission and review found events to update button text
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
-    const onReviewSubmitted = (e: Event) => {
+    const onReviewEvent = (e: Event) => {
       try {
         const ev = e as CustomEvent<{ orderId?: number }>;
         const orderId = ev?.detail?.orderId;
@@ -705,13 +705,15 @@ export default function GroupsOrdersPage() {
           setOrderIdsWithReviews(prev => new Set([...prev, orderId]));
         }
       } catch (err) {
-        console.error('Error handling review submission event:', err);
+        console.error('Error handling review event:', err);
       }
     };
 
-    window.addEventListener('order-review-submitted', onReviewSubmitted as EventListener);
+    window.addEventListener('order-review-submitted', onReviewEvent as EventListener);
+    window.addEventListener('order-review-found', onReviewEvent as EventListener);
     return () => {
-      window.removeEventListener('order-review-submitted', onReviewSubmitted as EventListener);
+      window.removeEventListener('order-review-submitted', onReviewEvent as EventListener);
+      window.removeEventListener('order-review-found', onReviewEvent as EventListener);
     };
   }, [user?.id]);
 

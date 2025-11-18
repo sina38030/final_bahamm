@@ -151,6 +151,10 @@ export default function OrderReviewPage() {
           // Mark in localStorage that this order has been reviewed
           if (typeof window !== 'undefined' && orderId) {
             localStorage.setItem(`order-${orderId}-reviewed-by-${user.id}`, 'true');
+            // Also dispatch event immediately for other tabs/windows
+            window.dispatchEvent(new CustomEvent('order-review-found', { 
+              detail: { orderId: Number(orderId) } 
+            }));
           }
           // Don't set rating and comment here - only when editing
         } else {
