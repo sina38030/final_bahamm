@@ -443,11 +443,9 @@ class ReviewResponse(ReviewBase):
     product_id: int
     user_id: int
     created_at: datetime
+    approved: bool = False
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-
-    class Config:
-        from_attributes = True
 
     class Config:
         from_attributes = True

@@ -157,19 +157,29 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
 
 # Get reviews for a product
 @product_router.get("/{product_id}/reviews", response_model=List[ReviewResponse])
-def get_product_reviews(product_id: int, db: Session = Depends(get_db)):
+def get_product_reviews(
+    product_id: int, 
+    user_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
     # Check if product exists
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     
-    # Get all reviews for the product (newest first)
-    reviews = (
-        db.query(Review)
-        .filter(Review.product_id == product_id)
-        .order_by(Review.created_at.desc(), Review.id.desc())
-        .all()
-    )
+    # Build query for reviews
+    query = db.query(Review).filter(Review.product_id == product_id)
+    
+    # If user_id is provided, include that user's reviews (even if not approved)
+    # Otherwise, only show approved reviews
+    if user_id:
+        query = query.filter(
+            (Review.approved == True) | (Review.user_id == user_id)
+        )
+    else:
+        query = query.filter(Review.approved == True)
+    
+    reviews = query.order_by(Review.created_at.desc(), Review.id.desc()).all()
 
     # Prepare response with first_name and last_name
     response_reviews = []
@@ -183,6 +193,7 @@ def get_product_reviews(product_id: int, db: Session = Depends(get_db)):
             "product_id": review.product_id,
             "user_id": review.user_id,
             "created_at": review.created_at,
+            "approved": review.approved,
             "first_name": user.first_name if user else None,
             "last_name": user.last_name if user else None
         }
@@ -226,7 +237,8 @@ def create_product_review(
         user_id=review_data.user_id,
         rating=review_data.rating,
         comment=review_data.comment,
-        display_name=computed_display_name
+        display_name=computed_display_name,
+        approved=False  # Reviews need admin approval by default
     )
 
     # Allow overriding created_at if provided (admin/manual entry)
@@ -252,49 +264,12 @@ def create_product_review(
         "product_id": review.product_id,
         "user_id": review.user_id,
         "created_at": review.created_at,
+        "approved": review.approved,
         "first_name": user.first_name if user else None,
         "last_name": user.last_name if user else None
     }
 
     return ReviewResponse(**review_dict)
-
-# Get all reviews for a product
-@product_router.get("/{product_id}/reviews", response_model=List[ReviewResponse])
-def get_product_reviews(
-    product_id: int,
-    db: Session = Depends(get_db)
-):
-    # Check if product exists
-    product = db.query(Product).filter(Product.id == product_id).first()
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-
-    # Get all reviews for the product (newest first)
-    reviews = (
-        db.query(Review)
-        .filter(Review.product_id == product_id)
-        .order_by(Review.created_at.desc(), Review.id.desc())
-        .all()
-    )
-
-    # Prepare response
-    reviews_list = []
-    for review in reviews:
-        user = db.query(User).filter(User.id == review.user_id).first()
-        review_dict = {
-            "id": review.id,
-            "rating": review.rating,
-            "comment": review.comment,
-            "display_name": review.display_name,
-            "product_id": review.product_id,
-            "user_id": review.user_id,
-            "created_at": review.created_at,
-            "first_name": user.first_name if user else None,
-            "last_name": user.last_name if user else None
-        }
-        reviews_list.append(ReviewResponse(**review_dict))
-
-    return reviews_list
 
 # Delete a review
 @product_router.delete("/{product_id}/reviews/{review_id}")
@@ -343,16 +318,27 @@ def update_product_review(
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
 
+    # Check if comment is being changed
+    comment_changed = review.comment != review_update.comment
+    
     # Update the review
     review.rating = review_update.rating
     review.comment = review_update.comment
     review.display_name = review_update.display_name
-    # Allow admin to override created_at when provided
+    
+    # If comment is changed by user, reset approval status (needs re-approval by admin)
+    # Rating changes don't require re-approval (rating is always visible)
+    # Keep it approved only if it's an admin updating (when created_at is being overridden)
     if review_update.created_at:
+        # Admin override - keep approval status
         try:
             review.created_at = review_update.created_at
         except Exception:
             pass
+    else:
+        # User edit - if comment changed, reset approval for re-review by admin
+        if comment_changed:
+            review.approved = False
 
     db.commit()
     db.refresh(review)
@@ -369,6 +355,7 @@ def update_product_review(
         "product_id": review.product_id,
         "user_id": review.user_id,
         "created_at": review.created_at,
+        "approved": review.approved,
         "first_name": user.first_name if user else None,
         "last_name": user.last_name if user else None
     }

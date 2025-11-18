@@ -1824,6 +1824,8 @@ async def get_order_details(
                 "user_id": o.user_id,
                 "user_name": pname or pphone or "مهمان",
                 "user_phone": pphone,
+                "telegram_username": u.telegram_username if u else None,
+                "telegram_id": u.telegram_id if u else None,
                 "items": serialize_items(o.id),
                 "total_amount": o.total_amount,
             })
@@ -3643,16 +3645,20 @@ async def get_all_reviews(
     skip: int = Query(0, ge=0),
     limit: int = Query(1000, ge=1, le=1000),
     product_id: Optional[int] = None,
+    approved: Optional[bool] = None,
     db: Session = Depends(get_db)
 ):
-    """Get all reviews with optional product filter"""
+    """Get all reviews with optional product filter and approval status"""
     try:
         query = db.query(Review).join(User, Review.user_id == User.id, isouter=True)
         
         if product_id:
             query = query.filter(Review.product_id == product_id)
         
-        reviews = query.offset(skip).limit(limit).all()
+        if approved is not None:
+            query = query.filter(Review.approved == approved)
+        
+        reviews = query.order_by(Review.created_at.desc()).offset(skip).limit(limit).all()
         
         result = []
         for review in reviews:
@@ -3660,8 +3666,10 @@ async def get_all_reviews(
                 "id": review.id,
                 "rating": review.rating,
                 "comment": review.comment,
+                "display_name": review.display_name,
                 "product_id": review.product_id,
                 "user_id": review.user_id,
+                "approved": review.approved,
                 "created_at": review.created_at.isoformat() if review.created_at else None,
                 "first_name": review.user.first_name if review.user else None,
                 "last_name": review.user.last_name if review.user else None
@@ -3685,6 +3693,8 @@ async def create_review(
         user_id = data.get("user_id")
         rating = data.get("rating")
         comment = data.get("comment", "")
+        display_name = data.get("display_name", "")
+        approved = data.get("approved", True)  # Admin-created reviews are approved by default
         
         if not product_id or not user_id or not rating:
             raise HTTPException(status_code=400, detail="product_id, user_id, and rating are required")
@@ -3703,7 +3713,9 @@ async def create_review(
             product_id=product_id,
             user_id=user_id,
             rating=rating,
-            comment=comment
+            comment=comment,
+            display_name=display_name,
+            approved=approved
         )
         
         db.add(review)
@@ -3714,8 +3726,10 @@ async def create_review(
             "id": review.id,
             "rating": review.rating,
             "comment": review.comment,
+            "display_name": review.display_name,
             "product_id": review.product_id,
             "user_id": review.user_id,
+            "approved": review.approved,
             "created_at": review.created_at.isoformat() if review.created_at else None,
             "message": "Review created successfully"
         }
@@ -3742,6 +3756,8 @@ async def update_review(
             review.rating = data["rating"]
         if "comment" in data:
             review.comment = data["comment"]
+        if "approved" in data:
+            review.approved = data["approved"]
         
         db.commit()
         db.refresh(review)
@@ -3752,12 +3768,63 @@ async def update_review(
             "comment": review.comment,
             "product_id": review.product_id,
             "user_id": review.user_id,
+            "approved": review.approved,
             "created_at": review.created_at.isoformat() if review.created_at else None,
             "message": "Review updated successfully"
         }
     except Exception as e:
         db.rollback()
         logger.error(f"Error updating review: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@admin_router.post("/reviews/{review_id}/approve")
+async def approve_review(
+    review_id: int,
+    db: Session = Depends(get_db)
+):
+    """Approve a review"""
+    try:
+        review = db.query(Review).filter(Review.id == review_id).first()
+        if not review:
+            raise HTTPException(status_code=404, detail="Review not found")
+        
+        review.approved = True
+        db.commit()
+        db.refresh(review)
+        
+        return {
+            "id": review.id,
+            "approved": review.approved,
+            "message": "Review approved successfully"
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error approving review: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@admin_router.post("/reviews/{review_id}/reject")
+async def reject_review(
+    review_id: int,
+    db: Session = Depends(get_db)
+):
+    """Reject/unapprove a review"""
+    try:
+        review = db.query(Review).filter(Review.id == review_id).first()
+        if not review:
+            raise HTTPException(status_code=404, detail="Review not found")
+        
+        review.approved = False
+        db.commit()
+        db.refresh(review)
+        
+        return {
+            "id": review.id,
+            "approved": review.approved,
+            "message": "Review rejected successfully"
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error rejecting review: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @admin_router.delete("/reviews/{review_id}")

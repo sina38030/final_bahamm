@@ -25,6 +25,7 @@ type ExistingReview = {
   rating: number;
   comment: string | null;
   created_at: string;
+  approved?: boolean;
 };
 
 const RATING_VALUES = [1, 2, 3, 4, 5];
@@ -131,7 +132,9 @@ export default function OrderReviewPage() {
     const fetchExistingReview = async () => {
       setLoadingReview(true);
       try {
-        const res = await apiClient.get(`/product/${selectedProductId}/reviews`);
+        // Include user_id parameter to get user's own reviews (even if not approved)
+        const url = `/product/${selectedProductId}/reviews?user_id=${user.id}`;
+        const res = await apiClient.get(url);
         if (!res.ok) {
           setExistingReview(null);
           return;
@@ -147,6 +150,7 @@ export default function OrderReviewPage() {
             rating: userReview.rating,
             comment: userReview.comment || null,
             created_at: userReview.created_at,
+            approved: userReview.approved,
           });
           // Mark in localStorage that this order has been reviewed
           if (typeof window !== 'undefined' && orderId) {
@@ -239,6 +243,7 @@ export default function OrderReviewPage() {
         rating: responseData.rating,
         comment: responseData.comment || null,
         created_at: responseData.created_at,
+        approved: responseData.approved,
       });
       
       // Store in localStorage and dispatch event
@@ -249,11 +254,19 @@ export default function OrderReviewPage() {
         }));
       }
       
-      setSuccessMessage(
-        existingReview && isEditing 
-          ? "نظر شما با موفقیت ویرایش شد. از همراهی شما متشکریم!" 
-          : "نظر شما با موفقیت ثبت شد. از همراهی شما متشکریم!"
-      );
+      // Show appropriate success message based on approval status
+      let message = "";
+      if (existingReview && isEditing) {
+        if (responseData.approved === false) {
+          message = "نظر شما با موفقیت ویرایش شد. امتیاز شما بلافاصله اعمال شد و متن نظر پس از تایید مدیر نمایش داده خواهد شد.";
+        } else {
+          message = "نظر شما با موفقیت ویرایش شد. از همراهی شما متشکریم!";
+        }
+      } else {
+        message = "نظر شما با موفقیت ثبت شد! امتیاز شما بلافاصله اعمال شد و متن نظر پس از تایید مدیر نمایش داده خواهد شد.";
+      }
+      
+      setSuccessMessage(message);
       setComment("");
       setRating(0);
       setIsEditing(false);
@@ -385,8 +398,24 @@ export default function OrderReviewPage() {
                         </div>
                       )}
 
-                      <div className="text-xs text-gray-500 pt-2 border-t border-gray-100">
-                        ثبت شده در: {new Date(existingReview.created_at).toLocaleDateString('fa-IR')}
+                      <div className="text-xs text-gray-500 pt-2 border-t border-gray-100 space-y-1">
+                        <div>ثبت شده در: {new Date(existingReview.created_at).toLocaleDateString('fa-IR')}</div>
+                        {existingReview.approved === false && (
+                          <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-yellow-50 text-yellow-700 rounded-md text-xs font-medium border border-yellow-200">
+                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
+                            </svg>
+                            <span>نظر شما در انتظار تایید مدیر است</span>
+                          </div>
+                        )}
+                        {existingReview.approved === true && (
+                          <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-green-50 text-green-700 rounded-md text-xs font-medium border border-green-200">
+                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                            </svg>
+                            <span>نظر شما تایید شده است</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (

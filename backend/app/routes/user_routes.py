@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
+import json
 
 from app.database import get_db
-from app.models import User, Order, GroupOrder
+from app.models import User, Order, GroupOrder, Review, Product, OrderItem
 from app.schemas import (
     UserCoinsResponse,
     User as UserSchema,
@@ -140,3 +141,84 @@ def list_user_transactions(
         page=page,
         page_size=page_size,
     )
+
+@user_router.get("/reviews")
+async def get_user_reviews(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all reviews by the current user with associated order information"""
+    try:
+        # Get all reviews by the user
+        reviews = db.query(Review).filter(Review.user_id == current_user.id).order_by(Review.created_at.desc()).all()
+        
+        result = []
+        for review in reviews:
+            # Get the product information
+            product = db.query(Product).filter(Product.id == review.product_id).first()
+            
+            # Find the order that contains this product for this user
+            # Look for orders that have this product
+            order = db.query(Order).join(OrderItem).filter(
+                Order.user_id == current_user.id,
+                OrderItem.product_id == review.product_id
+            ).order_by(Order.created_at.desc()).first()
+            
+            order_info = None
+            order_items = []
+            
+            if order:
+                # Get all items in this order
+                items = db.query(OrderItem).filter(OrderItem.order_id == order.id).all()
+                for item in items:
+                    item_product = db.query(Product).filter(Product.id == item.product_id).first()
+                    if item_product:
+                        # Get first image
+                        images = []
+                        if item_product.images:
+                            try:
+                                images = json.loads(item_product.images) if isinstance(item_product.images, str) else item_product.images
+                            except:
+                                images = []
+                        
+                        order_items.append({
+                            "product_id": item.product_id,
+                            "name": item_product.name,
+                            "quantity": item.quantity,
+                            "image": images[0] if images else None,
+                            "base_price": item.base_price
+                        })
+                
+                order_info = {
+                    "id": order.id,
+                    "status": order.status,
+                    "total_amount": order.total_amount,
+                    "created_at": order.created_at.isoformat() if order.created_at else None,
+                    "items": order_items
+                }
+            
+            # Get product images
+            product_images = []
+            if product and product.images:
+                try:
+                    product_images = json.loads(product.images) if isinstance(product.images, str) else product.images
+                except:
+                    product_images = []
+            
+            result.append({
+                "id": review.id,
+                "rating": review.rating,
+                "comment": review.comment,
+                "display_name": review.display_name,
+                "product_id": review.product_id,
+                "product_name": product.name if product else "محصول حذف شده",
+                "product_image": product_images[0] if product_images else None,
+                "user_id": review.user_id,
+                "approved": review.approved,
+                "created_at": review.created_at.isoformat() if review.created_at else None,
+                "order": order_info
+            })
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

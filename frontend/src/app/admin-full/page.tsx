@@ -7,21 +7,22 @@
    import React from "react";
    import { useEffect, useState, useCallback } from "react";
    import { toTehranTime, toTehranDate, toTehranDateTime } from "@/utils/dateUtils";
-   import {
-    FaTachometerAlt,
-    FaBoxes,
-    FaTags,
-    FaShoppingCart,
-    FaUsers,
-    FaBars,
-    FaTimes,
-    FaEye,
-    FaUserFriends,
-    FaExclamationTriangle,
-    FaComments,
-    FaClock,
-    FaFire,
-   } from "react-icons/fa";
+import {
+ FaTachometerAlt,
+ FaBoxes,
+ FaTags,
+ FaShoppingCart,
+ FaUsers,
+ FaBars,
+ FaTimes,
+ FaEye,
+ FaUserFriends,
+ FaExclamationTriangle,
+ FaComments,
+ FaClock,
+ FaFire,
+ FaCheckCircle,
+} from "react-icons/fa";
 import { toFa } from "@/utils/toFa";
 import SettlementsContent from "@/components/SettlementsContent";
 import Image from "next/image";
@@ -93,21 +94,22 @@ export const dynamic = 'force-dynamic';
     // Removed credentials: "include" to avoid cookie issues with cross-domain
   };
    
-  type Section =
-    | "dashboard"
-    | "products"
-    | "categories"
-    | "settings"
-    | "banners"
-    | "orders"
-    | "users"
-    | "group-buys"
-    | "secondary-group-buys"
-    | "settlements"
-    | "messages"
-    | "delivery-slots"
-    | "reviews"
-    | "popular-searches";
+ type Section =
+   | "dashboard"
+   | "products"
+   | "categories"
+   | "settings"
+   | "banners"
+   | "orders"
+   | "users"
+   | "group-buys"
+   | "secondary-group-buys"
+   | "settlements"
+   | "messages"
+   | "delivery-slots"
+   | "reviews"
+   | "pending-reviews"
+   | "popular-searches";
    
    /* --------------------------------------------------------------------------
       Shared types
@@ -315,21 +317,22 @@ export const dynamic = 'force-dynamic';
    
      /* ---------------- Nav items */
   const menuItems = [
-      { id: "dashboard" as Section, label: "داشبورد", icon: FaTachometerAlt },
-      { id: "products" as Section, label: "محصولات", icon: FaBoxes },
-      { id: "categories" as Section, label: "دسته‌بندی‌ها", icon: FaTags },
-      { id: "delivery-slots" as Section, label: "بازه‌های تحویل", icon: FaClock },
-      { id: "settings" as Section, label: "تنظیمات", icon: FaBars },
-       { id: "banners" as Section, label: "بنرها", icon: FaTags },
-      { id: "orders" as Section, label: "سفارشات", icon: FaShoppingCart },
-      { id: "users" as Section, label: "کاربران", icon: FaUsers },
-      { id: "group-buys" as Section, label: "خرید گروهی", icon: FaUserFriends },
-      { id: "secondary-group-buys" as Section, label: "خرید گروهی ثانویه", icon: FaUserFriends },
-      { id: "settlements" as Section, label: "تسویه‌های گروهی", icon: FaExclamationTriangle },
-      { id: "messages" as Section, label: "پیام‌ها", icon: FaComments },
-      { id: "reviews" as Section, label: "نظرات فیک", icon: FaComments },
-      { id: "popular-searches" as Section, label: "جستجوهای پرطرفدار", icon: FaFire },
-    ];
+    { id: "dashboard" as Section, label: "داشبورد", icon: FaTachometerAlt },
+    { id: "products" as Section, label: "محصولات", icon: FaBoxes },
+    { id: "categories" as Section, label: "دسته‌بندی‌ها", icon: FaTags },
+    { id: "delivery-slots" as Section, label: "بازه‌های تحویل", icon: FaClock },
+    { id: "settings" as Section, label: "تنظیمات", icon: FaBars },
+     { id: "banners" as Section, label: "بنرها", icon: FaTags },
+    { id: "orders" as Section, label: "سفارشات", icon: FaShoppingCart },
+    { id: "users" as Section, label: "کاربران", icon: FaUsers },
+    { id: "group-buys" as Section, label: "خرید گروهی", icon: FaUserFriends },
+    { id: "secondary-group-buys" as Section, label: "خرید گروهی ثانویه", icon: FaUserFriends },
+    { id: "settlements" as Section, label: "تسویه‌های گروهی", icon: FaExclamationTriangle },
+    { id: "messages" as Section, label: "پیام‌ها", icon: FaComments },
+    { id: "reviews" as Section, label: "نظرات فیک", icon: FaComments },
+    { id: "pending-reviews" as Section, label: "نظرات کاربران", icon: FaCheckCircle },
+    { id: "popular-searches" as Section, label: "جستجوهای پرطرفدار", icon: FaFire },
+  ];
    
      const renderContent = () => {
        switch (activeSection) {
@@ -359,13 +362,15 @@ export const dynamic = 'force-dynamic';
           return <SettlementsContent />;
         case "delivery-slots":
           return <DeliverySlotsContent />;
-        case "reviews":
-          return <ReviewsContent />;
-        case "popular-searches":
-          return <PopularSearchesContent />;
-        default:
-          return null;
-       }
+       case "reviews":
+         return <ReviewsContent />;
+       case "pending-reviews":
+         return <PendingReviewsContent />;
+       case "popular-searches":
+         return <PopularSearchesContent />;
+       default:
+         return null;
+      }
      };
    
      /* ---------------- Layout */
@@ -4483,6 +4488,248 @@ export const dynamic = 'force-dynamic';
               </div>
             )}
           </>
+        )}
+      </div>
+    );
+  }
+
+  /* --------------------------------------------------------------------------
+     Pending Reviews (User Review Approval)
+     -------------------------------------------------------------------------- */
+
+  function PendingReviewsContent() {
+    const [reviews, setReviews] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [filter, setFilter] = useState<'pending' | 'approved' | 'all'>('pending');
+    const [products, setProducts] = useState<any[]>([]);
+
+    // Load all products for product name display
+    useEffect(() => {
+      const ctrl = new AbortController();
+      let alive = true;
+      (async () => {
+        try {
+          const data = await fetchJSON<any[]>(`${API_BASE_URL}/product`, undefined, ctrl.signal);
+          if (!alive) return;
+          setProducts(Array.isArray(data) ? data : []);
+        } catch (err) {
+          if (!isAbort(err)) console.error('Load products error:', err);
+        }
+      })();
+      return () => { alive = false; ctrl.abort(); };
+    }, []);
+
+    // Load reviews based on filter
+    const loadReviews = useCallback(async () => {
+      setLoading(true);
+      try {
+        const approvedParam = filter === 'all' ? '' : `&approved=${filter === 'approved' ? 'true' : 'false'}`;
+        const url = `${API_BASE_URL}/admin/reviews?limit=1000${approvedParam}`;
+        const data = await fetchJSON<any[]>(url);
+        setReviews(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Load reviews error:', err);
+      } finally {
+        setLoading(false);
+      }
+    }, [filter]);
+
+    useEffect(() => {
+      loadReviews();
+    }, [loadReviews]);
+
+    const approveReview = async (reviewId: number) => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/admin/reviews/${reviewId}/approve`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('خطا در تایید نظر');
+        }
+
+        alert('نظر با موفقیت تایید شد');
+        loadReviews();
+      } catch (err) {
+        console.error('Approve review error:', err);
+        alert('خطا در تایید نظر');
+      }
+    };
+
+    const rejectReview = async (reviewId: number) => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/admin/reviews/${reviewId}/reject`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('خطا در رد نظر');
+        }
+
+        alert('نظر رد شد');
+        loadReviews();
+      } catch (err) {
+        console.error('Reject review error:', err);
+        alert('خطا در رد نظر');
+      }
+    };
+
+    const deleteReview = async (reviewId: number) => {
+      if (!confirm('آیا از حذف این نظر اطمینان دارید؟')) return;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/admin/reviews/${reviewId}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          throw new Error('خطا در حذف نظر');
+        }
+
+        alert('نظر با موفقیت حذف شد');
+        loadReviews();
+      } catch (err) {
+        console.error('Delete review error:', err);
+        alert('خطا در حذف نظر');
+      }
+    };
+
+    const getProductName = (productId: number) => {
+      const product = products.find(p => p.id === productId);
+      return product ? product.name : `محصول #${productId}`;
+    };
+
+    const getUserDisplayName = (review: any) => {
+      if (review.display_name) return review.display_name;
+      if (review.first_name || review.last_name) {
+        return `${review.first_name || ''} ${review.last_name || ''}`.trim();
+      }
+      return `کاربر #${review.user_id}`;
+    };
+
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-xl font-semibold mb-6">مدیریت نظرات کاربران</h2>
+
+        {/* Filter buttons */}
+        <div className="mb-6 flex gap-4">
+          <button
+            onClick={() => setFilter('pending')}
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              filter === 'pending' ? 'bg-yellow-500 text-white' : 'bg-gray-200 hover:bg-gray-300'
+            }`}
+          >
+            در انتظار تایید ({reviews.filter(r => !r.approved).length})
+          </button>
+          <button
+            onClick={() => setFilter('approved')}
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              filter === 'approved' ? 'bg-green-500 text-white' : 'bg-gray-200 hover:bg-gray-300'
+            }`}
+          >
+            تایید شده ({reviews.filter(r => r.approved).length})
+          </button>
+          <button
+            onClick={() => setFilter('all')}
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              filter === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300'
+            }`}
+          >
+            همه ({reviews.length})
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-8">در حال بارگذاری...</div>
+        ) : reviews.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">نظری یافت نشد</div>
+        ) : (
+          <div className="space-y-4">
+            {reviews.map((review) => (
+              <div
+                key={review.id}
+                className={`border rounded-lg p-4 ${
+                  review.approved ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'
+                }`}
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-semibold text-lg">{getProductName(review.product_id)}</h3>
+                    <p className="text-sm text-gray-600">
+                      توسط: {getUserDisplayName(review)} • 
+                      {new Date(review.created_at).toLocaleDateString('fa-IR', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    {!review.approved ? (
+                      <button
+                        onClick={() => approveReview(review.id)}
+                        className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors text-sm"
+                      >
+                        تایید
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => rejectReview(review.id)}
+                        className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors text-sm"
+                      >
+                        لغو تایید
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deleteReview(review.id)}
+                      className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-sm"
+                    >
+                      حذف
+                    </button>
+                  </div>
+                </div>
+
+                {/* Rating stars */}
+                <div className="flex items-center gap-1 mb-2">
+                  <span className="text-sm text-gray-600 ml-2">امتیاز:</span>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span key={star} className={star <= review.rating ? 'text-yellow-400' : 'text-gray-300'}>
+                      ★
+                    </span>
+                  ))}
+                  <span className="text-sm text-gray-600 mr-2">({review.rating}/5)</span>
+                </div>
+
+                {/* Comment */}
+                {review.comment && (
+                  <div className="mt-3 p-3 bg-white rounded border">
+                    <p className="text-gray-700">{review.comment}</p>
+                  </div>
+                )}
+
+                {/* Status badge */}
+                <div className="mt-3">
+                  <span
+                    className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                      review.approved
+                        ? 'bg-green-200 text-green-800'
+                        : 'bg-yellow-200 text-yellow-800'
+                    }`}
+                  >
+                    {review.approved ? 'تایید شده' : 'در انتظار تایید'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     );

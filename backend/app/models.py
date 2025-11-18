@@ -359,6 +359,7 @@ class Review(Base):
     # Optional display name to show with the review (e.g., fake or user-provided)
     display_name = Column(String(100), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(TEHRAN_TZ))
+    approved = Column(Boolean, default=False, nullable=False)  # Review approval status
     
     # Relationships
     user = relationship("User", back_populates="reviews")
