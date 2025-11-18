@@ -1121,21 +1121,12 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
                 </div>
               )}
               <span className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')} data-category="all">
-                {categorySettings.all_image && (
-                  <img src={categorySettings.all_image} alt={categorySettings.all_label} style={{ width: '20px', height: '20px', marginLeft: '5px', verticalAlign: 'middle' }} />
-                )}
                 {categorySettings.all_label}
               </span>
               <span className={`tab ${activeTab === 'fruit' ? 'active' : ''}`} onClick={() => setActiveTab('fruit')} data-category="fruit">
-                {categorySettings.fruit_image && (
-                  <img src={categorySettings.fruit_image} alt={categorySettings.fruit_label} style={{ width: '20px', height: '20px', marginLeft: '5px', verticalAlign: 'middle' }} />
-                )}
                 {categorySettings.fruit_label}
               </span>
               <span className={`tab ${activeTab === 'veggie' ? 'active' : ''}`} onClick={() => setActiveTab('veggie')} data-category="veggie">
-                {categorySettings.veggie_image && (
-                  <img src={categorySettings.veggie_image} alt={categorySettings.veggie_label} style={{ width: '20px', height: '20px', marginLeft: '5px', verticalAlign: 'middle' }} />
-                )}
                 {categorySettings.veggie_label}
               </span>
             </div>

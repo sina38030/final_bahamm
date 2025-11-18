@@ -1,8 +1,8 @@
 import type {NextConfig} from "next";
 
 const nextConfig: NextConfig = {
-    // Enable React strict mode for better debugging
-    reactStrictMode: true,
+    // Disable React strict mode temporarily to debug hooks issue
+    reactStrictMode: false,
 	
 	// Add permissive headers for static assets/fonts to avoid 403 via tunnels/proxies
 	async headers() {

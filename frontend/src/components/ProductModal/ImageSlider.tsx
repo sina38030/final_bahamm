@@ -14,6 +14,15 @@ export default function ImageSlider({ seeds, productImages = [] }: Props) {
   const [idx, sI] = useState(0);
   const { open } = useLightbox();
 
+  // Use admin images if available; otherwise use legacy picsum seeds
+  const galleryImages = useMemo<string[]>(() => {
+    if (Array.isArray(productImages) && productImages.length > 0) {
+      return productImages.filter(Boolean);
+    }
+    // No admin images; show nothing
+    return [];
+  }, [productImages]);
+
   /* شماره اسلاید */
   useEffect(() => {
     const el = rail.current;
@@ -21,7 +30,7 @@ export default function ImageSlider({ seeds, productImages = [] }: Props) {
     const cb = () => sI(Math.round(el.scrollLeft / el.offsetWidth));
     el.addEventListener('scroll', cb, { passive:true });
     return () => el.removeEventListener('scroll', cb);
-  }, []);
+  }, [galleryImages.length]);
 
   /* ── درگ موس/اشاره‌گر برای دسکتاپ ── */
   useEffect(() => {
@@ -65,15 +74,6 @@ export default function ImageSlider({ seeds, productImages = [] }: Props) {
     return () => el?.removeEventListener('dblclick', dbl);
   }, []);
 
-  // Use admin images if available; otherwise use legacy picsum seeds
-  const galleryImages = useMemo<string[]>(() => {
-    if (Array.isArray(productImages) && productImages.length > 0) {
-      return productImages.filter(Boolean);
-    }
-    // No admin images; show nothing
-    return [];
-  }, [productImages]);
-
   const bigImgs = useMemo<string[]>(() => galleryImages, [galleryImages]);
 
   return (
@@ -85,6 +85,7 @@ export default function ImageSlider({ seeds, productImages = [] }: Props) {
               src={src}
               draggable={false}
               onClick={() => open(bigImgs, i)}
+              style={{border: 'none', outline: 'none', margin: 0, padding: 0}}
             />
           </div>
         ))}

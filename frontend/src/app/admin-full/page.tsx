@@ -27,12 +27,60 @@ import Image from "next/image";
 import { API_BASE_URL } from "@/utils/api";
 import { syncTokenFromURL } from "@/utils/crossDomainAuth";
 
+// Force dynamic rendering - do not pre-render this page at build time
+export const dynamic = 'force-dynamic';
+   
    /* --------------------------------------------------------------------------
-      Config - Backend URL using standard API_BASE_URL
+      Config - Backend URL computed at runtime
       -------------------------------------------------------------------------- */
    
-  // Use the standard API_BASE_URL that correctly handles production vs development
-  const ADMIN_API_BASE_URL = API_BASE_URL;
+  // Lazy-computed backend URL (cached after first access)
+  let _cachedAdminApiBaseUrl: string | null = null;
+  
+  function getAdminApiBaseUrl(): string {
+    if (_cachedAdminApiBaseUrl) return _cachedAdminApiBaseUrl;
+    
+    if (typeof window === 'undefined') {
+      return "http://localhost:8001/api";
+    }
+    
+    // Client-side: use env var or construct from current location
+    const envUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_ADMIN_API_URL;
+    let rawBase: string;
+    
+    if (envUrl) {
+      console.log('[Admin] Using env URL:', envUrl);
+      rawBase = envUrl;
+    } else {
+      // Auto-detect based on environment
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      
+      // Production: use nginx reverse proxy path
+      if (hostname === 'bahamm.ir' || hostname === 'www.bahamm.ir' || hostname === 'app.bahamm.ir') {
+        rawBase = `${protocol}//${hostname}`;
+        console.log('[Admin] Production URL (nginx proxy):', rawBase);
+      } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        // Development: direct connection to backend port
+        rawBase = `${protocol}//${hostname}:8001`;
+        console.log('[Admin] Development URL (direct):', rawBase);
+      } else {
+        // Unknown environment, try direct port access
+        rawBase = `${protocol}//${hostname}:8001`;
+        console.log('[Admin] Unknown env, trying port 8001:', rawBase);
+      }
+    }
+    
+    const trimmed = rawBase.replace(/\/+$/, "");
+    const apiUrl = /\/api$/i.test(trimmed) ? trimmed : `${trimmed}/api`;
+    
+    console.log('[Admin] Final API Base URL:', apiUrl);
+    _cachedAdminApiBaseUrl = apiUrl;
+    return apiUrl;
+  }
+  
+  // Use this in all fetch calls
+  const ADMIN_API_BASE_URL = (() => getAdminApiBaseUrl())();
    
    /** Using Bearer token auth from localStorage (not cookies)
     * This allows cross-domain authentication between bahamm.ir and app.bahamm.ir
@@ -4446,8 +4494,8 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
         try {
           setLoading(true);
           setError(null);
-          // Fetch secondary groups from admin API using standard API_BASE_URL
-          const BASE = ADMIN_API_BASE_URL;
+          // Fetch secondary groups from admin API using auto-detected URL
+          const BASE = getAdminApiBaseUrl();
           // Add timestamp to prevent browser caching
           const timestamp = new Date().getTime();
           const res = await fetch(`${BASE}/admin/secondary-groups?limit=1000&_t=${timestamp}`, { headers: { 'Accept': 'application/json' }, cache: 'no-store' });

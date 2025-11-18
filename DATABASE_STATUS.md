@@ -4,14 +4,18 @@
 
 ### ✅ Backend Database Connection - WORKING
 
-**Products in Database:** 12 products ✓
+**Products in Database:** 14 products ✓
+**Dataset:** Electronics/Household Items (Dataset 2) - Clean Single Dataset
 
 Sample products:
-- توت فرنگی (Strawberry) - 65,000 تومان
-- گوجه‌فرنگی (Tomato) - 55,000 تومان  
-- سیب (Apple) - 72,000 تومان
-- خیار گلخانه‌ای (Cucumber) - 40,000 تومان
-- And more...
+- هدفون بلوتوث بی‌سیم (Wireless Bluetooth Headphones)
+- ردیاب هوشمند تناسب اندام (Smart Fitness Tracker)
+- تی‌شرت مردانه راحتی (Comfortable Men's T-Shirt)
+- ست پخت و پز نچسب (Non-stick Cookware Set)
+- قهوه‌ساز برقی (Electric Coffee Maker)
+- And more electronics/household items...
+
+**Note:** Database cleaned and reseeded with only Dataset 2 products. No mixed datasets.
 
 ### ❌ Banners in Database - EMPTY
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Script to populate the database with sample products, categories, stores, and images.
 Run this script to seed the database with test data.
@@ -9,6 +10,14 @@ import os
 import random
 import re
 from datetime import datetime, timedelta, timezone
+
+# Fix encoding for Persian characters
+if sys.platform == 'win32':
+    try:
+        sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1)
+        sys.stderr = open(sys.stderr.fileno(), mode='w', encoding='utf-8', buffering=1)
+    except:
+        pass
 
 # Tehran timezone: UTC+3:30
 TEHRAN_TZ = timezone(timedelta(hours=3, minutes=30))

@@ -7,6 +7,11 @@ function sanitizeBase(url: string): string {
 }
 
 function resolveBackendOrigin(): string {
+  // Force local backend for development on port 8001
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:8001';
+  }
+
   const candidates = [
     process.env.BACKEND_URL,
     process.env.INTERNAL_BACKEND_URL,
@@ -14,7 +19,7 @@ function resolveBackendOrigin(): string {
     process.env.NEXT_PUBLIC_API_URL,
   ].filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
 
-  const raw = candidates.length > 0 ? candidates[0]! : 'http://127.0.0.1:8080';
+  const raw = candidates.length > 0 ? candidates[0]! : 'http://localhost:8001';
   return sanitizeBase(raw.trim());
 }
 
