@@ -619,6 +619,28 @@ class TransactionsResponse(BaseModel):
     page: int
     page_size: int
 
+# Popular Search schemas
+class PopularSearchBase(BaseModel):
+    search_term: str
+    sort_order: int = 0
+    is_active: bool = True
+
+class PopularSearchCreate(PopularSearchBase):
+    pass
+
+class PopularSearchUpdate(BaseModel):
+    search_term: Optional[str] = None
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+class PopularSearchResponse(PopularSearchBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
 # Telegram authentication schemas
 class TelegramLoginRequest(BaseModel):
     init_data: str

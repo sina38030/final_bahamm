@@ -20,6 +20,7 @@
     FaExclamationTriangle,
     FaComments,
     FaClock,
+    FaFire,
    } from "react-icons/fa";
 import { toFa } from "@/utils/toFa";
 import SettlementsContent from "@/components/SettlementsContent";
@@ -105,7 +106,8 @@ export const dynamic = 'force-dynamic';
     | "settlements"
     | "messages"
     | "delivery-slots"
-    | "reviews";
+    | "reviews"
+    | "popular-searches";
    
    /* --------------------------------------------------------------------------
       Shared types
@@ -326,6 +328,7 @@ export const dynamic = 'force-dynamic';
       { id: "settlements" as Section, label: "تسویه‌های گروهی", icon: FaExclamationTriangle },
       { id: "messages" as Section, label: "پیام‌ها", icon: FaComments },
       { id: "reviews" as Section, label: "نظرات فیک", icon: FaComments },
+      { id: "popular-searches" as Section, label: "جستجوهای پرطرفدار", icon: FaFire },
     ];
    
      const renderContent = () => {
@@ -358,6 +361,8 @@ export const dynamic = 'force-dynamic';
           return <DeliverySlotsContent />;
         case "reviews":
           return <ReviewsContent />;
+        case "popular-searches":
+          return <PopularSearchesContent />;
         default:
           return null;
        }
@@ -4583,5 +4588,364 @@ export const dynamic = 'force-dynamic';
           )}
         </div>
       </>
+    );
+  }
+
+  /* --------------------------------------------------------------------------
+     Popular Searches Management
+     -------------------------------------------------------------------------- */
+  
+  interface PopularSearch {
+    id: number;
+    search_term: string;
+    sort_order: number;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+  }
+
+  function PopularSearchesContent() {
+    const [searches, setSearches] = useState<PopularSearch[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [newSearchTerm, setNewSearchTerm] = useState("");
+    const [editSearchTerm, setEditSearchTerm] = useState("");
+    const [creating, setCreating] = useState(false);
+
+    // Fetch popular searches
+    const fetchSearches = useCallback(async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const token = localStorage.getItem("token");
+        const response = await fetch(`${ADMIN_API_BASE_URL}/popular-searches?include_inactive=true`, {
+          headers: {
+            ...API_INIT.headers,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error(`خطا در دریافت جستجوهای پرطرفدار: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        setSearches(data);
+      } catch (err: any) {
+        console.error("Error fetching popular searches:", err);
+        setError(err.message || "خطای ناشناخته");
+      } finally {
+        setLoading(false);
+      }
+    }, []);
+
+    useEffect(() => {
+      fetchSearches();
+    }, [fetchSearches]);
+
+    // Create new popular search
+    const handleCreate = async () => {
+      if (!newSearchTerm.trim()) {
+        alert("لطفاً عبارت جستجو را وارد کنید");
+        return;
+      }
+
+      try {
+        setCreating(true);
+        const token = localStorage.getItem("token");
+        const response = await fetch(`${ADMIN_API_BASE_URL}/popular-searches`, {
+          method: "POST",
+          headers: {
+            ...API_INIT.headers,
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            search_term: newSearchTerm,
+            sort_order: searches.length,
+            is_active: true,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("خطا در ایجاد جستجوی پرطرفدار");
+        }
+
+        setNewSearchTerm("");
+        await fetchSearches();
+        alert("جستجوی پرطرفدار با موفقیت ایجاد شد");
+      } catch (err: any) {
+        console.error("Error creating popular search:", err);
+        alert(err.message || "خطای ناشناخته");
+      } finally {
+        setCreating(false);
+      }
+    };
+
+    // Update popular search
+    const handleUpdate = async (id: number) => {
+      if (!editSearchTerm.trim()) {
+        alert("لطفاً عبارت جستجو را وارد کنید");
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(`${ADMIN_API_BASE_URL}/popular-searches/${id}`, {
+          method: "PUT",
+          headers: {
+            ...API_INIT.headers,
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            search_term: editSearchTerm,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("خطا در ویرایش جستجوی پرطرفدار");
+        }
+
+        setEditingId(null);
+        setEditSearchTerm("");
+        await fetchSearches();
+        alert("جستجوی پرطرفدار با موفقیت ویرایش شد");
+      } catch (err: any) {
+        console.error("Error updating popular search:", err);
+        alert(err.message || "خطای ناشناخته");
+      }
+    };
+
+    // Toggle active status
+    const handleToggleActive = async (id: number, currentStatus: boolean) => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(`${ADMIN_API_BASE_URL}/popular-searches/${id}`, {
+          method: "PUT",
+          headers: {
+            ...API_INIT.headers,
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            is_active: !currentStatus,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("خطا در تغییر وضعیت");
+        }
+
+        await fetchSearches();
+      } catch (err: any) {
+        console.error("Error toggling active status:", err);
+        alert(err.message || "خطای ناشناخته");
+      }
+    };
+
+    // Delete popular search
+    const handleDelete = async (id: number) => {
+      if (!confirm("آیا از حذف این جستجوی پرطرفدار اطمینان دارید؟")) {
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(`${ADMIN_API_BASE_URL}/popular-searches/${id}`, {
+          method: "DELETE",
+          headers: {
+            ...API_INIT.headers,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("خطا در حذف جستجوی پرطرفدار");
+        }
+
+        await fetchSearches();
+        alert("جستجوی پرطرفدار با موفقیت حذف شد");
+      } catch (err: any) {
+        console.error("Error deleting popular search:", err);
+        alert(err.message || "خطای ناشناخته");
+      }
+    };
+
+    // Move search up/down
+    const handleMove = async (index: number, direction: "up" | "down") => {
+      const newSearches = [...searches];
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+      
+      if (targetIndex < 0 || targetIndex >= newSearches.length) return;
+
+      // Swap
+      [newSearches[index], newSearches[targetIndex]] = [newSearches[targetIndex], newSearches[index]];
+
+      // Update sort_order
+      const reorderedIds = newSearches.map(s => s.id);
+
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(`${ADMIN_API_BASE_URL}/popular-searches/reorder`, {
+          method: "POST",
+          headers: {
+            ...API_INIT.headers,
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(reorderedIds),
+        });
+
+        if (!response.ok) {
+          throw new Error("خطا در تغییر ترتیب");
+        }
+
+        await fetchSearches();
+      } catch (err: any) {
+        console.error("Error reordering searches:", err);
+        alert(err.message || "خطای ناشناخته");
+      }
+    };
+
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-xl font-semibold mb-6">مدیریت جستجوهای پرطرفدار</h2>
+        
+        {/* Create New Search */}
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3">افزودن جستجوی پرطرفدار جدید</h3>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={newSearchTerm}
+              onChange={(e) => setNewSearchTerm(e.target.value)}
+              placeholder="عبارت جستجو..."
+              className="flex-1 border rounded px-3 py-2"
+              disabled={creating}
+            />
+            <button
+              onClick={handleCreate}
+              disabled={creating || !newSearchTerm.trim()}
+              className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+            >
+              {creating ? "در حال افزودن..." : "افزودن"}
+            </button>
+          </div>
+        </div>
+
+        {/* Loading/Error */}
+        {loading ? (
+          <div className="text-center py-8">در حال بارگذاری...</div>
+        ) : error ? (
+          <div className="text-center py-8 text-red-600">خطا: {error}</div>
+        ) : (
+          <div className="space-y-3">
+            {searches.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">هیچ جستجوی پرطرفداری یافت نشد</div>
+            ) : (
+              searches.map((search, index) => (
+                <div
+                  key={search.id}
+                  className={`p-4 border rounded-lg ${
+                    search.is_active ? "bg-white" : "bg-gray-100"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    {/* Move Buttons */}
+                    <div className="flex flex-col gap-1">
+                      <button
+                        onClick={() => handleMove(index, "up")}
+                        disabled={index === 0}
+                        className="text-gray-600 hover:text-blue-600 disabled:text-gray-300"
+                        title="انتقال به بالا"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        onClick={() => handleMove(index, "down")}
+                        disabled={index === searches.length - 1}
+                        className="text-gray-600 hover:text-blue-600 disabled:text-gray-300"
+                        title="انتقال به پایین"
+                      >
+                        ↓
+                      </button>
+                    </div>
+
+                    {/* Search Term */}
+                    {editingId === search.id ? (
+                      <input
+                        type="text"
+                        value={editSearchTerm}
+                        onChange={(e) => setEditSearchTerm(e.target.value)}
+                        className="flex-1 border rounded px-3 py-2"
+                      />
+                    ) : (
+                      <div className="flex-1">
+                        <span className="font-medium">{search.search_term}</span>
+                        {!search.is_active && (
+                          <span className="mr-2 text-xs text-gray-500">(غیرفعال)</span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2">
+                      {editingId === search.id ? (
+                        <>
+                          <button
+                            onClick={() => handleUpdate(search.id)}
+                            className="bg-green-600 text-white px-4 py-1 rounded hover:bg-green-700 text-sm"
+                          >
+                            ذخیره
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingId(null);
+                              setEditSearchTerm("");
+                            }}
+                            className="bg-gray-500 text-white px-4 py-1 rounded hover:bg-gray-600 text-sm"
+                          >
+                            انصراف
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => {
+                              setEditingId(search.id);
+                              setEditSearchTerm(search.search_term);
+                            }}
+                            className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700 text-sm"
+                          >
+                            ویرایش
+                          </button>
+                          <button
+                            onClick={() => handleToggleActive(search.id, search.is_active)}
+                            className={`px-4 py-1 rounded text-sm ${
+                              search.is_active
+                                ? "bg-yellow-600 text-white hover:bg-yellow-700"
+                                : "bg-green-600 text-white hover:bg-green-700"
+                            }`}
+                          >
+                            {search.is_active ? "غیرفعال" : "فعال"}
+                          </button>
+                          <button
+                            onClick={() => handleDelete(search.id)}
+                            className="bg-red-600 text-white px-4 py-1 rounded hover:bg-red-700 text-sm"
+                          >
+                            حذف
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
     );
   }

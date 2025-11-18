@@ -18,6 +18,7 @@ from app.routes.groups_routes import router as groups_router
 from app.routes.pricing_routes import router as pricing_router
 from app.routes.time_routes import router as time_router
 from app.routes.public_routes import public_router
+from app.routes.popular_search_routes import popular_search_router
 
 def init_routes(app):
     app.include_router(auth_router)
@@ -40,3 +41,4 @@ def init_routes(app):
     app.include_router(pricing_router)
     app.include_router(time_router)
     app.include_router(public_router)
+    app.include_router(popular_search_router)

@@ -409,3 +409,13 @@ class DeliverySlot(Base):
     # Audit fields
     created_at = Column(DateTime, default=lambda: datetime.now(TEHRAN_TZ))
     updated_at = Column(DateTime, default=lambda: datetime.now(TEHRAN_TZ))
+
+class PopularSearch(Base):
+    __tablename__ = "popular_searches"
+
+    id = Column(Integer, primary_key=True, index=True)
+    search_term = Column(String(120), nullable=False)
+    sort_order = Column(Integer, default=0)  # Lower numbers appear first
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(TEHRAN_TZ))
+    updated_at = Column(DateTime, default=lambda: datetime.now(TEHRAN_TZ), onupdate=lambda: datetime.now(TEHRAN_TZ))

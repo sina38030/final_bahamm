@@ -28,15 +28,7 @@ type Product = {
   free_shipping?: boolean;
 };
 
-// Popular searches data
-const popularSearches = [
-  'ماشین اصلاح',
-  'هدفون بی سیم',
-  'گوشی موبایل',
-  'لپ تاپ',
-  'لوازم آشپزخانه',
-  'لباس مردانه'
-];
+// Popular searches will be fetched from backend
 
 const SearchButton: React.FC<SearchButtonProps> = ({
   placeholder = "جستجو در محصولات...",
@@ -49,8 +41,9 @@ const SearchButton: React.FC<SearchButtonProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showResults, setShowResults] = useState(false);
+  const [popularSearches, setPopularSearches] = useState<string[]>([]);
 
-  // Load search history from localStorage on component mount
+  // Load search history and popular searches when modal opens
   useEffect(() => {
     if (isSearchModalOpen) {
       try {
@@ -58,6 +51,28 @@ const SearchButton: React.FC<SearchButtonProps> = ({
       } catch (err) {
         console.error("Error loading search history:", err);
       }
+
+      // Fetch popular searches from backend
+      (async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/popular-searches`);
+          if (response.ok) {
+            const data = await response.json();
+            setPopularSearches(data.map((item: any) => item.search_term));
+          }
+        } catch (err) {
+          console.error("Error loading popular searches:", err);
+          // Fallback to default searches if backend fails
+          setPopularSearches([
+            'ماشین اصلاح',
+            'هدفون بی سیم',
+            'گوشی موبایل',
+            'لپ تاپ',
+            'لوازم آشپزخانه',
+            'لباس مردانه'
+          ]);
+        }
+      })();
     }
   }, [isSearchModalOpen]);
 
