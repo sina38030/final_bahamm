@@ -74,6 +74,8 @@ interface GroupMeta {
   refund_due_amount?: number | string | null;
   settlement_amount?: number | string | null;
   settlement_required?: boolean;
+  settlement_paid?: boolean;
+  settlement_paid_at?: string | null;
   refund_paid_at?: string | null;
   order_original_price?: number | string | null;
   order_current_price?: number | string | null;
@@ -1749,6 +1751,13 @@ function LazyTrackEmbed({
         });
         const js = await res.json().catch(() => null as any);
         if (!res.ok || !js) { setServerDelta(null); return; }
+        
+        // Check if settlement was already paid
+        if (js.settlement_paid) {
+          setServerDelta(0);
+          return;
+        }
+        
         if (js.refund_due && (js.refund_amount || 0) > 0) {
           setServerDelta(-Math.abs(Number(js.refund_amount)));
           return;
@@ -1855,6 +1864,7 @@ function LazyTrackEmbed({
     const refundDueAmount = toSafeNumber(groupMeta?.refund_due_amount, 0);
     const settlementAmount = toSafeNumber(groupMeta?.settlement_amount, 0);
     const settlementRequired = Boolean(groupMeta?.settlement_required);
+    const settlementPaid = Boolean(groupMeta?.settlement_paid);
     const backendOriginalPrice = toSafeNumber(groupMeta?.order_original_price, NaN);
     const backendCurrentPrice = toSafeNumber(groupMeta?.order_current_price, NaN);
     const backendShipping = toSafeNumber(groupMeta?.order_shipping_cost, NaN);
@@ -1863,7 +1873,11 @@ function LazyTrackEmbed({
 
     // Priority: use group metadata for secondary groups, then serverDelta, then client calculation
     let delta = 0;
-    if (refundDueAmount > 0) {
+    
+    // If settlement was paid, show settled status
+    if (settlementPaid) {
+      delta = 0;
+    } else if (refundDueAmount > 0) {
       delta = -refundDueAmount; // Negative for refund
     } else if (settlementRequired && settlementAmount > 0) {
       delta = settlementAmount; // Positive for settlement
@@ -1877,8 +1891,8 @@ function LazyTrackEmbed({
 
     if (delta === 0) {
       return {
-        title: 'تسویه انجام شد',
-        message: 'تسویه انجام شد. پرداخت اضافه‌ای نیاز نیست.',
+        title: settlementPaid ? 'تسویه شد' : 'تسویه انجام شد',
+        message: settlementPaid ? 'تسویه با موفقیت انجام شد.' : 'تسویه انجام شد. پرداخت اضافه‌ای نیاز نیست.',
         color: 'text-green-600',
         bgColor: 'bg-green-50',
         borderColor: 'border-green-200',
