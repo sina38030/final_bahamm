@@ -565,6 +565,21 @@ export default function GroupsOrdersPage() {
       });
     };
 
+    // Check for settlement completion flags and clear them after triggering refresh
+    if (typeof window !== 'undefined') {
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('settlement-completed-')) {
+            console.log('[GroupsOrders] Found settlement completion flag:', key);
+            localStorage.removeItem(key);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to check settlement flags:', e);
+      }
+    }
+
     // Attempt fetch if either context authenticated or token exists in storage
     const hasToken = typeof window !== 'undefined' && !!localStorage.getItem('auth_token');
     if (isAuthenticated || hasToken) {
@@ -584,6 +599,9 @@ export default function GroupsOrdersPage() {
         requestRefresh();
       }
       if (e.key && e.key.startsWith('gb-refund-submitted-')) {
+        requestRefresh();
+      }
+      if (e.key && e.key.startsWith('settlement-completed-')) {
         requestRefresh();
       }
     };

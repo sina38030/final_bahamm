@@ -70,6 +70,16 @@ function SettlementSuccessContent() {
         }
 
         setOrder(orderData);
+        
+        // Mark that settlement was completed for this group to trigger refresh on groups page
+        if (resolvedGroupId) {
+          try {
+            localStorage.setItem(`settlement-completed-${resolvedGroupId}`, Date.now().toString());
+            console.log('[SettlementSuccess] Marked settlement as completed for group', resolvedGroupId);
+          } catch (e) {
+            console.warn('Failed to set settlement completion flag:', e);
+          }
+        }
       } catch (err) {
         console.error("Failed to load order data:", err);
         const errorMsg = err instanceof Error ? err.message : "خطا در بارگذاری اطلاعات";
@@ -152,7 +162,7 @@ function SettlementSuccessContent() {
               <div className="flex justify-between items-center pb-3 border-b border-gray-100">
                 <span className="text-sm text-gray-600">مبلغ پرداختی</span>
                 <span className="font-bold text-gray-900">
-                  {order.total_amount?.toLocaleString('fa-IR') || '۰'} تومان
+                  {((order as any).total_amount)?.toLocaleString('fa-IR') || '۰'} تومان
                 </span>
               </div>
               
