@@ -16,7 +16,7 @@ export async function POST(
       authHeader: authHeader ? 'present' : 'missing' 
     });
     
-    const res = await fetch(`${backend}/admin/group-orders/create-settlement-payment/${encodeURIComponent(groupId)}`, {
+    const res = await fetch(`${backend}/group-orders/create-settlement-payment/${encodeURIComponent(groupId)}`, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',

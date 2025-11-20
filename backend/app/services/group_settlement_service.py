@@ -187,30 +187,48 @@ class GroupSettlementService:
                     inferred = None
 
             # Heuristic fallback: match leader's paid total to closest tiered total (0..3 friends)
+            # IMPORTANT: Skip heuristic for hybrid/partial payments as it produces incorrect results
             if inferred is None and leader_order:
                 try:
-                    items = self.db.query(OrderItem).filter(OrderItem.order_id == leader_order.id).all()
-                    if items:
-                        # Preload products to avoid repeated queries
-                        product_by_id = {}
-                        for it in items:
-                            if it.product_id not in product_by_id:
-                                product_by_id[it.product_id] = self.db.query(Product).filter(Product.id == it.product_id).first()
-                        candidates = []  # list of (friends_tier, total_at_tier)
-                        for tier in (0, 1, 2, 3):
-                            total_at_tier = 0.0
+                    # Check if this is a hybrid/partial payment that should skip heuristic
+                    skip_heuristic = False
+                    if leader_order.delivery_slot:
+                        try:
+                            import json as _json
+                            info = _json.loads(leader_order.delivery_slot)
+                            if isinstance(info, dict):
+                                # If paymentPercentage exists and is not 100%, this is hybrid payment
+                                payment_pct = info.get("paymentPercentage")
+                                if payment_pct is not None and float(payment_pct) < 100:
+                                    skip_heuristic = True
+                                    logger.info(f"Skipping heuristic for group {group_order_id} - hybrid payment detected (paymentPercentage={payment_pct}%)")
+                        except Exception:
+                            pass
+                    
+                    if not skip_heuristic:
+                        items = self.db.query(OrderItem).filter(OrderItem.order_id == leader_order.id).all()
+                        if items:
+                            # Preload products to avoid repeated queries
+                            product_by_id = {}
                             for it in items:
-                                prod = product_by_id.get(it.product_id)
-                                if not prod:
-                                    continue
-                                unit = self._get_price_for_friends_count(prod, tier)
-                                total_at_tier += float(unit) * float(getattr(it, 'quantity', 1) or 1)
-                            candidates.append((tier, total_at_tier))
-                        paid_total = float(leader_order.total_amount or 0)
-                        # Choose tier with minimal absolute difference to paid_total
-                        best_tier = min(candidates, key=lambda x: abs(x[1] - paid_total))[0] if candidates else None
-                        if best_tier is not None:
-                            inferred = int(best_tier)
+                                if it.product_id not in product_by_id:
+                                    product_by_id[it.product_id] = self.db.query(Product).filter(Product.id == it.product_id).first()
+                            candidates = []  # list of (friends_tier, total_at_tier)
+                            for tier in (0, 1, 2, 3):
+                                total_at_tier = 0.0
+                                for it in items:
+                                    prod = product_by_id.get(it.product_id)
+                                    if not prod:
+                                        continue
+                                    unit = self._get_price_for_friends_count(prod, tier)
+                                    total_at_tier += float(unit) * float(getattr(it, 'quantity', 1) or 1)
+                                candidates.append((tier, total_at_tier))
+                            paid_total = float(leader_order.total_amount or 0)
+                            # Choose tier with minimal absolute difference to paid_total
+                            best_tier = min(candidates, key=lambda x: abs(x[1] - paid_total))[0] if candidates else None
+                            if best_tier is not None:
+                                inferred = int(best_tier)
+                                logger.info(f"Heuristic inferred expected_friends={inferred} for group {group_order_id} based on paid amount {paid_total}")
                 except Exception:
                     inferred = None
 

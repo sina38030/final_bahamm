@@ -1942,20 +1942,36 @@ function LazyTrackEmbed({
           const BACKEND_URL = getBackendUrl();
 
           // NEW: verify with server before creating payment
-          const chk = await fetch(`${BACKEND_URL}/api/group-orders/settlement-status/${gid}`, {
+          // Call backend directly (not through Next.js API route)
+          const backendHost = 'http://localhost:8001';
+          const chk = await fetch(`${backendHost}/api/group-orders/settlement-status/${gid}`, {
             headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
           });
           const chkData = await chk.json().catch(() => ({} as any));
 
+          // DEBUG: Log the full response
+          console.log('🔍 Settlement status check:', {
+            ok: chk.ok,
+            status: chk.status,
+            data: chkData,
+            settlement_required: chkData?.settlement_required,
+            settlement_amount: chkData?.settlement_amount,
+            condition1: !chk.ok,
+            condition2: chkData?.settlement_required === false,
+            condition3: (chkData?.settlement_amount ?? 0) <= 0,
+          });
+
           if (!chk.ok || chkData?.settlement_required === false || (chkData?.settlement_amount ?? 0) <= 0) {
-            console.warn('No settlement required (server).');
+            console.warn('No settlement required (server). Blocking payment.');
             fireToast({ type: 'info', message: 'گروه شما تسویه/نهایی شده و پرداخت باقی‌مانده نیاز نیست.' });
             setIsPaying(false);
             return;
           }
+          
+          console.log('✅ Settlement check passed, proceeding to payment...');
 
           // Proceed to create settlement payment
-          const res = await fetch(`${BACKEND_URL}/api/group-orders/create-settlement-payment/${gid}`, {
+          const res = await fetch(`${backendHost}/api/group-orders/create-settlement-payment/${gid}`, {
             method: 'POST',
             headers: {
               'Accept': 'application/json',
@@ -2352,44 +2368,6 @@ function LazyTrackEmbed({
                       remainderAmount={settlement?.remainder}
                     />
                   )}
-
-                {/* Delivery Time Selection - hidden for secondary groups */}
-                {!isSecondary && (
-                  <div className="p-4 border-t border-gray-200">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-medium text-gray-900">زمان تحویل</h3>
-                      <button
-                        onClick={() => onSelectDeliveryTime(gid)}
-                        className="text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md transition-colors"
-                      >
-                        {(() => {
-                          const leaderOrder = propOrders.find(order =>
-                            order.group_order_id === parseInt(gid) &&
-                            (isLeader === true || order.is_leader_order === true)
-                          );
-                          return leaderOrder?.delivery_slot ? 'تغییر زمان ارسال' : 'انتخاب زمان ارسال';
-                        })()}
-                      </button>
-                    </div>
-
-                    {(() => {
-                      // Find the leader's order for this group to show current delivery slot
-                      const leaderOrder = propOrders.find(order =>
-                        order.group_order_id === parseInt(gid) &&
-                        (isLeader === true || order.is_leader_order === true)
-                      );
-                      return leaderOrder?.delivery_slot ? (
-                        <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                          زمان انتخاب شده: {formatDeliverySlot(leaderOrder.delivery_slot)}
-                        </div>
-                      ) : (
-                        <div className="text-sm text-gray-500">
-                          هنوز زمان تحویل انتخاب نشده است
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
 
                 {!isSecondary && settlement && settlement.remainder < 0 && !refundSubmitted && (
                   <div className="p-4 border-t border-gray-200" dir="rtl">

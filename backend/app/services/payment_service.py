@@ -80,15 +80,16 @@ class PaymentService:
             # Create order with simple working approach
             # Store mode and group target info in delivery_slot as JSON if provided
             delivery_info = delivery_slot
-            if (mode or friends is not None or max_friends is not None) and delivery_slot:
+            if (mode or friends is not None or max_friends is not None or expected_friends is not None) and delivery_slot:
                 import json
                 delivery_info = json.dumps({
                     "delivery_slot": delivery_slot,
                     **({"mode": mode} if mode else {}),
                     **({"friends": friends} if friends is not None else {}),
                     **({"max_friends": max_friends} if max_friends is not None else {}),
+                    **({"expected_friends": expected_friends} if expected_friends is not None else {}),
                 })
-            elif mode or friends is not None or max_friends is not None:
+            elif mode or friends is not None or max_friends is not None or expected_friends is not None:
                 import json
                 payload = {}
                 if mode:
@@ -97,6 +98,8 @@ class PaymentService:
                     payload["friends"] = friends
                 if max_friends is not None:
                     payload["max_friends"] = max_friends
+                if expected_friends is not None:
+                    payload["expected_friends"] = expected_friends
                 delivery_info = json.dumps(payload)
                 
             order = Order(

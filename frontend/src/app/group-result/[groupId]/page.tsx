@@ -116,9 +116,45 @@ export default function GroupResultPage() {
     };
   })();
 
-  const handlePayRemainder = () => {
-    // TODO: Integrate payment flow (redirect to payment page)
-    console.log('Paying remainder: ', delta);
+  const handlePayRemainder = async () => {
+    if (!groupId || delta <= 0) {
+      alert(`⚠️ Invalid payment: groupId=${groupId}, delta=${delta}`);
+      console.warn('Invalid payment: groupId or delta missing', { groupId, delta });
+      return;
+    }
+
+    try {
+      alert(`🔄 Creating settlement payment for group ${groupId}, amount: ${delta}`);
+      console.log('Creating settlement payment for group:', groupId, 'amount:', delta);
+      
+      // Call the settlement payment API
+      const response = await fetch(`/api/group-orders/create-settlement-payment/${groupId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Response status:', response.status, response.statusText);
+      
+      const result = await response.json();
+      console.log('Settlement payment response:', result);
+      alert(`📦 API Response: success=${result.success}, has payment_url=${!!result.payment_url}`);
+
+      if (result.success && result.payment_url) {
+        // Redirect to payment gateway
+        alert(`✅ Redirecting to: ${result.payment_url}`);
+        console.log('Redirecting to payment gateway:', result.payment_url);
+        window.location.href = result.payment_url;
+      } else {
+        const errorMsg = result.error || 'Unknown error';
+        alert(`❌ Payment creation failed: ${errorMsg}`);
+        console.error('Payment creation failed:', errorMsg);
+      }
+    } catch (error) {
+      console.error('Error creating settlement payment:', error);
+      alert(`❌ Error: ${error}`);
+    }
   };
 
   return (
@@ -149,6 +185,15 @@ export default function GroupResultPage() {
         {/* Footer actions, same as modal */}
         <div className="p-4 border-t bg-white sticky bottom-0">
           <div className="space-y-3">
+            {/* TEST BUTTON - Always visible */}
+            <button
+              onClick={handlePayRemainder}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+              style={{ fontSize: '18px', fontWeight: 'bold' }}
+            >
+              🚀 TEST: پرداخت تسویه (delta={delta})
+            </button>
+            
             <button
               onClick={() => router.push(`/track/${groupId}`)}
               className="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-3 px-4 rounded-lg transition-colors"
