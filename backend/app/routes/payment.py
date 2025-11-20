@@ -500,6 +500,25 @@ async def verify_payment(
         logger.error(f"Payment verification error: {str(e)}")
         raise HTTPException(status_code=500, detail="خطا در تایید پرداخت")
 
+@router.get("/test-settlement-flag/{authority}")
+async def test_settlement_flag(
+    authority: str,
+    db: Session = Depends(get_db)
+):
+    """Test endpoint to check settlement flag"""
+    try:
+        order = db.query(Order).filter(Order.payment_authority == authority).first()
+        if not order:
+            return {"error": "Order not found"}
+        return {
+            "order_id": order.id,
+            "is_settlement_payment": getattr(order, 'is_settlement_payment', 'ATTR_NOT_FOUND'),
+            "shipping_address": order.shipping_address,
+            "group_order_id": order.group_order_id,
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 @router.get("/callback")
 async def payment_callback(
     request: Request,
@@ -542,8 +561,7 @@ async def payment_callback(
         
         # Find order by payment authority (reload after verification)
         # Use a fresh query to ensure we get the updated order
-        from sqlalchemy import select
-        order = db.execute(select(Order).where(Order.payment_authority == Authority)).scalar_one_or_none()
+        order = db.query(Order).filter(Order.payment_authority == Authority).first()
         
         # Force refresh to ensure we have the latest data
         if order:
@@ -559,14 +577,18 @@ async def payment_callback(
             logger.info(f"🔗 REDIRECT_URL (no order): {redirect_url}")
             return RedirectResponse(url=redirect_url, status_code=303)
         
-        # Check if this is a settlement payment
+        # Check if this is a settlement payment MARKER:20251120
+        logger.info(f"🚨🚨🚨 PAYMENT CALLBACK REACHED SETTLEMENT CHECK LINE - FILE LOADED CORRECTLY")
         is_settlement = getattr(order, 'is_settlement_payment', False)
+        logger.info(f"🔍🔍🔍 CHECKING SETTLEMENT: order_id={order.id}, is_settlement_payment={is_settlement}, type={type(is_settlement)}, value={repr(is_settlement)}")
         if is_settlement:
-            logger.info(f"✅ Settlement payment detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /payment/success/settlement")
+            logger.info(f"✅✅✅ Settlement payment detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /payment/success/settlement")
             group_part = f"&groupId={order.group_order_id}" if order.group_order_id else ""
             redirect_url = f"{settings.get_frontend_public_url}/payment/success/settlement?authority={Authority}&orderId={order.id}{group_part}"
             logger.info(f"🔗 Settlement redirect URL: {redirect_url}")
             return RedirectResponse(url=redirect_url, status_code=303)
+        else:
+            logger.info(f"❌❌❌ NOT a settlement payment, continuing to normal flow")
         
         # Determine user type based on GroupOrder.leader_id
         is_leader = False
@@ -1350,3 +1372,4 @@ async def create_secondary_group_from_invited_payment(
 ):
     # Temporarily disabled
     raise HTTPException(status_code=403, detail="ایجاد گروه ثانویه غیرفعال است")
+
