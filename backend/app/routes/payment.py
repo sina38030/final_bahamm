@@ -548,7 +548,7 @@ async def payment_callback(
         # Force refresh to ensure we have the latest data
         if order:
             db.refresh(order)
-            logger.info(f"🔄 Order refreshed from database: id={order.id}, group_order_id={order.group_order_id}, order_type={order.order_type}")
+            logger.info(f"🔄 Order refreshed from database: id={order.id}, group_order_id={order.group_order_id}, order_type={order.order_type}, is_settlement_payment={getattr(order, 'is_settlement_payment', False)}")
         
         if not order:
             logger.warning(f"No order found for authority: {Authority}")
@@ -557,6 +557,15 @@ async def payment_callback(
             logger.info(f"🔗 FRONTEND_BASE_URL: {frontend_base}")
             redirect_url = f"{frontend_base}/payment/success/invitee?authority={Authority}"
             logger.info(f"🔗 REDIRECT_URL (no order): {redirect_url}")
+            return RedirectResponse(url=redirect_url, status_code=303)
+        
+        # Check if this is a settlement payment
+        is_settlement = getattr(order, 'is_settlement_payment', False)
+        if is_settlement:
+            logger.info(f"✅ Settlement payment detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /payment/success/settlement")
+            group_part = f"&groupId={order.group_order_id}" if order.group_order_id else ""
+            redirect_url = f"{settings.get_frontend_public_url}/payment/success/settlement?authority={Authority}&orderId={order.id}{group_part}"
+            logger.info(f"🔗 Settlement redirect URL: {redirect_url}")
             return RedirectResponse(url=redirect_url, status_code=303)
         
         # Determine user type based on GroupOrder.leader_id
