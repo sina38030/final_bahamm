@@ -4,12 +4,10 @@ import { useState } from 'react';
 
 import Header from '@/components/Header';
 import CartBar from '@/components/CartBar';
-import { ProductModalProvider } from '@/hooks/useProductModal';
 import { HomeCtx } from '@/contexts/HomeContext';
 
 import Slider from '@/components/Slider';
 import ProductGrid from '@/components/ProductGrid';
-import ProductModal from '@/components/ProductModal';
 
 type Banner = {
   id: number | string;
@@ -28,7 +26,6 @@ export default function HomeClient({ initialProductsRaw = [], initialBanners = [
   const [search, setSearch] = useState('');
 
   return (
-    <ProductModalProvider>
       <HomeCtx.Provider value={{ cat, setCat, search, setSearch }}>
         <Header />
 
@@ -37,10 +34,7 @@ export default function HomeClient({ initialProductsRaw = [], initialBanners = [
         <ProductGrid cat={cat} initialProductsRaw={initialProductsRaw} />
 
         <CartBar />
-
-        <ProductModal />
       </HomeCtx.Provider>
-    </ProductModalProvider>
   );
 }
 

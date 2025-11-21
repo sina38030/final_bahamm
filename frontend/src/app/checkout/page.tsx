@@ -1384,13 +1384,13 @@ function CheckoutPageContent() {
   }, [useAdminTomorrowSlots, isLeaderGroup]);
 
   return (
-    <div style={{ minHeight: '100vh', background: '#fafafa', direction: 'rtl' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#fafafa', direction: 'rtl' }}>
       {/* Header */}
       <header style={{
         position: 'sticky',
         top: 0,
         zIndex: 10,
-        background: '#fff',
+        backgroundColor: '#fff',
         borderBottom: '1px solid #e0e0e0',
         padding: '12px 16px',
         display: 'flex',
@@ -1444,7 +1444,7 @@ function CheckoutPageContent() {
       {/* DEBUG: Show user type */}
       {(isInvitedUser || isJoiningGroup) && (
         <div style={{
-          background: isInvitedUser ? '#e3f2fd' : '#fff3e0',
+          backgroundColor: isInvitedUser ? '#e3f2fd' : '#fff3e0',
           padding: '12px',
           margin: '8px',
           borderRadius: '8px',
@@ -1463,7 +1463,7 @@ function CheckoutPageContent() {
       {/* DEBUG: Cart empty warning for invited users */}
       {isInvitedUser && items.length === 0 && (
         <div style={{
-          background: '#ffebee',
+          backgroundColor: '#ffebee',
           padding: '12px',
           margin: '8px',
           borderRadius: '8px',
@@ -1479,7 +1479,7 @@ function CheckoutPageContent() {
       {/* Address */}
       <section style={{
         margin: '12px',
-        background: '#fff',
+        backgroundColor: '#fff',
         borderRadius: '14px',
         boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
         padding: '16px',
@@ -1532,7 +1532,7 @@ function CheckoutPageContent() {
       {/* Toggle Section for Invited Users */}
       {shouldShowToggle && (
         <section style={{
-          background: '#fff',
+          backgroundColor: '#fff',
           margin: '8px',
           borderRadius: '12px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
@@ -1550,23 +1550,23 @@ function CheckoutPageContent() {
               {isInvitedUser ? (
                 greenToggle ? (
                   <>
-                    <p style={{ margin: 0, lineHeight: 1.4 }}>ارسال سفارشت به آدرس سرگروه فعال شد</p>
+                    <p style={{ margin: '0', lineHeight: '1.4' }}>ارسال سفارشت به آدرس سرگروه فعال شد</p>
                   </>
                 ) : (
                   <>
-                    <p style={{ margin: 0, lineHeight: 1.4 }}>سفارشت رو به آدرس سرگروه بفرست.</p>
-                    <p style={{ margin: 0, lineHeight: 1.4 }}>10 هزار تومان تخفیف بگیر!</p>
+                    <p style={{ margin: '0', lineHeight: '1.4' }}>سفارشت رو به آدرس سرگروه بفرست.</p>
+                    <p style={{ margin: '0', lineHeight: '1.4' }}>10 هزار تومان تخفیف بگیر!</p>
                   </>
                 )
               ) : (
                 greenToggle ? (
                   <>
-                    <p style={{ margin: 0, lineHeight: 1.4 }}>امکان ارسال سفارش دوستانت به تو فعال شد</p>
+                    <p style={{ margin: '0', lineHeight: '1.4' }}>امکان ارسال سفارش دوستانت به تو فعال شد</p>
                   </>
                 ) : (
                   <>
-                    <p style={{ margin: 0, lineHeight: 1.4 }}>سفارش دوستانت رو دریافت کن</p>
-                    <p style={{ margin: 0, lineHeight: 1.4 }}>حداقل 10 هزار تومان تخفیف بگیر!</p>
+                    <p style={{ margin: '0', lineHeight: '1.4' }}>سفارش دوستانت رو دریافت کن</p>
+                    <p style={{ margin: '0', lineHeight: '1.4' }}>حداقل 10 هزار تومان تخفیف بگیر!</p>
                   </>
                 )
               )}
@@ -1590,7 +1590,7 @@ function CheckoutPageContent() {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                background: greenToggle ? '#E31C5F' : '#ccc',
+                backgroundColor: greenToggle ? '#E31C5F' : '#ccc',
                 borderRadius: '22px',
                 transition: '0.3s',
                 display: 'flex',
@@ -1603,7 +1603,7 @@ function CheckoutPageContent() {
                   width: '18px',
                   left: greenToggle ? '22px' : '2px',
                   bottom: '2px',
-                  background: '#fff',
+                  backgroundColor: '#fff',
                   borderRadius: '50%',
                   transition: '0.3s'
                 }}></span>
@@ -1615,7 +1615,7 @@ function CheckoutPageContent() {
 
       {/* Shipping */}
       <section style={{
-        background: '#fff',
+        backgroundColor: '#fff',
         margin: '12px',
         borderRadius: '14px',
         boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
@@ -1678,7 +1678,7 @@ function CheckoutPageContent() {
       {/* Payment Method */}
       {walletBalance > 0 && (
       <section style={{
-        background: '#fff',
+        backgroundColor: '#fff',
         margin: '12px',
         borderRadius: '14px',
         boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
@@ -1743,7 +1743,7 @@ function CheckoutPageContent() {
 
       {/* Order Summary */}
       <section style={{
-        background: '#fff',
+        backgroundColor: '#fff',
         margin: '12px',
         borderRadius: '14px',
         boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
@@ -1829,7 +1829,7 @@ function CheckoutPageContent() {
         left: 0,
         right: 0,
         zIndex: 9,
-        background: '#fff',
+        backgroundColor: '#fff',
         borderTop: '1px solid #e0e0e0',
         display: 'flex',
         justifyContent: 'space-between',
@@ -1858,7 +1858,7 @@ function CheckoutPageContent() {
         <button
           onClick={handlePayment}
           style={{
-            background: '#E31C5F',
+            backgroundColor: '#E31C5F',
             color: '#fff',
             border: 'none',
             borderRadius: '14px',
@@ -1891,7 +1891,7 @@ function CheckoutPageContent() {
         >
           <div 
             style={{
-              background: '#fff',
+              backgroundColor: '#fff',
               width: '100%',
               maxWidth: '420px',
               borderRadius: '20px 20px 0 0',
@@ -1975,7 +1975,7 @@ function CheckoutPageContent() {
         >
           <div 
             style={{
-              background: '#fff',
+              backgroundColor: '#fff',
               width: '100%',
               maxWidth: '420px',
               borderRadius: '20px 20px 0 0',
@@ -2023,7 +2023,7 @@ function CheckoutPageContent() {
         >
           <div 
             style={{
-              background: '#fff',
+              backgroundColor: '#fff',
               width: '100%',
               maxWidth: '420px',
               borderRadius: '20px 20px 0 0',
@@ -2157,7 +2157,7 @@ function CheckoutPageContent() {
               }}
               style={{
                 width: '100%',
-                background: '#ff006a',
+                backgroundColor: '#ff006a',
                 color: '#fff',
                 border: 'none',
                 borderRadius: '14px',
@@ -2188,7 +2188,7 @@ function CheckoutPageContent() {
         >
           <div 
             style={{
-              background: '#fff',
+              backgroundColor: '#fff',
               width: '100%',
               maxWidth: '420px',
               borderRadius: '20px 20px 0 0',
@@ -2236,7 +2236,7 @@ function CheckoutPageContent() {
         >
           <div 
             style={{
-              background: '#fff',
+              backgroundColor: '#fff',
               width: '100%',
               maxWidth: '420px',
               borderRadius: '20px 20px 0 0',
@@ -2284,7 +2284,7 @@ function CheckoutPageContent() {
         >
           <div 
             style={{
-              background: '#fff',
+              backgroundColor: '#fff',
               width: '100%',
               maxWidth: '420px',
               borderRadius: '20px 20px 0 0',

@@ -76,6 +76,11 @@ function SettlementSuccessContent() {
           try {
             localStorage.setItem(`settlement-completed-${resolvedGroupId}`, Date.now().toString());
             console.log('[SettlementSuccess] Marked settlement as completed for group', resolvedGroupId);
+            
+            // Dispatch custom event for same-tab refresh
+            window.dispatchEvent(new CustomEvent('settlement-completed', { 
+              detail: { groupId: resolvedGroupId } 
+            }));
           } catch (e) {
             console.warn('Failed to set settlement completion flag:', e);
           }

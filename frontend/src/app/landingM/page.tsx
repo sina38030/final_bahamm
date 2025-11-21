@@ -1,4 +1,3 @@
-import { ProductModalProvider } from '@/hooks/useProductModal';
 import { getApiBase } from '@/utils/serverBackend';
 import ClientLanding from './ClientLanding';
 
@@ -46,9 +45,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ i
   }
 
   return (
-    <ProductModalProvider>
-      <ClientLanding invite={invite} initialProducts={initialProducts} initialGroupOrderData={initialGroupOrderData} initialGroupMeta={initialGroupMeta} initialServerNowMs={typeof Date !== 'undefined' ? Date.now() : undefined} />
-    </ProductModalProvider>
+    <ClientLanding invite={invite} initialProducts={initialProducts} initialGroupOrderData={initialGroupOrderData} initialGroupMeta={initialGroupMeta} initialServerNowMs={typeof Date !== 'undefined' ? Date.now() : undefined} />
   );
 }
 

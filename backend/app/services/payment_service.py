@@ -80,7 +80,14 @@ class PaymentService:
             # Create order with simple working approach
             # Store mode and group target info in delivery_slot as JSON if provided
             delivery_info = delivery_slot
-            if (mode or friends is not None or max_friends is not None or expected_friends is not None) and delivery_slot:
+            has_group_metadata = (
+                bool(mode) or
+                friends is not None or
+                max_friends is not None or
+                expected_friends is not None or
+                allow_consolidation is not None
+            )
+            if has_group_metadata and delivery_slot:
                 import json
                 delivery_info = json.dumps({
                     "delivery_slot": delivery_slot,
@@ -88,8 +95,9 @@ class PaymentService:
                     **({"friends": friends} if friends is not None else {}),
                     **({"max_friends": max_friends} if max_friends is not None else {}),
                     **({"expected_friends": expected_friends} if expected_friends is not None else {}),
+                    **({"allow_consolidation": bool(allow_consolidation)} if allow_consolidation is not None else {}),
                 })
-            elif mode or friends is not None or max_friends is not None or expected_friends is not None:
+            elif has_group_metadata:
                 import json
                 payload = {}
                 if mode:
@@ -100,6 +108,8 @@ class PaymentService:
                     payload["max_friends"] = max_friends
                 if expected_friends is not None:
                     payload["expected_friends"] = expected_friends
+                if allow_consolidation is not None:
+                    payload["allow_consolidation"] = bool(allow_consolidation)
                 delivery_info = json.dumps(payload)
                 
             order = Order(
@@ -434,12 +444,16 @@ class PaymentService:
                 if not order.group_order_id:
                     # Check if the order was created in group mode
                     order_mode = None
+                    leader_allow_consolidation = None
+                    delivery_info = None
                     if order.delivery_slot:
                         try:
                             import json
                             delivery_info = json.loads(order.delivery_slot)
                             if isinstance(delivery_info, dict):
                                 order_mode = delivery_info.get('mode')
+                                if 'allow_consolidation' in delivery_info:
+                                    leader_allow_consolidation = delivery_info.get('allow_consolidation')
                                 logger.info(f"📦 Order {order.id} mode extracted from delivery_slot: {order_mode}")
                         except Exception as e:
                             # If not JSON, treat as regular delivery_slot
@@ -528,6 +542,14 @@ class PaymentService:
                             prefix = authority[:8] if authority else ""
                             invite_token = f"GB{order.id}{prefix}"
 
+                            leader_allow_flag = False
+                            if leader_allow_consolidation is not None:
+                                if isinstance(leader_allow_consolidation, str):
+                                    leader_allow_flag = leader_allow_consolidation.strip().lower() in ("1", "true", "yes", "on")
+                                else:
+                                    leader_allow_flag = bool(leader_allow_consolidation)
+                            logger.info(f"✅ Creating GroupOrder for leader order {order.id} (allow_consolidation={leader_allow_flag})")
+
                             try:
                                 # Create GroupOrder
                                 group = GroupOrder(
@@ -537,7 +559,8 @@ class PaymentService:
                                     created_at=datetime.now(TEHRAN_TZ),
                                     leader_paid_at=datetime.now(TEHRAN_TZ),
                                     expires_at=datetime.now(TEHRAN_TZ) + timedelta(hours=24),
-                                    basket_snapshot=snapshot_json
+                                    basket_snapshot=snapshot_json,
+                                    allow_consolidation=leader_allow_flag
                                 )
                                 self.db.add(group)
                                 self.db.flush()
@@ -552,8 +575,8 @@ class PaymentService:
                                         pass
                                     from sqlalchemy import text
                                     insert_stmt = text(
-                                        "INSERT INTO group_orders (leader_id, invite_token, status, created_at, leader_paid_at, expires_at) "
-                                        "VALUES (:leader_id, :invite_token, :status, :created_at, :leader_paid_at, :expires_at)"
+                                        "INSERT INTO group_orders (leader_id, invite_token, status, created_at, leader_paid_at, expires_at, allow_consolidation) "
+                                        "VALUES (:leader_id, :invite_token, :status, :created_at, :leader_paid_at, :expires_at, :allow_consolidation)"
                                     )
                                     now = datetime.now(TEHRAN_TZ)
                                     self.db.execute(insert_stmt, {
@@ -563,6 +586,7 @@ class PaymentService:
                                         "created_at": now,
                                         "leader_paid_at": now,
                                         "expires_at": now + timedelta(hours=24),
+                                        "allow_consolidation": 1 if leader_allow_flag else 0,
                                     })
                                     # Retrieve last inserted id (SQLite)
                                     group_id = self.db.execute(text("SELECT last_insert_rowid()")).scalar()

@@ -608,6 +608,10 @@ export default function GroupsOrdersPage() {
 
     const onFinalizeCustom = () => { requestRefresh(); };
     const onRefundCustom = () => { requestRefresh(); };
+    const onSettlementCompleted = () => { 
+      console.log('[GroupsOrders] Settlement completed event received, refreshing...');
+      requestRefresh(); 
+    };
     const onMessage = (ev: MessageEvent) => {
       try {
         if (ev?.origin !== window.location.origin) return;
@@ -624,11 +628,13 @@ export default function GroupsOrdersPage() {
       window.addEventListener('storage', onStorage);
       window.addEventListener('gb-finalized', onFinalizeCustom as EventListener);
       window.addEventListener('gb-refund-submitted', onRefundCustom as EventListener);
+      window.addEventListener('settlement-completed', onSettlementCompleted as EventListener);
       window.addEventListener('message', onMessage as EventListener);
       return () => {
         window.removeEventListener('storage', onStorage);
         window.removeEventListener('gb-finalized', onFinalizeCustom as EventListener);
         window.removeEventListener('gb-refund-submitted', onRefundCustom as EventListener);
+        window.removeEventListener('settlement-completed', onSettlementCompleted as EventListener);
         window.removeEventListener('message', onMessage as EventListener);
       };
     }
@@ -1116,6 +1122,7 @@ export default function GroupsOrdersPage() {
                   orders={orders}
                   leadershipById={{}} // No longer needed
                   groupsMeta={groupsMeta}
+                  onGroupFinalized={fetchUserGroupsAndOrders}
                 />
               );
             }).filter(Boolean)
@@ -1584,7 +1591,8 @@ function LazyTrackEmbed({
   onSelectDeliveryTime,
   orders: propOrders,
   leadershipById: propLeadershipById,
-  groupsMeta
+  groupsMeta,
+  onGroupFinalized
 }: {
   gid: string;
   status: 'ongoing' | 'success' | 'failed';
@@ -1593,6 +1601,7 @@ function LazyTrackEmbed({
   orders: UserOrder[];
   leadershipById: Record<string, GroupLeadershipData>; // Can be empty - leadership loaded lazily
   groupsMeta: any[];
+  onGroupFinalized?: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   // const frameRef = useRef<HTMLIFrameElement | null>(null);
@@ -1617,6 +1626,7 @@ function LazyTrackEmbed({
   const [trackData, setTrackData] = useState<any | null>(null);
   const [timeLeftSec, setTimeLeftSec] = useState<number>(0);
   const [countdownReady, setCountdownReady] = useState<boolean>(false);
+  const [previousStatus, setPreviousStatus] = useState<string>(status);
   // const dataCacheRef = useRef<Record<string, any>>({});
   // const [payloadReady, setPayloadReady] = useState(false);
   // Determine if this group is a secondary group (authoritative via /api/groups/{gid})
@@ -1727,6 +1737,39 @@ function LazyTrackEmbed({
     }, 1000);
     return () => clearInterval(t);
   }, [status]);
+
+  // Detect when group status changes from ongoing to finalized (auto-finalization by backend)
+  useEffect(() => {
+    if (!trackData) return;
+    
+    // Determine current status from trackData
+    const currentTrackStatus = trackData.status?.toLowerCase() || '';
+    let currentStatus: 'ongoing' | 'success' | 'failed' = 'ongoing';
+    
+    if (currentTrackStatus.includes('success') || 
+        currentTrackStatus.includes('finalized') || 
+        currentTrackStatus === 'group_finalized') {
+      currentStatus = 'success';
+    } else if (currentTrackStatus.includes('failed') || 
+               currentTrackStatus === 'group_failed') {
+      currentStatus = 'failed';
+    }
+    
+    // Check if status changed from ongoing to finalized
+    const wasOngoing = previousStatus === 'ongoing';
+    const isNowFinalized = currentStatus === 'success' || currentStatus === 'failed';
+    
+    if (wasOngoing && isNowFinalized && onGroupFinalized) {
+      // Group has just been finalized - notify parent to refresh
+      console.log(`[LazyTrackEmbed] Group ${gid} auto-finalized to ${currentStatus}, refreshing parent data`);
+      onGroupFinalized();
+    }
+    
+    // Update previous status based on trackData, not the prop
+    if (currentStatus !== previousStatus) {
+      setPreviousStatus(currentStatus);
+    }
+  }, [trackData, previousStatus, gid, onGroupFinalized]);
 
   // When finalized to success, fetch detailed data to render inline result content
   useEffect(() => {
@@ -2139,6 +2182,10 @@ function LazyTrackEmbed({
           setTrackData(j);
         }
       } catch {}
+      // Notify parent to refresh groups list
+      if (onGroupFinalized) {
+        onGroupFinalized();
+      }
     } catch (e) {
       console.error(`[LazyTrackEmbed] Finalize error:`, e);
       fireToast({ type: 'error', message: 'خطا در تکمیل گروه' });
