@@ -130,3 +130,4 @@ Found database at C:\Projects\final_bahamm\backend\bahamm1.db
 - جستجوهای غیرفعال (`is_active=False`) فقط در پنل ادمین نمایش داده می‌شوند
 - در frontend، اگر ارتباط با API برقرار نشود، جستجوهای پیش‌فرض هاردکد نمایش داده می‌شود
 
+

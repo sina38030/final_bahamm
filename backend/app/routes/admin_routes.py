@@ -3111,6 +3111,22 @@ async def finalize_group_buy(
                 {"st": "GROUP_FINALIZED", "gid": group_buy_id},
             )
             db.commit()
+
+            # Compute settlement/refund flags for raw path and notify leader
+            try:
+                settlement_service = GroupSettlementService(db)
+                settlement_service.check_and_mark_settlement_required(group_buy_id)
+                group_obj = db.query(GroupOrder).filter(GroupOrder.id == group_buy_id).first()
+                if group_obj:
+                    db.refresh(group_obj)
+                    leader = getattr(group_obj, "leader", None)
+                    if not leader and getattr(group_obj, "leader_id", None):
+                        leader = db.query(User).filter(User.id == group_obj.leader_id).first()
+                    if leader:
+                        await notification_service.send_group_outcome_notification(leader, group_obj)
+            except Exception as notify_exc:
+                logger.error(f"Failed to send group outcome notification (raw finalize) for group {group_buy_id}: {notify_exc}")
+
             return {"ok": True, "group_buy_id": group_buy_id, "orders_updated": len(orders)}
 
         # ORM path
@@ -3337,6 +3353,21 @@ async def finalize_group_buy(
             extra = {}
 
         db.commit()
+
+        # Notify leader about finalized group outcome
+        try:
+            db.refresh(group_buy)
+        except Exception:
+            pass
+        leader = getattr(group_buy, "leader", None)
+        if not leader and getattr(group_buy, "leader_id", None):
+            leader = db.query(User).filter(User.id == group_buy.leader_id).first()
+        if leader:
+            try:
+                await notification_service.send_group_outcome_notification(leader, group_buy)
+            except Exception as notify_exc:
+                logger.error(f"Failed to send group outcome notification for group {group_buy_id}: {notify_exc}")
+
         return {"ok": True, "group_buy_id": group_buy_id, "orders_updated": len(orders), **extra}
     except HTTPException:
         db.rollback()

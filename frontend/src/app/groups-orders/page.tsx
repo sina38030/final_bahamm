@@ -123,55 +123,65 @@ function formatDeliverySlot(raw?: string | null): string {
   try {
     if (!raw) return "";
     let slot: any = raw;
+    
     // If JSON-encoded, parse and extract nested delivery_slot or window
-    if (typeof slot === 'string' && (slot.trim().startsWith('{') || slot.trim().startsWith('['))) {
-      try {
-        const obj = JSON.parse(slot);
-        if (obj && typeof obj === 'object') {
-          if (typeof obj.delivery_slot === 'string' && obj.delivery_slot.trim().length > 0) {
-            slot = obj.delivery_slot;
-          } else if (obj.date && (obj.from || obj.to)) {
-            const d = new Date(String(obj.date));
-            const faDate = isNaN(d.getTime()) ? String(obj.date) : d.toLocaleDateString('fa-IR');
-            const from = obj.from ? String(obj.from) : '';
-            const to = obj.to ? String(obj.to) : '';
-            return `${faDate}${from || to ? `، ${from}${to ? ` تا ${to}` : ''}` : ''}`;
+    if (typeof slot === 'string') {
+      const trimmed = slot.trim();
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+          const obj = JSON.parse(trimmed);
+          if (obj && typeof obj === 'object') {
+            // First check if there's a nested delivery_slot field
+            if (typeof obj.delivery_slot === 'string' && obj.delivery_slot.trim().length > 0) {
+              // Recursively call to handle the inner delivery_slot value
+              return formatDeliverySlot(obj.delivery_slot);
+            } else if (obj.date && (obj.from || obj.to)) {
+              // Handle structured date/time object
+              const d = new Date(String(obj.date));
+              const formatted = buildSlotDisplay(d, obj.from, obj.to, obj.date);
+              if (formatted) return formatted;
+            }
           }
+        } catch {
+          // ignore JSON parse errors and fall back to raw string
         }
-      } catch {
-        // ignore JSON parse errors and fall back to raw string
       }
     }
+    
     if (typeof slot !== 'string') slot = String(slot ?? '');
     const s = slot.trim();
     if (!s) return '';
+    
     // Replace relative terms like 'فردا' with explicit date
-    if (/^فردا(\s|$)/.test(s) || s === 'فردا') {
+    if (/^فردا(\s|$)/.test(s)) {
       const now = new Date();
       const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-      const faDate = tomorrow.toLocaleDateString('fa-IR');
-      // Extract optional time window if present
-      const times = s.replace(/^فردا\s*/, '');
-      if (times && /\d{1,2}:\d{2}/.test(times)) {
-        // Normalize possible separators like '-' or 'تا'
-        const m = times.match(/(\d{1,2}:\d{2})(?:\s*(?:-|تا)\s*(\d{1,2}:\d{2}))?/);
+      const times = s.replace(/^فردا\s*/, '').trim();
+      if (times) {
+        const m = times.match(/(\d{1,2}(?::\d{2})?)(?:\s*(?:-|تا)\s*(\d{1,2}(?::\d{2})?))?/);
         if (m) {
-          const from = m[1] || '';
-          const to = m[2] || '';
-          return `${faDate}${from || to ? `، ${from}${to ? ` تا ${to}` : ''}` : ''}`;
+          const formatted = buildSlotDisplay(tomorrow, m[1], m[2]);
+          if (formatted) return formatted;
         }
       }
-      return faDate;
+      const formatted = buildSlotDisplay(tomorrow);
+      if (formatted) return formatted;
     }
+    
     // Try patterns like: YYYY-MM-DD HH:mm-HH:mm or with 'T'
-    const m = s.match(/^(\d{4}-\d{2}-\d{2})(?:[ T](\d{1,2}:\d{2}))?(?:\s*-\s*(\d{1,2}:\d{2}))?$/);
+    const m = s.match(/^(\d{4}-\d{2}-\d{2})(?:[ T](\d{1,2}:\d{2}))?(?:\s*(?:-|تا)\s*(\d{1,2}:\d{2}))?$/);
     if (m) {
-      const d = new Date(m[1]);
-      const faDate = isNaN(d.getTime()) ? m[1] : d.toLocaleDateString('fa-IR');
-      const from = m[2] || '';
-      const to = m[3] || '';
-      return `${faDate}${from || to ? `، ${from}${to ? ` تا ${to}` : ''}` : ''}`;
+      const d = new Date(`${m[1]}T00:00:00`);
+      const formatted = buildSlotDisplay(d, m[2], m[3], m[1]);
+      if (formatted) return formatted;
     }
+    
+    const parsedDate = Date.parse(s);
+    if (!Number.isNaN(parsedDate)) {
+      const formatted = buildSlotDisplay(new Date(parsedDate), undefined, undefined, s);
+      if (formatted) return formatted;
+    }
+    
     // Fallback to raw string
     if (process.env.NODE_ENV === 'development') {
       try { console.warn('formatDeliverySlot: unknown pattern, returning raw', { raw: s }); } catch {}
@@ -217,6 +227,96 @@ const DIGIT_NORMALIZATION_MAP: Record<string, string> = {
   '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4', '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9',
   '٬': '', ',': '', '　': '', ' ': '', '٫': '.'
 };
+
+const PERSIAN_DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+};
+
+let cachedLatinPersianDateFormatter: Intl.DateTimeFormat | null | undefined;
+let cachedPersianDateFormatter: Intl.DateTimeFormat | null | undefined;
+
+function createPersianDateFormatter(locale: string): Intl.DateTimeFormat | null {
+  if (typeof Intl === 'undefined') return null;
+  try {
+    return new Intl.DateTimeFormat(locale, PERSIAN_DATE_FORMAT_OPTIONS);
+  } catch {
+    return null;
+  }
+}
+
+function formatPersianDateWithWeekday(date: Date): string {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  if (cachedLatinPersianDateFormatter === undefined) {
+    cachedLatinPersianDateFormatter = createPersianDateFormatter('fa-IR-u-nu-latn');
+  }
+  if (cachedPersianDateFormatter === undefined) {
+    cachedPersianDateFormatter = createPersianDateFormatter('fa-IR');
+  }
+  const formatter = cachedLatinPersianDateFormatter || cachedPersianDateFormatter;
+  if (formatter) {
+    try {
+      return formatter.format(date).replace(/\u200f/g, '').trim();
+    } catch {
+      // fall through
+    }
+  }
+  try {
+    return date.toLocaleDateString('fa-IR', PERSIAN_DATE_FORMAT_OPTIONS);
+  } catch {
+    try {
+      return date.toLocaleDateString('fa-IR');
+    } catch {
+      return date.toDateString();
+    }
+  }
+}
+
+function normalizeTimeToken(value?: string | number | null): string {
+  if (value === null || value === undefined) return '';
+  const raw = String(value).trim();
+  if (!raw) return '';
+  const withLatinDigits = raw.replace(/[۰-۹٠-٩]/g, (ch) => DIGIT_NORMALIZATION_MAP[ch] ?? ch);
+  const cleaned = withLatinDigits.replace(/\s+/g, ' ').replace(/ساعت\s*/gi, '').trim();
+  const normalized = cleaned.replace(/\s*:\s*/g, ':');
+  const explicitMatch = normalized.match(/(\d{1,2}(?::\d{2})?)/);
+  if (explicitMatch) return explicitMatch[1];
+  const digitsOnly = normalized.replace(/\D/g, '');
+  if (!digitsOnly) return '';
+  if (digitsOnly.length === 3) {
+    return `${digitsOnly.slice(0, 1)}:${digitsOnly.slice(1)}`;
+  }
+  if (digitsOnly.length >= 4) {
+    return `${digitsOnly.slice(0, digitsOnly.length - 2)}:${digitsOnly.slice(-2)}`;
+  }
+  return digitsOnly;
+}
+
+function buildSlotDisplay(
+  date: Date | null,
+  from?: string | number | null,
+  to?: string | number | null,
+  rawDateLabel?: string | null
+): string {
+  const datePart = date && !Number.isNaN(date.getTime())
+    ? formatPersianDateWithWeekday(date)
+    : (rawDateLabel ? String(rawDateLabel).trim() : '');
+  const fromPart = normalizeTimeToken(from);
+  const toPart = normalizeTimeToken(to);
+  const hasTime = Boolean(fromPart || toPart);
+  if (datePart && hasTime) {
+    const range = fromPart && toPart ? `${fromPart} تا ${toPart}` : (fromPart || toPart);
+    return `${datePart},ساعت ${range}`;
+  }
+  if (datePart) return datePart;
+  if (hasTime) {
+    const range = fromPart && toPart ? `${fromPart} تا ${toPart}` : (fromPart || toPart);
+    return `ساعت ${range}`;
+  }
+  return '';
+}
 
 function toSafeNumber(value: any, fallback = 0): number {
   if (value === null || value === undefined) return fallback;

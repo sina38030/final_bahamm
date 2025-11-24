@@ -25,6 +25,7 @@ from app.models import (
 from app.utils.security import get_current_user, get_current_user_optional
 from app.services.group_settlement_service import GroupSettlementService
 from app.services.payment_service import PaymentService
+from app.services import notification_service
 import logging
 
 logger = logging.getLogger(__name__)
@@ -524,7 +525,20 @@ async def finalize_group_order(
                     result["settlement_amount"] = int(settlement_info.get("settlement_amount", 0) or 0)
         except Exception:
             pass
-    
+
+    # Notify leader about the group outcome (SMS/TG)
+    try:
+        db.refresh(group_order)
+    except Exception:
+        pass
+    if not leader_user and group_order.leader_id:
+        leader_user = db.query(User).filter(User.id == group_order.leader_id).first()
+    if leader_user:
+        try:
+            await notification_service.send_group_outcome_notification(leader_user, group_order)
+        except Exception as notify_exc:
+            logger.error(f"Failed to send group outcome notification for group {group_order_id}: {notify_exc}")
+
     return result
 
 @router.get("/my-groups")

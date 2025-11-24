@@ -41,3 +41,4 @@ except Exception as e:
     print(f'Insert failed: {e}')
 
 conn.close()
+

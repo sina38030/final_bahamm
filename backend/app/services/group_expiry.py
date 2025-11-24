@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Order, OrderState, GroupOrder, GroupOrderStatus, User
 from app.services import notification_service
+from app.services.group_settlement_service import GroupSettlementService
 
 # Tehran timezone: UTC+3:30
 TEHRAN_TZ = timezone(timedelta(hours=3, minutes=30))
@@ -95,13 +96,10 @@ class GroupExpiryService:
                     for group_id in successful_groups:
                         try:
                             # Check expiry and follower payments before marking success
-                            group = db.execute(
-                                text("SELECT id, expires_at FROM group_orders WHERE id = :gid"),
-                                {"gid": group_id},
-                            ).fetchone()
+                            group = db.query(GroupOrder).filter(GroupOrder.id == group_id).first()
                             if not group:
                                 continue
-                            expires_at = group.expires_at
+                            expires_at = getattr(group, "expires_at", None)
                             if not expires_at or now_ts <= expires_at:
                                 # Not yet expired; do nothing until expiry
                                 logger.info(f"Group {group_id} has paid followers but not expired; waiting.")
@@ -133,24 +131,27 @@ class GroupExpiryService:
                                 for order in orders_in_group:
                                     order.state = OrderState.GROUP_SUCCESS
                                 try:
-                                    db.execute(
-                                        text("UPDATE group_orders SET status = :st, finalized_at = :ts WHERE id = :gid"),
-                                        {"st": "GROUP_FINALIZED", "ts": now_ts, "gid": group_id},
-                                    )
+                                    group.status = GroupOrderStatus.GROUP_FINALIZED
                                 except Exception:
                                     pass
+                                group.finalized_at = now_ts
+                                db.flush()
                                 logger.info(f"Group {group_id} expired with >=1 follower paid; marked successful.")
 
-                                # Send success notification to leader
+                                # Evaluate settlement/refund outcome and notify leader
                                 try:
-                                    leader = db.query(User).filter(User.id == group.leader_id).first()
+                                    settlement_service = GroupSettlementService(db)
+                                    settlement_service.check_and_mark_settlement_required(group_id)
+                                    db.refresh(group)
+                                except Exception as settle_exc:
+                                    logger.error(f"Failed to compute settlement for group {group_id}: {settle_exc}")
+
+                                try:
+                                    leader = getattr(group, "leader", None)
+                                    if not leader and getattr(group, "leader_id", None):
+                                        leader = db.query(User).filter(User.id == group.leader_id).first()
                                     if leader:
-                                        await notification_service.send_notification(
-                                            user=leader,
-                                            title="گروه تکمیل شد",
-                                            message=f"گروه شما با {paid_followers} عضو تکمیل شد و سفارش‌ها آماده ارسال هستند.",
-                                            group_id=group_id
-                                        )
+                                        await notification_service.send_group_outcome_notification(leader, group)
                                 except Exception as e:
                                     logger.error(f"Failed to send group success notification: {str(e)}")
 
@@ -160,24 +161,31 @@ class GroupExpiryService:
                                 # - If leader had a real payment (payment_ref_id), allow refund options (wallet/bank)
                                 # - Do NOT refund automatically here; only mark status failed
                                 try:
-                                    db.execute(
-                                        text("UPDATE group_orders SET status = :st, finalized_at = :ts WHERE id = :gid"),
-                                        {"st": "GROUP_FAILED", "ts": now_ts, "gid": group_id},
-                                    )
+                                    group.status = GroupOrderStatus.GROUP_FAILED
                                 except Exception:
                                     pass
+                                group.finalized_at = now_ts
                                 logger.info(f"Group {group_id} expired with no followers; marked failed.")
 
                                 # Send failure notification to leader
                                 try:
-                                    leader = db.query(User).filter(User.id == group.leader_id).first()
+                                    leader = getattr(group, "leader", None)
+                                    if not leader and getattr(group, "leader_id", None):
+                                        leader = db.query(User).filter(User.id == group.leader_id).first()
                                     if leader:
-                                        await notification_service.send_notification(
-                                            user=leader,
-                                            title="گروه منقضی شد",
-                                            message="متاسفانه گروه شما تکمیل نشد. مبلغ پرداخت شده قابل استرداد است.",
-                                            group_id=group_id
-                                        )
+                                        notified = False
+                                        try:
+                                            result = await notification_service.send_group_outcome_notification(leader, group)
+                                            notified = any(result.values())
+                                        except Exception as notif_exc:
+                                            logger.error(f"Failed to send outcome notification for failed group {group_id}: {notif_exc}")
+                                        if not notified:
+                                            await notification_service.send_notification(
+                                                user=leader,
+                                                title="گروه منقضی شد",
+                                                message="متاسفانه گروه شما تکمیل نشد. مبلغ پرداخت شده قابل استرداد است.",
+                                                group_id=group_id
+                                            )
                                 except Exception as e:
                                     logger.error(f"Failed to send group failure notification: {str(e)}")
                         except Exception as e:

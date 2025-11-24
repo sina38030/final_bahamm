@@ -20,3 +20,4 @@ if count > 0:
         print(f'  {row}')
 
 conn.close()
+

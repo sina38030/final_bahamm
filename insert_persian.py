@@ -28,3 +28,4 @@ for s in searches:
     print(f'  - ID: {s.id}, Term: {s.search_term}, Order: {s.sort_order}')
 
 db.close()
+
