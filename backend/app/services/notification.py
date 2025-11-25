@@ -122,6 +122,12 @@ class NotificationService:
             base = base[:-1]
         return f"{base}/groups-orders?tab=groups"
 
+    def get_groups_orders_link(self) -> str:
+        """
+        Public helper to expose the groups/orders page link for other services.
+        """
+        return self._groups_orders_link()
+
     def _leader_has_paid(self, group_order: Any) -> bool:
         if getattr(group_order, "leader_paid_at", None):
             return True

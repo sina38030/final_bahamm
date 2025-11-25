@@ -1,5 +1,6 @@
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List, Union, Tuple
 from datetime import datetime, timedelta, timezone
 import json
 from app.models import Order, OrderItem, Product, User, OrderType, GroupOrder, GroupOrderStatus, OrderState
@@ -8,6 +9,7 @@ from app.utils.logging import get_logger
 from app.config import get_settings
 from app.services.group_settlement_service import GroupSettlementService
 from app.services.order_post_processor import OrderPostProcessor
+from app.services.notification import notification_service
 
 # Tehran timezone: UTC+3:30
 TEHRAN_TZ = timezone(timedelta(hours=3, minutes=30))
@@ -925,61 +927,161 @@ class PaymentService:
     
     async def _notify_leader_new_member(self, group_id: int, new_member_order: Order):
         """
-        Send SMS notification to group leader when a new member joins and pays.
-        Message includes the new member's phone number and the updated basket price.
+        Notify the group leader when a new member joins and pays.
+        Telegram leaders receive tiered motivational messages, while website
+        leaders continue to get the classic SMS.
         """
         try:
-            # Get group order
             group_order = self.db.query(GroupOrder).filter(GroupOrder.id == group_id).first()
             if not group_order or not group_order.leader_id:
                 logger.warning(f"Cannot notify leader: group {group_id} not found or has no leader")
                 return
-            
-            # Get leader user
-            from app.models import User
+
             leader = self.db.query(User).filter(User.id == group_order.leader_id).first()
             if not leader:
                 logger.warning(f"Cannot notify leader: leader user {group_order.leader_id} not found")
                 return
-            
-            # Only send SMS to website users (not Telegram mini app users)
+
+            new_member = None
+            if new_member_order and new_member_order.user_id:
+                new_member = self.db.query(User).filter(User.id == new_member_order.user_id).first()
+            member_handle = self._format_group_member_identifier(new_member, new_member_order)
+
+            if leader.telegram_id:
+                await self._send_telegram_leader_group_join_notification(
+                    leader=leader,
+                    group_order=group_order,
+                    member_handle=member_handle
+                )
+                return
+
             if not leader.phone_number or not leader.is_phone_verified:
                 logger.info(f"Leader {leader.id} has no verified phone number, skipping SMS notification")
                 return
-            
-            if leader.telegram_id is not None:
-                logger.info(f"Leader {leader.id} is a Telegram user, skipping SMS notification (will fix Telegram notifications later)")
-                return
-            
-            # Get new member's phone number
-            new_member = self.db.query(User).filter(User.id == new_member_order.user_id).first()
+
             new_member_phone = "نامشخص"
             if new_member and new_member.phone_number:
                 new_member_phone = new_member.phone_number
-            
-            # Get current basket price from the track API (same calculation as frontend)
+
             leader_price = await self._get_leader_price_from_api(group_id)
-            
-            # Format price with thousand separators
             formatted_price = f"{int(leader_price):,}".replace(",", "٬")
-            
-            # Send SMS notification
-            from app.services.notification import notification_service
+
             message = f"دوستت با شماره {new_member_phone} به عضو گروهت شد! قیمت سبد به {formatted_price} تومان کاهش یافت!"
-            
+
             await notification_service.send_notification(
                 user=leader,
                 title="عضو جدید به گروه پیوست",
                 message=message,
                 group_id=group_id
             )
-            
-            logger.info(f"✅ Sent new member notification to leader {leader.id} for group {group_id}")
-            
+
+            logger.info(f"✅ Sent SMS new member notification to leader {leader.id} for group {group_id}")
+
         except Exception as e:
             logger.error(f"Error in _notify_leader_new_member: {str(e)}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
+
+    async def _send_telegram_leader_group_join_notification(
+        self,
+        leader: User,
+        group_order: GroupOrder,
+        member_handle: str
+    ) -> None:
+        """
+        Send the tiered Telegram notification to a mini-app leader.
+        """
+        paid_members = self._count_paid_group_members(group_order)
+        link = notification_service.get_groups_orders_link()
+        title, message = self._build_telegram_group_join_message(member_handle, paid_members, link)
+
+        await notification_service.send_notification(
+            user=leader,
+            title=title,
+            message=message,
+            group_id=group_order.id,
+            include_references=False
+        )
+
+        logger.info(
+            f"📨 Sent Telegram new member notification to leader {leader.id} "
+            f"for group {group_order.id} (members={paid_members})"
+        )
+
+    def _count_paid_group_members(self, group_order: GroupOrder) -> int:
+        """
+        Count paid group members excluding the leader and settlement orders.
+        """
+        if not group_order:
+            return 0
+
+        return self.db.query(Order).filter(
+            Order.group_order_id == group_order.id,
+            Order.user_id != group_order.leader_id,
+            Order.is_settlement_payment == False,
+            or_(Order.payment_ref_id.isnot(None), Order.paid_at.isnot(None))
+        ).count()
+
+    def _format_group_member_identifier(
+        self,
+        member: Optional[User],
+        member_order: Optional[Order]
+    ) -> str:
+        """
+        Build a human-readable identifier for the new member prioritizing
+        Telegram handle/ID per product requirements.
+        """
+        if member:
+            if member.telegram_username:
+                handle = member.telegram_username.lstrip("@")
+                if handle:
+                    return f"@{handle}"
+            if member.telegram_id:
+                return f"کاربر {member.telegram_id}"
+
+            full_name = " ".join(filter(None, [member.first_name, member.last_name])).strip()
+            if full_name:
+                return full_name
+
+            if member.phone_number:
+                return member.phone_number
+
+            return f"کاربر #{member.id}"
+
+        if member_order and getattr(member_order, "id", None):
+            return f"کاربر #{member_order.id}"
+
+        return "یک دوست جدید"
+
+    def _build_telegram_group_join_message(
+        self,
+        member_handle: str,
+        paid_members: int,
+        link: str
+    ) -> Tuple[str, str]:
+        """
+        Create the dynamic Telegram message content based on how many friends
+        have already joined the group.
+        """
+        handle = member_handle or "یک دوست جدید"
+        safe_link = f"\n{link}" if link else ""
+        normalized_count = max(1, paid_members)
+
+        if normalized_count in (1, 2):
+            remaining = max(3 - normalized_count, 0)
+            title = "در مسیر سفارش رایگان"
+            message = (
+                f"{handle} عضو گروهت شد! فقط {remaining} نفر دیگه لازمه تا سفارشت رایگان بشه!"
+                f"{safe_link}"
+            )
+        elif normalized_count == 3:
+            title = "سفارش رایگان شد"
+            message = f"{handle} عضو گروهت شد. سفارشت رایگان شد!!{safe_link}"
+        else:
+            title = "عضو جدید گروه"
+            message = f"{handle} عضو گروهت شد!"
+
+        return title, message
     
     async def _get_leader_price_from_api(self, group_id: int) -> float:
         """
