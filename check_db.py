@@ -13,3 +13,4 @@ for s in searches[:5]:  # Show first 5
     print(f'  ID: {s.id}, Term: {repr(s.search_term)}, Active: {s.is_active}')
 db.close()
 
+

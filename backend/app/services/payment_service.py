@@ -335,7 +335,7 @@ class PaymentService:
                 notification_group_id = None
                 notification_order = None
 
-                # Simplified: Only handle invited flow via PENDING_INVITE. No PENDING_GROUP branch.
+                # Handle invited flow markers encoded inside shipping_address (PENDING_INVITE / PENDING_GROUP)
                 logger.info(f"🔍 Checking if order {order.id} is invited: shipping_address={order.shipping_address[:100] if order.shipping_address else None}")
                 if order.shipping_address and order.shipping_address.startswith("PENDING_INVITE:"):
                     logger.info(f"✅ INVITED USER DETECTED: order {order.id} has PENDING_INVITE prefix")
@@ -387,6 +387,32 @@ class PaymentService:
                             logger.error(f"❌❌❌ Could not resolve group for invite token {invite_token} on order {order.id}")
                     except Exception as e:
                         logger.error(f"Error processing pending invite for order {order.id}: {e}")
+
+                elif order.shipping_address and order.shipping_address.startswith("PENDING_GROUP:"):
+                    try:
+                        parts = order.shipping_address.split("|", 1)
+                        group_token = parts[0].replace("PENDING_GROUP:", "")
+                        original_address = parts[1] if len(parts) > 1 else ""
+
+                        digits = ''.join(ch for ch in group_token if ch.isdigit())
+                        pending_group_id = int(digits) if digits else None
+
+                        if pending_group_id:
+                            group = self.db.query(GroupOrder).filter(GroupOrder.id == pending_group_id).first()
+                            if group:
+                                order.group_order_id = pending_group_id
+                                order.order_type = OrderType.GROUP
+                                order.shipping_address = original_address
+                                logger.info(f"✅✅✅ LINKED pending group order {order.id} directly to group {pending_group_id}")
+
+                                notification_group_id = pending_group_id
+                                notification_order = order
+                            else:
+                                logger.error(f"❌ Could not find group {pending_group_id} referenced by PENDING_GROUP on order {order.id}")
+                        else:
+                            logger.error(f"❌ Invalid PENDING_GROUP marker '{group_token}' on order {order.id}")
+                    except Exception as e:
+                        logger.error(f"Error processing PENDING_GROUP for order {order.id}: {e}")
 
                 # If this paid order is a follower (invited user) who joined someone else's group,
                 # automatically create a secondary group for them (hidden by business rule until first follower).

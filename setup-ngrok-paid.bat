@@ -46,3 +46,4 @@ echo Dashboard opened! Reserve your domains and run start-ngrok-paid.bat
 echo.
 pause
 
+

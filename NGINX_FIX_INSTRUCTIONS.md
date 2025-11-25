@@ -83,3 +83,4 @@ sudo systemctl reload nginx
 - **Backend port**: 8001 (as configured in nginx)
 - **Image URLs**: Backend generates `https://bahamm.ir/backend/static/product_XXX/image.jpg`
 
+

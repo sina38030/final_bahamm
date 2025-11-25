@@ -84,15 +84,24 @@ export const dynamic = 'force-dynamic';
   // Use this in all fetch calls
   const ADMIN_API_BASE_URL = (() => getAdminApiBaseUrl())();
    
-   /** Using Bearer token auth from localStorage (not cookies)
-    * This allows cross-domain authentication between bahamm.ir and app.bahamm.ir
-    */
-  const API_INIT: RequestInit = {
-    headers: {
-      Accept: "application/json",
-    },
-    // Removed credentials: "include" to avoid cookie issues with cross-domain
-  };
+/** Using Bearer token auth from localStorage (not cookies)
+ * This allows cross-domain authentication between bahamm.ir and app.bahamm.ir
+ */
+const API_INIT: RequestInit = {
+  headers: {
+    Accept: "application/json",
+  },
+  // Removed credentials: "include" to avoid cookie issues with cross-domain
+};
+
+const AUTH_TOKEN_KEY = "auth_token";
+
+const getAdminAuthToken = (): string | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  return localStorage.getItem(AUTH_TOKEN_KEY);
+};
    
  type Section =
    | "dashboard"
@@ -4865,7 +4874,7 @@ export const dynamic = 'force-dynamic';
       try {
         setLoading(true);
         setError(null);
-        const token = localStorage.getItem("token");
+        const token = getAdminAuthToken();
         const response = await fetch(`${ADMIN_API_BASE_URL}/popular-searches?include_inactive=true`, {
           headers: {
             ...API_INIT.headers,
@@ -4900,7 +4909,7 @@ export const dynamic = 'force-dynamic';
 
       try {
         setCreating(true);
-        const token = localStorage.getItem("token");
+        const token = getAdminAuthToken();
         const response = await fetch(`${ADMIN_API_BASE_URL}/popular-searches`, {
           method: "POST",
           headers: {
@@ -4938,7 +4947,7 @@ export const dynamic = 'force-dynamic';
       }
 
       try {
-        const token = localStorage.getItem("token");
+        const token = getAdminAuthToken();
         const response = await fetch(`${ADMIN_API_BASE_URL}/popular-searches/${id}`, {
           method: "PUT",
           headers: {
@@ -4968,7 +4977,7 @@ export const dynamic = 'force-dynamic';
     // Toggle active status
     const handleToggleActive = async (id: number, currentStatus: boolean) => {
       try {
-        const token = localStorage.getItem("token");
+        const token = getAdminAuthToken();
         const response = await fetch(`${ADMIN_API_BASE_URL}/popular-searches/${id}`, {
           method: "PUT",
           headers: {
@@ -4999,7 +5008,11 @@ export const dynamic = 'force-dynamic';
       }
 
       try {
-        const token = localStorage.getItem("token");
+        const token = getAdminAuthToken();
+        console.log("[PopularSearches] Deleting search with id:", id);
+        console.log("[PopularSearches] Token exists:", !!token);
+        console.log("[PopularSearches] API URL:", `${ADMIN_API_BASE_URL}/popular-searches/${id}`);
+        
         const response = await fetch(`${ADMIN_API_BASE_URL}/popular-searches/${id}`, {
           method: "DELETE",
           headers: {
@@ -5008,8 +5021,18 @@ export const dynamic = 'force-dynamic';
           },
         });
 
+        console.log("[PopularSearches] Response status:", response.status);
+        
         if (!response.ok) {
-          throw new Error("خطا در حذف جستجوی پرطرفدار");
+          let errorDetail = "";
+          try {
+            const errorData = await response.json();
+            errorDetail = errorData.detail || JSON.stringify(errorData);
+          } catch {
+            errorDetail = await response.text() || response.statusText;
+          }
+          console.error("[PopularSearches] Delete error:", response.status, errorDetail);
+          throw new Error(`خطا در حذف جستجوی پرطرفدار (${response.status}): ${errorDetail}`);
         }
 
         await fetchSearches();
@@ -5034,7 +5057,7 @@ export const dynamic = 'force-dynamic';
       const reorderedIds = newSearches.map(s => s.id);
 
       try {
-        const token = localStorage.getItem("token");
+        const token = getAdminAuthToken();
         const response = await fetch(`${ADMIN_API_BASE_URL}/popular-searches/reorder`, {
           method: "POST",
           headers: {

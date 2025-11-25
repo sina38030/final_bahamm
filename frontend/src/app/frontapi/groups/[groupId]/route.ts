@@ -46,6 +46,32 @@ function parseMs(value?: string | null): number | null {
   return null;
 }
 
+const toTrimmedString = (value: unknown): string => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  try {
+    return String(value).trim();
+  } catch {
+    return '';
+  }
+};
+
+const pickFirstString = (...values: unknown[]): string => {
+  for (const val of values) {
+    const str = toTrimmedString(val);
+    if (str) return str;
+  }
+  return '';
+};
+
+const normalizeTelegramHandle = (value: unknown): string => {
+  const str = toTrimmedString(value);
+  if (!str) return '';
+  const normalized = str.replace(/^@+/, '');
+  return normalized ? `@${normalized}` : '';
+};
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ groupId: string }> }
@@ -197,10 +223,6 @@ export async function GET(
       const leaderIdStr = String(details?.leader_id ?? '');
       const list = Array.isArray(details?.participants) ? details.participants : [];
       return list.map((p: any) => {
-        const rawName = (p.user_name ?? p.name ?? '').toString();
-        const normalizedHandle = rawName ? `@${rawName.replace(/^@*/, '')}` : '';
-        const phoneRaw = (p.user_phone ?? p.phone);
-        const phone = phoneRaw ? String(phoneRaw) : undefined;
         const participantUserIdStr = p.user_id != null ? String(p.user_id) : '';
         let isLeader = leaderIdStr !== '' && participantUserIdStr !== '' && participantUserIdStr === leaderIdStr;
         if (!isLeader && (p.is_creator === true || p.is_leader === true)) {
@@ -208,15 +230,58 @@ export async function GET(
         }
         const statusStr = (p.status || '').toString().toLowerCase();
         const paid = !!(p.paid_at || statusStr.includes('paid') || statusStr.includes('success') || statusStr.includes('تکمیل'));
-        const id = String(p.user_id ?? p.order_id ?? p.id ?? phone ?? '');
-        const username = normalizedHandle || (phone || '@member');
-        const hasUser = !!(p.user_id || phone || rawName);
+
+        const phone = pickFirstString(
+          p.user_phone,
+          p.userPhone,
+          p.phone,
+          p.phone_number,
+          p.phoneNumber,
+          p.contact_phone,
+          p.contactPhone,
+          p.shipping_phone,
+          p.shippingPhone,
+          p.delivery_phone,
+          p.deliveryPhone,
+        );
+
+        const rawName = pickFirstString(
+          p.display_name,
+          p.user_name,
+          p.name,
+          p.username,
+          p.userName,
+        );
+
+        const telegramHandle = normalizeTelegramHandle(
+          pickFirstString(
+            p.telegram_username,
+            p.telegramUsername,
+            p.telegram_handle,
+            p.telegramHandle,
+          ),
+        );
+        const telegramIdRaw = pickFirstString(p.telegram_id, p.telegramId, p.telegramID);
+        const telegramDisplay = telegramHandle || (telegramIdRaw ? `Telegram ID: ${telegramIdRaw}` : '');
+
+        const idSource =
+          p.user_id ??
+          p.order_id ??
+          p.id ??
+          (phone || undefined) ??
+          (telegramIdRaw || undefined) ??
+          (telegramHandle || undefined) ??
+          '';
+        const id = String(idSource);
+
+        const username = rawName || phone || telegramDisplay || '@member';
+        const hasUser = !!(p.user_id || phone || rawName || telegramHandle || telegramIdRaw);
         return {
           id,
           username,
           isLeader,
           phone: phone || '',
-          telegramId: normalizedHandle || undefined,
+          telegramId: telegramHandle || telegramIdRaw || undefined,
           paid,
           hasUser,
         };

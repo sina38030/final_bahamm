@@ -59,6 +59,32 @@ function parseMs(value?: string | null): number | null {
   return null;
 }
 
+const toTrimmedString = (value: unknown): string => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  try {
+    return String(value).trim();
+  } catch {
+    return '';
+  }
+};
+
+const pickFirstString = (...values: unknown[]): string => {
+  for (const val of values) {
+    const str = toTrimmedString(val);
+    if (str) return str;
+  }
+  return '';
+};
+
+const normalizeTelegramHandle = (value: unknown): string => {
+  const str = toTrimmedString(value);
+  if (!str) return '';
+  const normalized = str.replace(/^@+/, '');
+  return normalized ? `@${normalized}` : '';
+};
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ groupId: string }> }
@@ -279,12 +305,16 @@ export async function GET(
     // Prefer groups API data for participant list, fall back to admin API
     let sourceList = [];
     if (groupsData && Array.isArray(groupsData.participants)) {
-      // Use groups API data - convert to admin API format
+      // Use groups API data - convert to admin API format with contact fields
       sourceList = groupsData.participants.map((p: any) => ({
         user_id: p.userId || p.user_id,
         is_leader: p.isLeader || p.is_leader,
         phone: p.phone || p.phone_number,
-        user_name: p.username || '',
+        phone_number: p.phone_number || p.phone,
+        user_phone: p.userPhone || p.user_phone || p.phone || p.phone_number,
+        user_name: p.username || p.user_name || '',
+        telegram_username: p.telegram_username || p.telegramUsername,
+        telegram_id: p.telegram_id || p.telegramId,
       }));
     } else if (Array.isArray(details?.participants)) {
       sourceList = details.participants;
@@ -293,25 +323,28 @@ export async function GET(
     }
 
     return sourceList.map((p: any) => {
-      const rawName = (p.user_name ?? p.name ?? '').toString();
-      const normalizedHandle = rawName ? `@${rawName.replace(/^@*/, '')}` : '';
-      const phoneRaw = (p.user_phone ?? p.phone ?? p.phone_number);
-      const phone = phoneRaw ? String(phoneRaw) : undefined;
       const participantUserIdStr = p.user_id != null ? String(p.user_id) : '';
       let isLeader = leaderIdStr !== '' && participantUserIdStr !== '' && participantUserIdStr === leaderIdStr;
       if (!isLeader && (p.is_creator === true || p.is_leader === true || p.isLeader === true)) {
         isLeader = true;
       }
+
       const statusStr = (p.status || '').toString().toLowerCase();
 
       // For payment status, check admin API data if available, otherwise assume paid for groups API
       let paid = false;
       if (groupsData && Array.isArray(groupsData.participants)) {
         // Groups API doesn't provide payment status, so we need to cross-reference with admin API
-        const adminParticipant = Array.isArray(details?.participants) ?
-          details.participants.find((ap: any) => String(ap.user_id) === participantUserIdStr) : null;
+        const adminParticipant = Array.isArray(details?.participants)
+          ? details.participants.find((ap: any) => String(ap.user_id) === participantUserIdStr)
+          : null;
         if (adminParticipant) {
-          paid = !!(adminParticipant.paid_at || statusStr.includes('paid') || statusStr.includes('success') || statusStr.includes('تکمیل'));
+          paid = !!(
+            adminParticipant.paid_at ||
+            statusStr.includes('paid') ||
+            statusStr.includes('success') ||
+            statusStr.includes('تکمیل')
+          );
         } else {
           // If no admin data, assume paid for now (they're in the group)
           paid = true;
@@ -321,15 +354,59 @@ export async function GET(
         paid = !!(p.paid_at || statusStr.includes('paid') || statusStr.includes('success') || statusStr.includes('تکمیل'));
       }
 
-      const id = String(p.user_id ?? p.order_id ?? p.id ?? phone ?? '');
-      const username = normalizedHandle || (phone || '@member');
-      const hasUser = !!(p.user_id || phone || rawName);
+      const phone = pickFirstString(
+        p.user_phone,
+        p.userPhone,
+        p.phone,
+        p.phone_number,
+        p.phoneNumber,
+        p.contact_phone,
+        p.contactPhone,
+        p.shipping_phone,
+        p.shippingPhone,
+        p.delivery_phone,
+        p.deliveryPhone,
+      );
+
+      const rawName = pickFirstString(
+        p.display_name,
+        p.user_name,
+        p.name,
+        p.username,
+        p.userName,
+      );
+
+      const telegramHandle = normalizeTelegramHandle(
+        pickFirstString(
+          p.telegram_username,
+          p.telegramUsername,
+          p.telegram_handle,
+          p.telegramHandle,
+        ),
+      );
+
+      const telegramIdRaw = pickFirstString(p.telegram_id, p.telegramId, p.telegramID);
+      const telegramDisplay = telegramHandle || (telegramIdRaw ? `Telegram ID: ${telegramIdRaw}` : '');
+
+      const idSource =
+        p.user_id ??
+        p.order_id ??
+        p.id ??
+        (phone || undefined) ??
+        (telegramIdRaw || undefined) ??
+        (telegramHandle || undefined) ??
+        '';
+      const id = String(idSource);
+
+      const username = rawName || phone || telegramDisplay || '@member';
+      const hasUser = !!(p.user_id || phone || rawName || telegramHandle || telegramIdRaw);
+
       return {
         id,
         username,
         isLeader,
         phone: phone || '',
-        telegramId: normalizedHandle || undefined,
+        telegramId: telegramHandle || telegramIdRaw || undefined,
         paid,
         hasUser,
       };

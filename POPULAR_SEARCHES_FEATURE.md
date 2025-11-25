@@ -131,3 +131,4 @@ Found database at C:\Projects\final_bahamm\backend\bahamm1.db
 - در frontend، اگر ارتباط با API برقرار نشود، جستجوهای پیش‌فرض هاردکد نمایش داده می‌شود
 
 
+

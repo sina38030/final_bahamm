@@ -47,12 +47,18 @@ def _serialize_group(g: GroupOrder, db: Session) -> Dict[str, Any]:
     for o in orders:
         # Get user info to include phone number for leader detection
         user_info = db.query(User).filter(User.id == o.user_id).first() if o.user_id else None
+        telegram_username = getattr(user_info, 'telegram_username', None) if user_info else None
+        telegram_id = getattr(user_info, 'telegram_id', None) if user_info else None
         participants.append({
             "userId": o.user_id,
             "isLeader": (o.user_id == g.leader_id),
             "is_leader": (o.user_id == g.leader_id),  # Alternative field name
             "phone": user_info.phone_number if user_info else None,
             "phone_number": user_info.phone_number if user_info else None,  # Alternative field name
+            "telegram_username": telegram_username,
+            "telegramUsername": telegram_username,
+            "telegram_id": telegram_id,
+            "telegramId": telegram_id,
         })
     
     # اطمینان از اینکه رهبر همیشه در لیست participants باشد (حتی اگر سفارش نداشته باشد)

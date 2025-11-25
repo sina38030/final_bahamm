@@ -24,3 +24,4 @@ INSERT INTO popular_searches (search_term, sort_order, is_active) VALUES
     ('لباس مردانه', 5, 1);
 
 
+
