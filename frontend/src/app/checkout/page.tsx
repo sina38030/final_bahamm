@@ -1153,6 +1153,18 @@ function CheckoutPageContent() {
               try { localStorage.setItem('ship_to_leader_intent', '1'); } catch {}
             }
             
+            // ✅ FIX: Store the invite code for invited users so AuthContext can detect 
+            // that payment was already initiated and not redirect back to landingM
+            if (isInvitedUser) {
+              const currentInviteCode = inviteCodeParam || groupOrderInfo?.invite_code;
+              if (currentInviteCode) {
+                try {
+                  localStorage.setItem('completed_invite_payment', currentInviteCode);
+                  console.log('💾 Stored completed_invite_payment (hybrid):', currentInviteCode);
+                } catch {}
+              }
+            }
+            
             // Clear cart before redirecting to payment gateway
             clearCart();
             
@@ -1260,6 +1272,18 @@ function CheckoutPageContent() {
 
       if (data.success && data.payment_url) {
         console.log('✅ Redirecting to payment gateway:', data.payment_url);
+        
+        // ✅ FIX: Store the invite code for invited users so AuthContext can detect 
+        // that payment was already initiated and not redirect back to landingM
+        if (isInvitedUser) {
+          const currentInviteCode = inviteCodeParam || groupOrderInfo?.invite_code;
+          if (currentInviteCode) {
+            try {
+              localStorage.setItem('completed_invite_payment', currentInviteCode);
+              console.log('💾 Stored completed_invite_payment:', currentInviteCode);
+            } catch {}
+          }
+        }
         
         // Clear cart before redirecting to payment gateway
         clearCart();

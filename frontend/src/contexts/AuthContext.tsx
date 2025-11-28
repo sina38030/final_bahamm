@@ -216,6 +216,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Only run once and only if Telegram WebApp is available
     if (typeof window === 'undefined' || !window.Telegram?.WebApp) return;
     
+    // ✅ FIX: Don't process start_param if user is already on a success page or landingM
+    // This prevents unnecessary redirects when refreshing or on relevant pages
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+    if (currentPath.includes('/payment/success')) {
+      console.log('[AuthContext] Already on success page, skipping start_param processing');
+      return;
+    }
+    if (currentPath.includes('/landingM')) {
+      console.log('[AuthContext] Already on landingM page, skipping start_param processing');
+      return;
+    }
+    if (currentPath.includes('/checkout')) {
+      console.log('[AuthContext] Already on checkout page, skipping start_param processing');
+      return;
+    }
+    
     try {
       const startParam = window.Telegram.WebApp.initDataUnsafe?.start_param;
       
@@ -359,12 +375,65 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               
               // Not a valid order - treat as invite code
               console.log('[AuthContext] Not a valid authority, treating as invite code');
+              
+              // ✅ FIX: Check if this invite code was already used for a completed payment
+              // This prevents redirecting back to landingM when returning from payment
+              try {
+                const completedInvite = localStorage.getItem('completed_invite_payment');
+                if (completedInvite === startParam) {
+                  console.log('[AuthContext] Invite code already used for payment, going to success page');
+                  // Find the order by checking processed_ keys
+                  for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (!key || !key.startsWith('processed_')) continue;
+                    const raw = localStorage.getItem(key);
+                    if (!raw) continue;
+                    try {
+                      const parsed = JSON.parse(raw);
+                      if (parsed && parsed.isInvited && parsed.orderId) {
+                        const authority = key.replace('processed_', '');
+                        router.push(`/payment/success/invitee?orderId=${parsed.orderId}${parsed.groupId ? `&groupId=${parsed.groupId}` : ''}&authority=${encodeURIComponent(authority)}`);
+                        return;
+                      }
+                    } catch {}
+                  }
+                  // Fallback: go to orders page
+                  router.push('/orders');
+                  return;
+                }
+              } catch {}
+              
               setTimeout(() => {
                 router.push(`/landingM?invite=${startParam}`);
               }, 500);
             })
             .catch(err => {
               console.error('[AuthContext] Error checking authority:', err);
+              
+              // ✅ FIX: Check if this invite code was already used for a completed payment
+              try {
+                const completedInvite = localStorage.getItem('completed_invite_payment');
+                if (completedInvite === startParam) {
+                  console.log('[AuthContext] Invite code already used for payment (on error), going to success page');
+                  for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (!key || !key.startsWith('processed_')) continue;
+                    const raw = localStorage.getItem(key);
+                    if (!raw) continue;
+                    try {
+                      const parsed = JSON.parse(raw);
+                      if (parsed && parsed.isInvited && parsed.orderId) {
+                        const authority = key.replace('processed_', '');
+                        router.push(`/payment/success/invitee?orderId=${parsed.orderId}${parsed.groupId ? `&groupId=${parsed.groupId}` : ''}&authority=${encodeURIComponent(authority)}`);
+                        return;
+                      }
+                    } catch {}
+                  }
+                  router.push('/orders');
+                  return;
+                }
+              } catch {}
+              
               // Fallback: treat as invite code
               console.log('[AuthContext] Error on authority check - falling back to invite code');
               setTimeout(() => {
@@ -378,6 +447,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // This handles sharing links from the invite page
         if (startParam.length > 0 && !paymentMatch) {
           console.log('[AuthContext] Invite code detected in start_param:', startParam);
+          
+          // ✅ FIX: Check if this invite code was already used for a completed payment
+          try {
+            const completedInvite = localStorage.getItem('completed_invite_payment');
+            if (completedInvite === startParam) {
+              console.log('[AuthContext] Invite code already used for payment, going to success page');
+              for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (!key || !key.startsWith('processed_')) continue;
+                const raw = localStorage.getItem(key);
+                if (!raw) continue;
+                try {
+                  const parsed = JSON.parse(raw);
+                  if (parsed && parsed.isInvited && parsed.orderId) {
+                    const authority = key.replace('processed_', '');
+                    router.push(`/payment/success/invitee?orderId=${parsed.orderId}${parsed.groupId ? `&groupId=${parsed.groupId}` : ''}&authority=${encodeURIComponent(authority)}`);
+                    return;
+                  }
+                } catch {}
+              }
+              router.push('/orders');
+              return;
+            }
+          } catch {}
+          
           // Redirect to landing page with invite code
           setTimeout(() => {
             router.push(`/landingM?invite=${startParam}`);
