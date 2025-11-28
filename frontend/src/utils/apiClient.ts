@@ -3,11 +3,12 @@
  */
 
 import { API_BASE_URL } from './api';
+import { safeStorage } from './safeStorage';
 
 // Custom fetch wrapper that automatically adds JWT token
 export const apiClient = {
   async request(endpoint: string, options: RequestInit = {}) {
-    const token = localStorage.getItem('auth_token');
+    const token = safeStorage.getItem('auth_token');
     
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
@@ -33,8 +34,8 @@ export const apiClient = {
       // Handle 401 Unauthorized - token expired or invalid
       if (response.status === 401) {
         console.warn('[ApiClient] 401 Unauthorized - clearing auth data');
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('user');
+        safeStorage.removeItem('auth_token');
+        safeStorage.removeItem('user');
         // Trigger storage event for cross-tab logout
         window.dispatchEvent(new StorageEvent('storage', {
           key: 'auth_token',
@@ -76,7 +77,7 @@ export const apiClient = {
 
   // Form data helper for file uploads
   async postFormData(endpoint: string, formData: FormData, options: RequestInit = {}) {
-    const token = localStorage.getItem('auth_token');
+    const token = safeStorage.getItem('auth_token');
     
     const headers: HeadersInit = {
       ...options.headers,
@@ -102,8 +103,8 @@ export const apiClient = {
       
       if (response.status === 401) {
         console.warn('[ApiClient] 401 Unauthorized - clearing auth data');
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('user');
+        safeStorage.removeItem('auth_token');
+        safeStorage.removeItem('user');
         window.dispatchEvent(new StorageEvent('storage', {
           key: 'auth_token',
           newValue: null,

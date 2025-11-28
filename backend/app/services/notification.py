@@ -18,7 +18,8 @@ class NotificationService:
         message: str,
         order_id: Optional[int] = None,
         group_id: Optional[int] = None,
-        include_references: bool = True
+        include_references: bool = True,
+        sms_message: Optional[str] = None,
     ) -> Dict[str, bool]:
         """
         Send notification to user via appropriate channel (SMS or Telegram)
@@ -39,12 +40,15 @@ class NotificationService:
         should_send_sms = user.phone_number and user.is_phone_verified
         should_send_telegram = user.telegram_id is not None
 
+        logger.info(f"📱 send_notification for user {user.id}: should_send_sms={should_send_sms}, should_send_telegram={should_send_telegram}")
+
         if not should_send_sms and not should_send_telegram:
             logger.warning(f"No notification channel available for user {user.id}")
             return results
 
         # Format messages for each channel
-        sms_message = self._format_sms_message(title, message, order_id, group_id, include_references)
+        sms_text_source = sms_message or message
+        sms_message = self._format_sms_message(title, sms_text_source, order_id, group_id, include_references)
         telegram_message = self._format_telegram_message(title, message, order_id, group_id, include_references)
 
         # Send SMS notification (for bahamm.ir users)
@@ -155,7 +159,12 @@ class NotificationService:
 
         needs_refund = refund_due_amount > 0 and getattr(group_order, "refund_paid_at", None) is None
 
-        settlement_amount = int(getattr(group_order, "settlement_amount", 0) or 0)
+        try:
+            settlement_raw = getattr(group_order, "settlement_amount", 0) or 0
+            # Support ints, Decimals, and strings like "0.0" without throwing
+            settlement_amount = int(float(settlement_raw))
+        except Exception:
+            settlement_amount = 0
         needs_payment = (
             (bool(getattr(group_order, "settlement_required", False)) or settlement_amount > 0)
             and getattr(group_order, "settlement_paid_at", None) is None
@@ -173,7 +182,11 @@ class NotificationService:
                     "گروه شما با موفقیت تشکیل شد! جهت بازگشت مبلغ لطفا وارد لینک زیر شده و "
                     "شماره کارت خودتون رو ثبت بفرمایید.\n"
                     f"{link}"
-                )
+                ),
+                "sms_message": (
+                    "گروه شما تکمیل شد. برای ثبت کارت و دریافت بازگشت وجه وارد لینک زیر شوید "
+                    f"{link}"
+                ),
             }
 
         if needs_payment:
@@ -182,7 +195,11 @@ class NotificationService:
                 "message": (
                     "گروه شما با موفقیت تشکیل شد. لطفا برای نهایی شدن سفارشتون مبلغ باقیمانده رو پرداخت بفرمایید.\n"
                     f"{link}"
-                )
+                ),
+                "sms_message": (
+                    "گروه شما تکمیل شد. برای پرداخت مبلغ نهایی وارد این لینک شوید "
+                    f"{link}"
+                ),
             }
 
         if status_value == GroupOrderStatus.GROUP_FAILED.value and self._leader_has_paid(group_order):
@@ -191,7 +208,11 @@ class NotificationService:
                 "message": (
                     "متاسفانه گروه به حد نصاب نرسید. لطفا برای برگشت وجه وارد لینک زیر شده و شماره کارت خود را وارد بفرمایید.\n"
                     f"{link}"
-                )
+                ),
+                "sms_message": (
+                    "گروه شما به حد نصاب نرسید. برای ثبت کارت و دریافت وجه روی لینک زیر بروید "
+                    f"{link}"
+                ),
             }
 
         return {
@@ -199,7 +220,11 @@ class NotificationService:
             "message": (
                 "گروه شما با موفقیت تشکیل شد. سفارشتون بزودی ارسال خواهد شد.\n"
                 f"{link}"
-            )
+            ),
+            "sms_message": (
+                "گروه شما تکمیل شد و سفارش در حال آماده‌سازی است. جزییات در لینک زیر "
+                f"{link}"
+            ),
         }
 
     async def send_group_outcome_notification(self, leader: Optional[User], group_order: Any) -> Dict[str, bool]:
@@ -207,25 +232,37 @@ class NotificationService:
         Send the leader an SMS/Telegram message summarizing the group outcome.
         Decides among: no debt, needs payment, or refund required.
         """
+        group_id = getattr(group_order, "id", None)
+        logger.info(f"🔔 send_group_outcome_notification called for group {group_id}, leader {leader.id if leader else None}")
+        
         if not leader or not group_order:
             logger.warning("Cannot send group outcome notification: missing leader or group data")
             return {"sms": False, "telegram": False}
+
+        logger.info(f"🔔 Leader {leader.id}: phone={leader.phone_number}, is_verified={leader.is_phone_verified}, telegram_id={leader.telegram_id}")
 
         payload = self._build_group_outcome_message(group_order)
         if not payload:
             logger.warning("Unable to build group outcome notification payload")
             return {"sms": False, "telegram": False}
 
+        logger.info(f"🔔 Payload built: title='{payload['title']}', has_sms_message={bool(payload.get('sms_message'))}")
+
         try:
-            return await self.send_notification(
+            result = await self.send_notification(
                 user=leader,
                 title=payload["title"],
                 message=payload["message"],
-                group_id=getattr(group_order, "id", None),
-                include_references=False
+                group_id=group_id,
+                include_references=False,
+                sms_message=payload.get("sms_message"),
             )
+            logger.info(f"🔔 send_notification result for group {group_id}: {result}")
+            return result
         except Exception as exc:
             logger.error(f"Failed to send group outcome notification: {exc}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return {"sms": False, "telegram": False}
 
 # Create singleton instance

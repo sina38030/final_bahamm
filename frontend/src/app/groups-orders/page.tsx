@@ -12,6 +12,7 @@ import DeliveryTimeModal from "@/components/modals/DeliveryTimeModal";
 import GroupTrackContent from "@/components/GroupTrackContent";
 import { generateInviteLink, extractInviteCode } from "@/utils/linkGenerator";
 import { isReviewEligibleStatus } from "@/utils/orderStatus";
+import { safeStorage } from "@/utils/safeStorage";
 // import { requestSlot, releaseSlot } from "@/utils/queue";
 
 // Debounce utility to prevent excessive updates
@@ -423,7 +424,7 @@ export default function GroupsOrdersPage() {
   const [noSession, setNoSession] = useState(false);
   useEffect(() => {
     try {
-      const hasToken = !!localStorage.getItem('auth_token');
+      const hasToken = !!safeStorage.getItem('auth_token');
       setNoSession(!isAuthenticated && !hasToken);
     } catch {
       setNoSession(!isAuthenticated);
@@ -501,7 +502,7 @@ export default function GroupsOrdersPage() {
 
   // جایگزین کردن fetchMyGroups و fetchUserOrders با یک API call یکپارچه
   const fetchUserGroupsAndOrders = React.useCallback(async () => {
-    const hasToken = typeof window !== 'undefined' && !!localStorage.getItem('auth_token');
+    const hasToken = typeof window !== 'undefined' && !!safeStorage.getItem('auth_token');
     if (!isAuthenticated && !hasToken) {
       setGroupIds([]);
       setOrders([]);
@@ -568,7 +569,7 @@ export default function GroupsOrdersPage() {
         const submitted: string[] = [];
         for (const g of leaderGroups) {
           const gidStr = String(g.id);
-          if (localStorage.getItem(`gb-refund-submitted-${gidStr}`)) {
+          if (safeStorage.getItem(`gb-refund-submitted-${gidStr}`)) {
             submitted.push(gidStr);
           }
         }
@@ -668,11 +669,11 @@ export default function GroupsOrdersPage() {
     // Check for settlement completion flags and clear them after triggering refresh
     if (typeof window !== 'undefined') {
       try {
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
+        for (let i = 0; i < safeStorage.length; i++) {
+          const key = safeStorage.key(i);
           if (key && key.startsWith('settlement-completed-')) {
             console.log('[GroupsOrders] Found settlement completion flag:', key);
-            localStorage.removeItem(key);
+            safeStorage.removeItem(key);
           }
         }
       } catch (e) {
@@ -681,7 +682,7 @@ export default function GroupsOrdersPage() {
     }
 
     // Attempt fetch if either context authenticated or token exists in storage
-    const hasToken = typeof window !== 'undefined' && !!localStorage.getItem('auth_token');
+    const hasToken = typeof window !== 'undefined' && !!safeStorage.getItem('auth_token');
     if (isAuthenticated || hasToken) {
       requestRefresh();
     } else {
@@ -748,7 +749,7 @@ export default function GroupsOrdersPage() {
     try {
       const submitted: string[] = [];
       for (const gid of groupIds) {
-        if (localStorage.getItem(`gb-refund-submitted-${gid}`)) {
+        if (safeStorage.getItem(`gb-refund-submitted-${gid}`)) {
           submitted.push(String(gid));
         }
       }
@@ -769,7 +770,7 @@ export default function GroupsOrdersPage() {
           // Fallback: rescan
           const submitted: string[] = [];
           for (const g of groupIds) {
-            if (localStorage.getItem(`gb-refund-submitted-${g}`)) {
+            if (safeStorage.getItem(`gb-refund-submitted-${g}`)) {
               submitted.push(String(g));
             }
           }
@@ -812,7 +813,7 @@ export default function GroupsOrdersPage() {
         
         // First, quickly check localStorage for immediate UI update
         for (const order of orders) {
-          const hasReview = localStorage.getItem(`order-${order.id}-reviewed-by-${user.id}`);
+          const hasReview = safeStorage.getItem(`order-${order.id}-reviewed-by-${user.id}`);
           if (hasReview === 'true') {
             reviewedIds.add(order.id);
           }
@@ -850,12 +851,12 @@ export default function GroupsOrdersPage() {
               
               if (userReview) {
                 // Mark as reviewed
-                localStorage.setItem(`order-${order.id}-reviewed-by-${user.id}`, 'true');
+                safeStorage.setItem(`order-${order.id}-reviewed-by-${user.id}`, 'true');
                 if (!alive) return;
                 setOrderIdsWithReviews(prev => new Set([...prev, order.id]));
               } else {
                 // Remove localStorage if no review found
-                localStorage.removeItem(`order-${order.id}-reviewed-by-${user.id}`);
+                safeStorage.removeItem(`order-${order.id}-reviewed-by-${user.id}`);
                 if (!alive) return;
                 setOrderIdsWithReviews(prev => {
                   const newSet = new Set(prev);
@@ -889,7 +890,7 @@ export default function GroupsOrdersPage() {
         const ev = e as CustomEvent<{ orderId?: number }>;
         const orderId = ev?.detail?.orderId;
         if (orderId && user?.id) {
-          localStorage.setItem(`order-${orderId}-reviewed-by-${user.id}`, 'true');
+          safeStorage.setItem(`order-${orderId}-reviewed-by-${user.id}`, 'true');
           setOrderIdsWithReviews(prev => new Set([...prev, orderId]));
         }
       } catch (err) {
@@ -1039,7 +1040,7 @@ export default function GroupsOrdersPage() {
     try {
       if (!isShipToLeader && inGroup && !isLeader && (o?.id != null)) {
         const key = `ship_to_leader_order_${o.id}`;
-        const val = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+        const val = typeof window !== 'undefined' ? safeStorage.getItem(key) : null;
         if (val === '1') {
           isShipToLeader = true;
         }
@@ -1413,7 +1414,7 @@ function FailedLeaderRefundControls({ groupId }: { groupId: number }) {
   useEffect(() => {
     try {
       const key = `gb-refund-submitted-${String(groupId)}`;
-      setSubmitted(!!localStorage.getItem(key));
+      setSubmitted(!!safeStorage.getItem(key));
     } catch {}
   }, [groupId]);
 
@@ -1433,8 +1434,8 @@ function FailedLeaderRefundControls({ groupId }: { groupId: number }) {
         return;
       }
       try {
-        localStorage.setItem(`gb-refund-submitted-${groupId}`, String(Date.now()));
-        localStorage.setItem(`gb-refund-method-${groupId}`, 'wallet');
+        safeStorage.setItem(`gb-refund-submitted-${groupId}`, String(Date.now()));
+        safeStorage.setItem(`gb-refund-method-${groupId}`, 'wallet');
         setSubmitted(true);
         window.dispatchEvent(new CustomEvent('gb-refund-submitted', { detail: { groupId: String(groupId) } }));
       } catch {}
@@ -1467,8 +1468,8 @@ function FailedLeaderRefundControls({ groupId }: { groupId: number }) {
         return;
       }
       try {
-        localStorage.setItem(`gb-refund-submitted-${groupId}`, String(Date.now()));
-        localStorage.setItem(`gb-refund-method-${groupId}`, 'bank');
+        safeStorage.setItem(`gb-refund-submitted-${groupId}`, String(Date.now()));
+        safeStorage.setItem(`gb-refund-method-${groupId}`, 'bank');
         setSubmitted(true);
         window.dispatchEvent(new CustomEvent('gb-refund-submitted', { detail: { groupId: String(groupId) } }));
       } catch {}
@@ -1482,7 +1483,7 @@ function FailedLeaderRefundControls({ groupId }: { groupId: number }) {
 
   if (submitted) {
     const method = (() => {
-      try { return localStorage.getItem(`gb-refund-method-${groupId}`) || 'bank'; } catch { return 'bank'; }
+      try { return safeStorage.getItem(`gb-refund-method-${groupId}`) || 'bank'; } catch { return 'bank'; }
     })();
     return (
       <div className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -1540,7 +1541,7 @@ function RefundButtonWithTimer({ authority }: { authority: string }) {
         if (!authority) return;
         // 1) Initialize from localStorage immediately (no network) so UI has correct countdown
         try {
-          const cached = localStorage.getItem(authExpiryKey);
+          const cached = safeStorage.getItem(authExpiryKey);
           if (cached) {
             const t = Number(cached);
             if (Number.isFinite(t) && t > Date.now()) {
@@ -1573,24 +1574,24 @@ function RefundButtonWithTimer({ authority }: { authority: string }) {
           const target = Number(expiresAtMsCamel != null ? expiresAtMsCamel : expiresAtMsSnake) || 0;
           if (target > 0) {
             setExpiryMs(target);
-            try { localStorage.setItem(authExpiryKey, String(target)); } catch {}
+            try { safeStorage.setItem(authExpiryKey, String(target)); } catch {}
           }
         } else if (remainingSecondsCamel != null || remainingSecondsSnake != null) {
           const secs = Math.max(0, Number(remainingSecondsCamel != null ? remainingSecondsCamel : remainingSecondsSnake) || 0);
           const target = Date.now() + secs * 1000;
           setExpiryMs(target);
-          try { localStorage.setItem(authExpiryKey, String(target)); } catch {}
+          try { safeStorage.setItem(authExpiryKey, String(target)); } catch {}
         } else if (expiresInSecondsCamel != null || expiresInSecondsSnake != null) {
           const secs = Math.max(0, Number(expiresInSecondsCamel != null ? expiresInSecondsCamel : expiresInSecondsSnake) || 0);
           const target = Date.now() + secs * 1000;
           setExpiryMs(target);
-          try { localStorage.setItem(authExpiryKey, String(target)); } catch {}
+          try { safeStorage.setItem(authExpiryKey, String(target)); } catch {}
         } else if (expiresAtCamel || expiresAtSnake) {
           const raw = String(expiresAtCamel || expiresAtSnake);
           const parsed = Date.parse(raw);
           if (!Number.isNaN(parsed)) {
             setExpiryMs(parsed);
-            try { localStorage.setItem(authExpiryKey, String(parsed)); } catch {}
+            try { safeStorage.setItem(authExpiryKey, String(parsed)); } catch {}
           }
         } else {
           // No fallback: only backend controls the deadline
@@ -1882,10 +1883,10 @@ function LazyTrackEmbed({
     // Initialize refund submitted flag from storage
     try {
       const key = `gb-refund-submitted-${gid}`;
-      const val = localStorage.getItem(key);
+      const val = safeStorage.getItem(key);
       setRefundSubmitted(!!val);
       try {
-        const m = localStorage.getItem(`gb-refund-method-${gid}`);
+        const m = safeStorage.getItem(`gb-refund-method-${gid}`);
         if (m === 'wallet' || m === 'bank') setRefundMethod(m as any);
       } catch {}
     } catch {}
@@ -1941,10 +1942,10 @@ function LazyTrackEmbed({
       if (!e.key) return;
       if (e.key === `gb-refund-submitted-${gid}`) {
         try {
-          const val = localStorage.getItem(e.key);
+          const val = safeStorage.getItem(e.key);
           setRefundSubmitted(!!val);
           try {
-            const m = localStorage.getItem(`gb-refund-method-${gid}`);
+            const m = safeStorage.getItem(`gb-refund-method-${gid}`);
             if (m === 'wallet' || m === 'bank') setRefundMethod(m as any);
           } catch {}
         } catch {}
@@ -1960,10 +1961,10 @@ function LazyTrackEmbed({
             const detailId = ev?.detail?.groupId ? String(ev.detail.groupId) : null;
             if (!detailId || detailId === String(gid)) {
               const key = `gb-refund-submitted-${gid}`;
-              const val = localStorage.getItem(key);
+              const val = safeStorage.getItem(key);
               setRefundSubmitted(!!val || detailId === String(gid));
               try {
-                const m = localStorage.getItem(`gb-refund-method-${gid}`);
+                const m = safeStorage.getItem(`gb-refund-method-${gid}`);
                 if (m === 'wallet' || m === 'bank') setRefundMethod(m as any);
               } catch {}
             }
@@ -1974,7 +1975,7 @@ function LazyTrackEmbed({
       // Also re-read on mount (in case another tab set it just before)
       try {
         const key = `gb-refund-submitted-${gid}`;
-        const val = localStorage.getItem(key);
+        const val = safeStorage.getItem(key);
         setRefundSubmitted(!!val);
       } catch {}
     }
@@ -2180,8 +2181,8 @@ function LazyTrackEmbed({
 
           // Mark settlement flow so callback verifies and finalizes
           try {
-            localStorage.setItem('settlement_payment', '1');
-            localStorage.setItem('settlement_group_id', String(gid));
+            safeStorage.setItem('settlement_payment', '1');
+            safeStorage.setItem('settlement_group_id', String(gid));
           } catch {}
 
           // Defer navigation to avoid React event-cycle surprises
@@ -2446,8 +2447,8 @@ function LazyTrackEmbed({
                                   }
                                   try { refreshCoins && (await refreshCoins()); } catch {}
                                   try {
-                                    localStorage.setItem(`gb-refund-submitted-${gid}`, String(Date.now()));
-                                    localStorage.setItem(`gb-refund-method-${gid}`, 'wallet');
+                                    safeStorage.setItem(`gb-refund-submitted-${gid}`, String(Date.now()));
+                                    safeStorage.setItem(`gb-refund-method-${gid}`, 'wallet');
                                     setRefundSubmitted(true);
                                     setRefundMethod('wallet');
                                     window.dispatchEvent(new CustomEvent('gb-refund-submitted', { detail: { groupId: String(gid) } }));
@@ -2508,7 +2509,7 @@ function LazyTrackEmbed({
                                    <div className="text-sm font-medium text-gray-900 mb-1">اطلاعات کارت ثبت شد</div>
                                    <div className="text-xs text-gray-600">مبلغ به کارت شما واریز و نتیجه اطلاع‌رسانی خواهد شد.</div>
                                    <button
-                                     onClick={() => { setShowBankForm(false); setBankSuccess(false); try { localStorage.setItem(`gb-refund-submitted-${gid}`, String(Date.now())); localStorage.setItem(`gb-refund-method-${gid}`, 'bank'); setRefundSubmitted(true); setRefundMethod('bank'); window.dispatchEvent(new CustomEvent('gb-refund-submitted', { detail: { groupId: String(gid) } })); } catch {} }}
+                                     onClick={() => { setShowBankForm(false); setBankSuccess(false); try { safeStorage.setItem(`gb-refund-submitted-${gid}`, String(Date.now())); safeStorage.setItem(`gb-refund-method-${gid}`, 'bank'); setRefundSubmitted(true); setRefundMethod('bank'); window.dispatchEvent(new CustomEvent('gb-refund-submitted', { detail: { groupId: String(gid) } })); } catch {} }}
                                      className="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-4 rounded-lg"
                                    >
                                      بستن
@@ -2615,8 +2616,8 @@ function LazyTrackEmbed({
                           try { refreshCoins && (await refreshCoins()); } catch {}
                           // Mark as submitted in localStorage for UI state
                           try {
-                            localStorage.setItem(`gb-refund-submitted-${gid}`, String(Date.now()));
-                            localStorage.setItem(`gb-refund-method-${gid}`, 'wallet');
+                            safeStorage.setItem(`gb-refund-submitted-${gid}`, String(Date.now()));
+                            safeStorage.setItem(`gb-refund-method-${gid}`, 'wallet');
                           } catch {}
                         } catch {
                           fireToast({ type: 'error', message: 'خطا در اتصال به سرور' });

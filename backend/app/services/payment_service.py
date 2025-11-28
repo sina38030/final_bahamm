@@ -762,6 +762,17 @@ class PaymentService:
                                     group.status = GroupOrderStatus.GROUP_FINALIZED
                                 except Exception:
                                     pass
+
+                                # Send notification to leader about group success
+                                try:
+                                    from app.services import notification_service
+                                    leader = getattr(group, "leader", None)
+                                    if not leader and getattr(group, "leader_id", None):
+                                        leader = self.db.query(User).filter(User.id == group.leader_id).first()
+                                    if leader:
+                                        await notification_service.send_group_outcome_notification(leader, group)
+                                except Exception as notify_exc:
+                                    logger.error(f"Failed to send group outcome notification after settlement finalization for group {finalize_group_id}: {notify_exc}")
                 except Exception:
                     # Do not fail verification flow on finalize attempt issues
                     pass

@@ -84,3 +84,7 @@ sudo systemctl reload nginx
 - **Image URLs**: Backend generates `https://bahamm.ir/backend/static/product_XXX/image.jpg`
 
 
+
+
+
+

@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     SMS_PROVIDER: str = "melipayamak"
     MELIPAYAMAK_API_KEY: str = "60292d2280404143914d559366fa43f9"
+    SMS_FORCE_TEST_MODE: bool = False
 
     # Payment Gateway Configuration (ZarinPal)
     ZARINPAL_MERCHANT_ID: str = "2cea1309-4a05-4f02-82ce-9a6d183db8a4"  # Real merchant ID

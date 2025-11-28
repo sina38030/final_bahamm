@@ -381,11 +381,11 @@ export default function GroupTrackContent({
             </div>
           ) : (
             (data.participants || []).map((m) => {
-              const displayName =
-                (m.phone || "").trim() ||
-                (m.username || "").trim() ||
-                (m.telegramId || "").trim() ||
-                "کاربر ناشناس";
+              // Use username as primary display name (Telegram username/ID or fallback)
+              // Fallback to phone if username is just '@member' or empty
+              const displayName = (m.username && m.username !== '@member' && m.username.trim() !== '')
+                ? m.username
+                : (m.phone || "").trim() || "کاربر ناشناس";
               return (
                 <div key={m.id} className="flex items-center justify-between">
                   <div className="text-sm">{displayName}</div>
