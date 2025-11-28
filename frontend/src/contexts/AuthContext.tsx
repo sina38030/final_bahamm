@@ -5,8 +5,6 @@ import { useRouter, usePathname } from 'next/navigation';
 import { API_BASE_URL } from '../utils/api';
 import { apiClient } from '../utils/apiClient';
 import { syncTokenFromURL } from '../utils/crossDomainAuth';
-import { readPaymentRoleHint, clearPaymentRoleHint } from '../utils/paymentRoleHint';
-import type { PaymentRoleHint } from '../utils/paymentRoleHint';
 
 // Define user type
 export interface User {
@@ -106,42 +104,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const router = useRouter();
   const pathname = usePathname();
-  const redirectAfterPaymentOrder = useCallback((order: any, authority: string, hint?: PaymentRoleHint | null) => {
-    if (!authority) return;
-    setTimeout(() => {
-      if (!order) {
-        clearPaymentRoleHint(authority);
-        router.push('/orders');
-        return;
-      }
-      const orderId = order?.id;
-      const groupId = order?.group_order_id || order?.groupId || '';
-      const encodedAuthority = encodeURIComponent(authority);
-      const treatAsInvited =
-        Boolean(order?.is_invited) ||
-        Boolean(hint?.role === 'invitee' || hint?.isInvited);
-      const inviteeTarget = orderId
-        ? `/payment/success/invitee?orderId=${orderId}${groupId ? `&groupId=${groupId}` : ''}&authority=${encodedAuthority}`
-        : `/payment/success/invitee?authority=${encodedAuthority}`;
-      const soloTarget = orderId
-        ? `/payment/success/solo?orderId=${orderId}&authority=${encodedAuthority}`
-        : '/orders';
-      const go = (target: string) => {
-        clearPaymentRoleHint(authority);
-        router.push(target);
-      };
-      if (treatAsInvited) {
-        console.log('[AuthContext] Redirect helper: treating as invited user (hint/applied).');
-        go(inviteeTarget);
-      } else if (groupId) {
-        console.log('[AuthContext] Redirect helper: treating as leader (group detected).');
-        go(`/invite?authority=${encodedAuthority}`);
-      } else {
-        console.log('[AuthContext] Redirect helper: treating as solo order.');
-        go(soloTarget);
-      }
-    }, 500);
-  }, [router]);
   
   // Use ref for timeout to avoid re-renders
   const addressSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -283,7 +245,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               console.warn('[AuthContext] Failed to clear cart:', e);
             }
             
-            const paymentRoleHint = readPaymentRoleHint(authority);
             // Get order details from backend using authority
             fetch(`/api/payment/order/${authority}`)
               .then(res => res.json())
@@ -303,24 +264,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   console.log('[AuthContext] Redirect decision logic:');
                   console.log('  - is_invited:', order.is_invited, '→', order.is_invited ? 'Go to INVITEE page' : 'Not invited');
                   console.log('  - group_order_id:', order.group_order_id, '→', order.group_order_id ? 'Go to INVITE page (leader)' : 'No group');
-                  console.log('  - Final decision (with hint):',
-                    (order.is_invited || paymentRoleHint?.role === 'invitee')
-                      ? 'INVITEE SUCCESS'
-                      : order.group_order_id
-                        ? 'INVITE PAGE (leader)'
-                        : 'SOLO SUCCESS'
-                  );
+                  console.log('  - Final decision:', 
+                    order.is_invited ? 'INVITEE SUCCESS' : 
+                    order.group_order_id ? 'INVITE PAGE (leader)' : 
+                    'SOLO SUCCESS');
                   
-                  redirectAfterPaymentOrder(order, authority, paymentRoleHint);
+                  // Redirect to appropriate page based on order type
+                  setTimeout(() => {
+                    // ✅ CHECK is_invited FIRST - this is the specific condition for invited users
+                    if (order.is_invited) {
+                      console.log('[AuthContext] Invited user detected - going to SUCCESS page only');
+                      const orderId = order.id;
+                      const groupId = order.group_order_id;
+                      const target = `/payment/success/invitee?orderId=${orderId}${groupId ? `&groupId=${groupId}` : ''}&authority=${encodeURIComponent(authority)}`;
+                      router.push(target);
+                    } else if (order.group_order_id) {
+                      // For group leaders (NOT invited), redirect to invite page
+                      console.log('[AuthContext] Group leader detected - going to INVITE page');
+                      router.push(`/invite?authority=${encodeURIComponent(authority)}`);
+                    } else {
+                      // Solo purchase: redirect to dedicated solo success page
+                      console.log('[AuthContext] Solo order detected - going to SOLO SUCCESS page');
+                      const orderId = order.id;
+                      const target = `/payment/success/solo?orderId=${orderId}&authority=${encodeURIComponent(authority)}`;
+                      router.push(target);
+                    }
+                  }, 500);
                 } else {
                   // Fallback to orders page
-                  clearPaymentRoleHint(authority);
                   setTimeout(() => router.push('/orders'), 500);
                 }
               })
               .catch(err => {
                 console.error('[AuthContext] Error getting order:', err);
-                clearPaymentRoleHint(authority);
                 setTimeout(() => router.push('/orders'), 500);
               });
           } else {
@@ -329,7 +305,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               window.Telegram.WebApp.showAlert('❌ پرداخت ناموفق بود. لطفاً مجدداً تلاش کنید.');
             }
             // Redirect to cart/orders
-            clearPaymentRoleHint(authority);
             setTimeout(() => router.push('/cart'), 500);
           }
           return;
@@ -339,7 +314,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // This handles Telegram mini app payment returns where start_param is the authority
         if (startParam.length > 0 && !paymentMatch && startParam.length > 5) {
           console.log('[AuthContext] Attempting to resolve start_param as payment authority...');
-          const pendingRoleHint = readPaymentRoleHint(startParam);
           
           fetch(`/api/payment/order/${encodeURIComponent(startParam)}`)
             .then(res => res.json())
@@ -364,13 +338,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   user_id: order.user_id,
                   order_type: order.order_type
                 });
-                redirectAfterPaymentOrder(order, startParam, pendingRoleHint);
+                setTimeout(() => {
+                  // ✅ CHECK is_invited FIRST
+                  if (order.is_invited) {
+                    console.log('[AuthContext] Payment return: Invited user - going to SUCCESS page');
+                    const orderId = order.id;
+                    const groupId = order.group_order_id;
+                    const target = `/payment/success/invitee?orderId=${orderId}${groupId ? `&groupId=${groupId}` : ''}&authority=${encodeURIComponent(startParam)}`;
+                    router.push(target);
+                  } else if (order.group_order_id) {
+                    console.log('[AuthContext] Payment return: Group leader - going to INVITE page');
+                    router.push(`/invite?authority=${encodeURIComponent(startParam)}`);
+                  } else {
+                    console.log('[AuthContext] Payment return: Solo order - going to ORDERS page');
+                    router.push('/orders');
+                  }
+                }, 500);
                 return;
               }
               
               // Not a valid order - treat as invite code
               console.log('[AuthContext] Not a valid authority, treating as invite code');
-              clearPaymentRoleHint(startParam);
               setTimeout(() => {
                 router.push(`/landingM?invite=${startParam}`);
               }, 500);
@@ -379,7 +367,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               console.error('[AuthContext] Error checking authority:', err);
               // Fallback: treat as invite code
               console.log('[AuthContext] Error on authority check - falling back to invite code');
-              clearPaymentRoleHint(startParam);
               setTimeout(() => {
                 router.push(`/landingM?invite=${startParam}`);
               }, 500);

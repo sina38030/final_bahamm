@@ -8,7 +8,6 @@ import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
 import { API_BASE_URL } from '@/utils/api';
 import apiClient from '@/utils/apiClient';
-import { rememberPaymentRoleHint } from '@/utils/paymentRoleHint';
 
 // Dynamic import of AddressMapModal component to avoid SSR issues
 const AddressMapModal = dynamic(() => import('@/components/map/AddressMapModal'), {
@@ -137,20 +136,6 @@ function CheckoutPageContent() {
   const [paymentMethod, setPaymentMethod] = useState<'gateway' | 'wallet'>('gateway');
   // Disable consolidation for invited-led secondary groups (set later by rule)
   const [greenToggle, setGreenToggle] = useState(false);
-  const rememberPendingPaymentRole = (authority?: string | null) => {
-    if (!authority) return;
-    const role = isInvitedUser ? 'invitee' : (actualMode === 'group' ? 'leader' : 'solo');
-    rememberPaymentRoleHint(authority, {
-      role,
-      isInvited: isInvitedUser,
-      inviteCode: inviteCodeParam || groupOrderInfo?.invite_code || null,
-      metadata: {
-        allowConsolidation: !forceDisableConsolidation && greenToggle,
-        source: 'checkout',
-      },
-    });
-  };
-
   const [forceDisableConsolidation, setForceDisableConsolidation] = useState(false);
   const [savedAddress, setSavedAddress] = useState<{
     fullAddress: string;
@@ -1172,7 +1157,6 @@ function CheckoutPageContent() {
             clearCart();
             
             // Redirect to payment gateway (will return to Telegram Mini App after payment)
-            rememberPendingPaymentRole(data.authority);
             window.location.href = data.payment_url;
           } else {
             console.error('❌ Hybrid payment failed:', data);
@@ -1281,7 +1265,6 @@ function CheckoutPageContent() {
         clearCart();
         
         // Redirect to payment gateway (will return to Telegram Mini App after payment)
-        rememberPendingPaymentRole(data.authority);
         window.location.href = data.payment_url;
       } else {
         console.error('❌ Payment failed:', data);
