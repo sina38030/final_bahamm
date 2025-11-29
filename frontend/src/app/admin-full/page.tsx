@@ -43,23 +43,29 @@ export const dynamic = 'force-dynamic';
     if (_cachedAdminApiBaseUrl) return _cachedAdminApiBaseUrl;
     
     if (typeof window === 'undefined') {
+      // Server-side: use HTTPS for staging
+      const envUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_ADMIN_API_URL;
+      if (envUrl) {
+        const trimmed = envUrl.replace(/\/+$/, "");
+        return /\/api$/i.test(trimmed) ? trimmed : `${trimmed}/api`;
+      }
       return "http://localhost:8001/api";
     }
     
     // Client-side: use env var or construct from current location
     const envUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_ADMIN_API_URL;
     let rawBase: string;
-    
+
     if (envUrl) {
       console.log('[Admin] Using env URL:', envUrl);
       rawBase = envUrl;
     } else {
       // Auto-detect based on environment
-      const protocol = window.location.protocol;
+      const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
       const hostname = window.location.hostname;
-      
+
       // Production: use nginx reverse proxy path
-      if (hostname === 'bahamm.ir' || hostname === 'www.bahamm.ir' || hostname === 'app.bahamm.ir') {
+      if (hostname === 'bahamm.ir' || hostname === 'www.bahamm.ir' || hostname === 'app.bahamm.ir' || hostname === 'staging.bahamm.ir') {
         rawBase = `${protocol}//${hostname}`;
         console.log('[Admin] Production URL (nginx proxy):', rawBase);
       } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
@@ -81,8 +87,8 @@ export const dynamic = 'force-dynamic';
     return apiUrl;
   }
   
-  // Use this in all fetch calls
-  const ADMIN_API_BASE_URL = (() => getAdminApiBaseUrl())();
+  // Computed lazily inside the component - DO NOT call at module level
+  let ADMIN_API_BASE_URL = "";
    
 /** Using Bearer token auth from localStorage (not cookies)
  * This allows cross-domain authentication between bahamm.ir and app.bahamm.ir
@@ -262,6 +268,11 @@ const getAdminAuthToken = (): string | null => {
       -------------------------------------------------------------------------- */
    
    export default function AdminPage() {
+     // Initialize API base URL on client side only
+     if (typeof window !== 'undefined' && !ADMIN_API_BASE_URL) {
+       ADMIN_API_BASE_URL = getAdminApiBaseUrl();
+     }
+   
      const [activeSection, setActiveSection] = useState<Section>("dashboard");
      const [sidebarOpen, setSidebarOpen] = useState(true);
      const [loading, setLoading] = useState(false);

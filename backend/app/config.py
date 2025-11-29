@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     # Payment Gateway Configuration (ZarinPal)
     ZARINPAL_MERCHANT_ID: str = "2cea1309-4a05-4f02-82ce-9a6d183db8a4"  # Real merchant ID
     ZARINPAL_SANDBOX: bool = False
-    # Auto-detect: use localhost for local dev, production for deployed
-    FRONTEND_URL: str = "http://localhost:3000"  # Will use env var in production
+    # Auto-detect: use production URL by default, can be overridden with env var for local dev
+    FRONTEND_URL: str = "https://bahamm.ir"  # Can use env var for local dev: http://localhost:3000
     # Payment callback URL - must route to backend's /api/payment/callback
     # Production: https://bahamm.ir/backend/api (nginx proxies to backend)
     # Local: http://localhost:8001/api (direct to backend)

@@ -4,6 +4,14 @@ const nextConfig: NextConfig = {
     // Disable React strict mode temporarily to debug hooks issue
     reactStrictMode: false,
 	
+	// Development mode optimizations
+	swcMinify: true,
+	modularizeImports: {
+		'@/components': {
+			transform: '@/components/{{member}}'
+		}
+	},
+	
 	// Add permissive headers for static assets/fonts to avoid 403 via tunnels/proxies
 	async headers() {
 		return [
@@ -36,6 +44,14 @@ const nextConfig: NextConfig = {
     
     images: {
         remotePatterns: [
+            {
+                protocol: "https",
+                hostname: "bahamm.ir",
+            },
+            {
+                protocol: "https",
+                hostname: "app.bahamm.ir",
+            },
             {
                 protocol: "https",
                 hostname: "atticbv.com",
@@ -96,6 +112,14 @@ const nextConfig: NextConfig = {
     
     // Webpack optimizations
     webpack: (config, { dev, isServer }) => {
+        // Development mode performance optimizations
+        if (dev) {
+            // Reduce work in development
+            config.optimization.removeAvailableModules = false;
+            config.optimization.removeEmptyChunks = false;
+            config.optimization.splitChunks = false;
+        }
+        
         // Fix for "self is not defined" error with browser-only libraries
         if (isServer) {
             config.resolve.alias = {

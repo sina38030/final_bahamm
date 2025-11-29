@@ -1,0 +1,153 @@
+═══════════════════════════════════════════════════════════════
+  FIX 403 FONT ERRORS - CLOUDFLARE PROXY ISSUE
+═══════════════════════════════════════════════════════════════
+
+PROBLEM: Next.js fonts getting 403 errors
+CAUSE: Cloudflare proxy blocking static files
+STATUS: Nginx fixed ✅ | Cloudflare needs adjustment ⏳
+
+═══════════════════════════════════════════════════════════════
+  OPTION 1: DNS ONLY MODE (FASTEST - 2 minutes)
+═══════════════════════════════════════════════════════════════
+
+This bypasses Cloudflare entirely for staging:
+
+1. Go to: https://dash.cloudflare.com
+2. Login and select: bahamm.ir
+3. Click: DNS (in left sidebar)
+4. Find row: staging | A | 185.231.181.208
+5. Click the ORANGE CLOUD ☁ to make it GRAY ☁
+6. Save (it saves automatically)
+7. Wait 1 minute
+8. Test: https://staging.bahamm.ir/admin-full
+
+Result: ✅ Fonts will work (403 errors gone)
+
+Note: You lose Cloudflare CDN/caching for staging, but that's
+fine for development/testing.
+
+═══════════════════════════════════════════════════════════════
+  OPTION 2: PAGE RULES (BETTER - 5 minutes)
+═══════════════════════════════════════════════════════════════
+
+Keep Cloudflare proxy ON but allow fonts:
+
+1. Go to: https://dash.cloudflare.com
+2. Select: bahamm.ir
+3. Click: Rules → Page Rules
+4. Click: Create Page Rule
+
+First Rule (for Next.js static files):
+   URL Pattern: staging.bahamm.ir/_next/static/*
+   Settings:
+     • Security Level: Essentially Off
+     • Browser Integrity Check: OFF
+     • Cache Level: Standard
+   Save and Deploy
+
+Second Rule (for fonts):
+   URL Pattern: staging.bahamm.ir/fonts/*
+   Settings:
+     • Security Level: Essentially Off
+     • Browser Integrity Check: OFF
+   Save and Deploy
+
+Wait 1 minute, then test.
+
+═══════════════════════════════════════════════════════════════
+  OPTION 3: DISABLE SECURITY FEATURES (NOT RECOMMENDED)
+═══════════════════════════════════════════════════════════════
+
+Cloudflare → bahamm.ir → Security:
+
+• Security Level: Set to "Essentially Off"
+• Browser Integrity Check: OFF
+• Challenge Passage: 30 minutes or more
+
+Note: This weakens security, so only use for testing.
+
+═══════════════════════════════════════════════════════════════
+  RECOMMENDED APPROACH
+═══════════════════════════════════════════════════════════════
+
+For Staging (Development/Testing):
+→ Use OPTION 1 (DNS Only / Gray Cloud)
+→ Fast, simple, fonts work immediately
+→ Security not critical for staging
+
+For Production:
+→ Use OPTION 2 (Page Rules)
+→ Keep Cloudflare protection
+→ Allow specific paths
+
+═══════════════════════════════════════════════════════════════
+  WHAT EACH SETTING DOES
+═══════════════════════════════════════════════════════════════
+
+Orange Cloud (Proxied):
+  • Traffic goes through Cloudflare
+  • Gets CDN caching, DDoS protection
+  • Security rules may block fonts
+
+Gray Cloud (DNS Only):
+  • Traffic goes directly to your server
+  • No Cloudflare caching/protection
+  • Fonts will definitely work
+
+Page Rules:
+  • Keep orange cloud ON
+  • Bypass security for specific paths
+  • Best of both worlds
+
+═══════════════════════════════════════════════════════════════
+  TESTING AFTER CHANGE
+═══════════════════════════════════════════════════════════════
+
+1. Clear browser cache (Ctrl+Shift+Delete)
+2. Hard refresh (Ctrl+Shift+R)
+3. Go to: https://staging.bahamm.ir/admin-full
+4. Open DevTools (F12) → Console
+5. Check for 403 errors
+
+Expected Result:
+✅ No more 403 errors
+✅ Fonts load correctly
+✅ Page displays properly
+
+═══════════════════════════════════════════════════════════════
+  MY RECOMMENDATION
+═══════════════════════════════════════════════════════════════
+
+For staging.bahamm.ir:
+
+→ Turn to GRAY CLOUD (DNS only)
+→ This is fine for staging/testing
+→ Keep orange cloud for production (bahamm.ir)
+
+Why?
+• Staging is for testing, not production traffic
+• Don't need CDN for staging
+• Faster development without Cloudflare delays
+• Fonts will work perfectly
+
+═══════════════════════════════════════════════════════════════
+  CURRENT STATUS
+═══════════════════════════════════════════════════════════════
+
+✅ Server Side:
+   • Nginx configured correctly
+   • CORS headers added
+   • Static file handling fixed
+   • All services running
+
+⏳ Cloudflare Side:
+   • Proxy blocking fonts (403)
+   • Need to: Turn to gray cloud OR add Page Rules
+
+═══════════════════════════════════════════════════════════════
+
+URL for Telegram (once fonts fixed):
+  https://staging.bahamm.ir
+
+═══════════════════════════════════════════════════════════════
+

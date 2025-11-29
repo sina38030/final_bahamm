@@ -100,11 +100,11 @@ api_app.add_middleware(
         "http://127.0.0.1:3000",
         "http://localhost:8000",  # Next.js production port
         "http://127.0.0.1:8000",
+        "https://web.telegram.org",  # Telegram Mini App iframe
         "https://bahamm.ir",  # Production domain (with nginx proxy)
         "http://bahamm.ir",
         "https://app.bahamm.ir",  # Subdomain for mini app
         # Cloudflare Tunnel URLs for local Telegram Mini App testing
-        # Current frontend tunnel
         "https://debian-transactions-ensuring-gpl.trycloudflare.com",  # Current frontend
         "https://owners-upgrading-bowling-apparently.trycloudflare.com",  # Current backend
         "https://number-registered-suspension-certainly.trycloudflare.com",
@@ -145,11 +145,11 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://localhost:8000",  # Next.js production port
         "http://127.0.0.1:8000",
+        "https://web.telegram.org",  # Telegram Mini App iframe
         "https://bahamm.ir",  # Production domain (with nginx proxy)
         "http://bahamm.ir",
         "https://app.bahamm.ir",  # Subdomain for mini app
         # Cloudflare Tunnel URLs for local Telegram Mini App testing
-        # Current frontend tunnel
         "https://debian-transactions-ensuring-gpl.trycloudflare.com",  # Current frontend
         "https://owners-upgrading-bowling-apparently.trycloudflare.com",  # Current backend
         "https://number-registered-suspension-certainly.trycloudflare.com",
