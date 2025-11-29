@@ -5,7 +5,6 @@ const nextConfig: NextConfig = {
     reactStrictMode: false,
 	
 	// Development mode optimizations
-	swcMinify: true,
 	modularizeImports: {
 		'@/components': {
 			transform: '@/components/{{member}}'
