@@ -4,6 +4,9 @@ const nextConfig: NextConfig = {
     // Disable React strict mode temporarily to debug hooks issue
     reactStrictMode: false,
 	
+	// Enable standalone output for Docker
+	output: 'standalone',
+	
 	// Development mode optimizations
 	modularizeImports: {
 		'@/components': {
