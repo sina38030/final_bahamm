@@ -24,7 +24,6 @@ function getApiBaseUrl(): string {
   // Production domains: use nginx reverse proxy (same domain)
   if (hostname === 'bahamm.ir' || 
       hostname === 'www.bahamm.ir' || 
-      hostname === 'app.bahamm.ir' || 
       hostname === 'staging.bahamm.ir') {
     return `${protocol}//${hostname}/api`;
   }

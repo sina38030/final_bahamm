@@ -52,10 +52,6 @@ const nextConfig: NextConfig = {
             },
             {
                 protocol: "https",
-                hostname: "app.bahamm.ir",
-            },
-            {
-                protocol: "https",
                 hostname: "atticbv.com",
             },
             {

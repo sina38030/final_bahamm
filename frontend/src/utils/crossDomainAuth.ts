@@ -1,8 +1,8 @@
 /**
  * Cross-Domain Authentication Utilities
  * 
- * Handles token synchronization between bahamm.ir and app.bahamm.ir
- * Uses URL parameters to pass tokens securely between domains
+ * Handles token synchronization between bahamm.ir and its subdomains (if any)
+ * Uses URL parameters to pass tokens securely between origins
  */
 
 const TOKEN_PARAM = 'auth_token';
@@ -127,9 +127,9 @@ export function needsCrossDomainSync(): boolean {
   if (typeof window === 'undefined') return false;
 
   const hostname = window.location.hostname;
-  const isProductionDomain = hostname === 'bahamm.ir' || 
-                            hostname === 'www.bahamm.ir' || 
-                            hostname === 'app.bahamm.ir';
+  const isProductionDomain =
+    hostname === 'bahamm.ir' ||
+    hostname === 'www.bahamm.ir';
 
   if (!isProductionDomain) return false;
 
@@ -150,7 +150,7 @@ export function getPrimaryDomain(): string {
   const hostname = window.location.hostname;
   
   // If already on a production domain, keep it
-  if (hostname === 'bahamm.ir' || hostname === 'www.bahamm.ir' || hostname === 'app.bahamm.ir') {
+  if (hostname === 'bahamm.ir' || hostname === 'www.bahamm.ir') {
     return hostname;
   }
   
