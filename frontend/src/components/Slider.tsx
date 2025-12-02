@@ -72,7 +72,7 @@ const Slider = memo(function Slider({ initialBanners = [] as Banner[] }: { initi
               />
               {(b.title || b.description) && (
                 <button className="slide-cta" onClick={e => { e.stopPropagation(); setOpen(b.id); }}>
-                  اطلاعات بیشتر
+                  باهم بخر, رایگان شه!
                 </button>
               )}
             </div>

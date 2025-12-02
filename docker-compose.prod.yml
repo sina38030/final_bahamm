@@ -59,6 +59,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: bahamm_backend
+    ports:
+      - "8001:8000"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-bahamm_user}:${POSTGRES_PASSWORD:-change_this_password}@db:5432/${POSTGRES_DB:-bahamm}
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
@@ -108,15 +110,17 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL:-https://app.bahamm.ir}
-        NEXT_PUBLIC_ADMIN_API_URL: ${NEXT_PUBLIC_ADMIN_API_URL:-https://app.bahamm.ir}
+        NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL:-https://bahamm.ir}
+        NEXT_PUBLIC_ADMIN_API_URL: ${NEXT_PUBLIC_ADMIN_API_URL:-https://bahamm.ir}
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://bahamm.ir}
         NEXT_PUBLIC_FRONTEND_URL: ${NEXT_PUBLIC_FRONTEND_URL:-https://bahamm.ir}
     container_name: bahamm_frontend
+    ports:
+      - "3000:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL:-https://app.bahamm.ir}
-      - NEXT_PUBLIC_ADMIN_API_URL=${NEXT_PUBLIC_ADMIN_API_URL:-https://app.bahamm.ir}
+      - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL:-https://bahamm.ir}
+      - NEXT_PUBLIC_ADMIN_API_URL=${NEXT_PUBLIC_ADMIN_API_URL:-https://bahamm.ir}
       - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-https://bahamm.ir}
       - NEXT_PUBLIC_FRONTEND_URL=${NEXT_PUBLIC_FRONTEND_URL:-https://bahamm.ir}
     networks:
