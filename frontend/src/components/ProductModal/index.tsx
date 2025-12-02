@@ -473,7 +473,10 @@ const ProductModalInner = memo(function ProductModalInner() {
             <>
               <div
                 className={styles.cartIcon}
-                onClick={() => router.push('/cart')}
+                onClick={() => {
+                  close();
+                  router.push('/cart');
+                }}
               >
                 <FontAwesomeIcon icon={faBasketShopping} />
                 {allCnt > 0 && (
@@ -489,7 +492,10 @@ const ProductModalInner = memo(function ProductModalInner() {
             <>
               <button
                 className={styles.viewCart}
-                onClick={() => router.push('/cart')}
+                onClick={() => {
+                  close();
+                  router.push('/cart');
+                }}
               >
                 <FontAwesomeIcon icon={faBasketShopping} /> دیدن سبد
                 <span className={styles.badge}>{toFa(allCnt)}</span>
