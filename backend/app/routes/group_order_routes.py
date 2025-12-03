@@ -882,7 +882,11 @@ async def get_user_groups_and_orders(
         }
         
     except Exception as e:
-        logger.error(f"Error getting user groups and orders: {str(e)}")
+        logger.error(f"Error getting user groups and orders for user {current_user.id}: {str(e)}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        logger.error(f"Exception details: {repr(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="خطا در دریافت اطلاعات")
 
 @router.get("/admin/all")

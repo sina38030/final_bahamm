@@ -258,7 +258,7 @@ export default function GroupTrackContent({
             .slice(0, 4)
             .map((b, i) => (
               <button
-                key={i}
+                key={`basket-preview-${b.productId || i}`}
                 type="button"
                 className="w-14 h-14 bg-gray-100 rounded-xl relative overflow-hidden"
                 onClick={() => setShowBasket(true)}
@@ -415,7 +415,7 @@ export default function GroupTrackContent({
             </div>
             <div className="space-y-3">
               {(data.basket || []).map((it, idx) => (
-                <div key={idx} className="flex items-center gap-3">
+                <div key={`basket-item-${it.productId || idx}`} className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-gray-100 rounded-xl overflow-hidden">
                     {it.image ? (
                       <img
@@ -543,6 +543,7 @@ export default function GroupTrackContent({
 
             <div className="grid grid-cols-3 gap-4 text-center">
               <a
+                key="telegram"
                 href={`https://t.me/share/url?url=${encodedLanding}&text=${encodedMsg}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -568,6 +569,7 @@ export default function GroupTrackContent({
                 <span>تلگرام</span>
               </a>
               <a
+                key="whatsapp"
                 href={`https://wa.me/?text=${encodedMsg}%20${encodedLanding}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -587,6 +589,7 @@ export default function GroupTrackContent({
                 <span>واتساپ</span>
               </a>
               <a
+                key="instagram"
                 href={`https://www.instagram.com/?url=${encodedLanding}`}
                 target="_blank"
                 rel="noopener noreferrer"
