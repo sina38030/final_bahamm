@@ -209,10 +209,10 @@ function SearchContent() {
                   img: product.image || product.imageUrl || '',
                   name: product.name,
                   // Prefer numeric grams; ProductCard will format
-                  weight: (product as any).weight_grams ?? '1 کیلوگرم',
+                  weight: (product as any).weight_grams ?? 1000,
                   // star and sales from admin-calculated display fields if present
-                  star: (product as any).display_rating ?? '4.0',
-                  sales: (product as any).display_sales ?? '0',
+                  star: (product as any).display_rating ?? 0,
+                  sales: (product as any).display_sales ?? 0,
                   // Use friend_1/base as primary price for card
                   price: (product as any).friend_1_price ?? product.price ?? (product as any).base_price ?? 0,
                 };

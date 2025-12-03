@@ -219,6 +219,8 @@ class Order(Base):
     
     # Shipping consolidation
     ship_to_leader_address = Column(Boolean, default=False)  # Whether to ship to leader's address
+    # Metadata flags
+    is_invited_checkout = Column(Boolean, default=False)  # Track if order was created via invite link
     is_settlement_payment = Column(Boolean, default=False)  # If this is a settlement payment for price difference
     
     # Delivery information

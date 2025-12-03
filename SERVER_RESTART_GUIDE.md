@@ -6,13 +6,29 @@
 
 ---
 
+## ⚡ QUICK FIX FOR 502 ERROR
+
+If website shows 502 Bad Gateway error:
+
+```powershell
+# Kill root PM2 processes and restart properly
+ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "sudo pm2 stop all && sudo pm2 delete all && sudo pm2 save --force && pm2 stop all && pm2 delete all && cd /srv/app/backend && pm2 start .venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0 --port 8001 && cd /srv/app/frontend/frontend && sudo chown -R ubuntu:ubuntu .next && PORT=3000 pm2 start npm --name frontend -- run dev && pm2 save"
+```
+
+Then verify:
+```powershell
+ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "sleep 60 && pm2 status"
+```
+
+---
+
 ## ⚡ QUICK RESTART COMMANDS (Copy & Paste)
 
 ### Full Restart (Both Backend & Frontend)
 
 ```powershell
 # Connect and restart everything
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 stop all && pm2 delete all && cd /srv/app/backend && pm2 start .venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0 --port 8001 && cd /srv/app/frontend && PORT=3000 pm2 start npm --name frontend -- start && pm2 save"
+ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 stop all && pm2 delete all && cd /srv/app/backend && pm2 start .venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0 --port 8001 && cd /srv/app/frontend/frontend && PORT=3000 pm2 start npm --name frontend -- start && pm2 save"
 ```
 
 ### Restart Backend Only
@@ -71,7 +87,7 @@ pm2 start .venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0
 
 ### Step 3: Start Frontend
 ```bash
-cd /srv/app/frontend
+cd /srv/app/frontend/frontend
 PORT=3000 pm2 start npm --name frontend -- start
 ```
 
@@ -126,14 +142,25 @@ sudo fuser -k 3000/tcp
 sleep 2
 ```
 
-**Solution 2:** Check for zombie node processes
+**Solution 2:** Check what's using port 3000 and kill it
+```bash
+# Check what's listening on port 3000
+sudo ss -tulpn | grep :3000
+
+# If you see a PID, kill it:
+sudo kill -9 <PID>
+```
+
+**Solution 3:** Check for zombie node processes
 ```bash
 ps aux | grep node
 # Kill any Next.js processes
 sudo pkill -f "next start"
+# Or kill all node processes (CAUTION: this will restart PM2 processes)
+sudo killall -9 node
 ```
 
-**Solution 3:** Restart on different port temporarily, then switch back
+**Solution 4:** Restart on different port temporarily, then switch back
 ```bash
 PORT=3001 npm start  # Test if it works
 # If works, kill it and restart on 3000
@@ -153,6 +180,72 @@ pm2 delete all
 pm2 start ... --max-restarts 5
 ```
 
+### 502 Bad Gateway Error (Website Not Working)
+**Problem:** Frontend crashes constantly or returns 502 error  
+**Root Causes:**
+1. Zombie PM2 processes running as root
+2. Missing or corrupted production build
+3. Permission errors on `.next` directory
+
+**Complete Solution (Follow in Order):**
+
+#### Step 1: Check for Root PM2 Processes
+```bash
+# Check if root user has PM2 processes
+sudo pm2 list
+
+# If you see processes (especially with thousands of restarts), delete them:
+sudo pm2 stop all
+sudo pm2 delete all
+sudo pm2 save --force
+```
+
+#### Step 2: Check Production Build
+```bash
+# Check if BUILD_ID exists
+ls -la /srv/app/frontend/frontend/.next/BUILD_ID
+
+# If missing, check error logs
+pm2 logs frontend --err --lines 20 --nostream
+
+# If you see "Could not find a production build", temporarily use dev mode:
+pm2 delete frontend
+cd /srv/app/frontend/frontend
+PORT=3000 pm2 start npm --name frontend -- run dev
+pm2 save
+```
+
+#### Step 3: Fix Permissions
+```bash
+# Check ownership of .next directory
+ls -ld /srv/app/frontend/frontend/.next
+
+# If owned by root, fix it:
+sudo chown -R ubuntu:ubuntu /srv/app/frontend/frontend/.next
+
+# Restart frontend
+pm2 restart frontend
+```
+
+#### Step 4: Verify It's Working
+```bash
+# Wait 60 seconds for dev server to fully start
+sleep 60
+
+# Check status (should show "online" with stable uptime)
+pm2 status
+
+# Test frontend
+curl -s http://localhost:3000 | grep -o '<title>.*</title>'
+
+# Should show: <title>فروشگاه باهم</title>
+```
+
+**Prevention:** 
+- Never run PM2 commands as root (don't use `sudo pm2 start`)
+- Always use the ubuntu user for frontend/backend
+- Keep only one PM2 instance per user
+
 ---
 
 ## 📁 SERVER DIRECTORY STRUCTURE
@@ -164,10 +257,11 @@ pm2 start ... --max-restarts 5
 │   ├── .venv/              # Virtual environment (IMPORTANT!)
 │   ├── main.py             # Entry point
 │   └── app/                # Application code
-└── frontend/               # Frontend Next.js
-    ├── .next/              # Built files
-    ├── node_modules/       # Dependencies
-    └── package.json        # Project config
+└── frontend/               # Frontend repository root
+    └── frontend/           # Actual Frontend Next.js app (NESTED!)
+        ├── .next/          # Built files
+        ├── node_modules/   # Dependencies
+        └── package.json    # Project config
 ```
 
 ---
@@ -199,25 +293,31 @@ pm2 start ... --max-restarts 5
 ## 💡 IMPORTANT NOTES
 
 1. **Never use Docker commands** - Server runs WITHOUT Docker
-2. **Always use full venv path** for backend Python
-3. **Port 3000 must be free** before starting frontend
-4. **Check PM2 status** after any restart to ensure both services are "online"
-5. **Run `pm2 save`** after successful start to persist configuration
-6. **Nginx expects backend on 8001** and frontend on 3000 - don't change ports
-7. **If unsure, use the Quick Restart command** at the top of this guide
+2. **Never use `sudo pm2`** - ALWAYS run PM2 as ubuntu user, not root
+3. **Always use full venv path** for backend Python
+4. **Frontend is in a NESTED directory** - `/srv/app/frontend/frontend/` not `/srv/app/frontend/`
+5. **Port 3000 must be free** before starting frontend - check for zombie processes with `sudo ss -tulpn | grep :3000`
+6. **Check for root PM2 processes** - If getting 502 errors, run `sudo pm2 list` and delete any processes
+7. **Check PM2 status** after any restart to ensure both services are "online"
+8. **Run `pm2 save`** after successful start to persist configuration
+9. **Nginx expects backend on 8001** and frontend on 3000 - don't change ports
+10. **If unsure, use the Quick Restart command** at the top of this guide
 
 ---
 
 ## 🎯 SUCCESS CHECKLIST
 
 After restart, verify:
+- [ ] **No root PM2 processes:** Run `sudo pm2 list` - should show empty or no processes
 - [ ] Backend status: `online` (not `errored` or `stopped`)
 - [ ] Frontend status: `online` (not `errored` or `stopped`)
-- [ ] No restarts: ↺ column should be 0 or very low
+- [ ] No restarts: ↺ column should be 0 or very low (some initial restarts are normal)
+- [ ] Stable uptime: Wait 1-2 minutes, check status again - uptime should increase
 - [ ] Backend has memory: mem column > 90mb
 - [ ] Frontend has memory: mem column > 50mb
 - [ ] Website loads: https://bahamm.ir
 - [ ] API responds: https://bahamm.ir/api/health or similar endpoint
+- [ ] Frontend serves content: `curl http://localhost:3000 | grep title` shows site title
 
 ---
 
@@ -229,6 +329,16 @@ After restart, verify:
 
 ---
 
+## 📝 CHANGELOG
+
+**2025-12-02 (Latest Update):**
+- ✅ Added 502 Bad Gateway troubleshooting section
+- ✅ Added root PM2 process detection and cleanup
+- ✅ Added .next directory permission fix
+- ✅ Added development mode fallback when production build missing
+- ✅ Updated success checklist with root PM2 check
+- ✅ Verified and tested all solutions on production server
+
 **Last Updated:** 2025-12-02  
-**Tested and Working:** ✅
+**Tested and Working:** ✅ (Fixed 502 error, verified stable operation)
 

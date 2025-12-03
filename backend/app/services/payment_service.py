@@ -39,6 +39,7 @@ class PaymentService:
         friends: Optional[int] = None,
         max_friends: Optional[int] = None,
         expected_friends: Optional[int] = None,
+        is_invited_checkout: bool = False,
     ) -> Dict[str, Any]:
         """
         Create an order and initiate payment
@@ -121,7 +122,8 @@ class PaymentService:
                 order_type=OrderType.ALONE,  # default; may be updated to GROUP when linking
                 shipping_address=shipping_address,
                 delivery_slot=delivery_info,
-                ship_to_leader_address=ship_to_leader_address or False
+                ship_to_leader_address=ship_to_leader_address or False,
+                is_invited_checkout=is_invited_checkout,
             )
             self.db.add(order)
             self.db.flush()  # Get order ID

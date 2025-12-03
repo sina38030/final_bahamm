@@ -237,6 +237,7 @@ async def create_payment_order_public(
             friends=getattr(order_data, 'friends', None),
             max_friends=getattr(order_data, 'max_friends', None),
             expected_friends=getattr(order_data, 'expected_friends', None),
+            is_invited_checkout=bool(getattr(order_data, 'invite_code', None)),
         )
         
         if result["success"]:
@@ -331,6 +332,7 @@ async def create_payment_order(
             friends=getattr(order_data, 'friends', None),
             max_friends=getattr(order_data, 'max_friends', None),
             expected_friends=getattr(order_data, 'expected_friends', None),
+            is_invited_checkout=bool(getattr(order_data, 'invite_code', None)),
         )
         
         if result["success"]:
@@ -596,10 +598,9 @@ async def payment_callback(
         
         logger.info(f"✅ Order after verification: id={order.id}, group_order_id={order.group_order_id}, user_id={order.user_id}, order_type={order.order_type}, shipping_address={order.shipping_address[:50] if order.shipping_address else None}")
         
-        # ✅ FALLBACK: Check if this was an invited order even if group linking somehow failed
-        # This can happen if the invite code was invalid or the group was deleted
-        was_invited_checkout = False
-        if order.shipping_address and (
+        # ✅ Track invited checkout via persisted flag (primary) + legacy PENDING marker (fallback)
+        was_invited_checkout = bool(getattr(order, "is_invited_checkout", False))
+        if not was_invited_checkout and order.shipping_address and (
             order.shipping_address.startswith("PENDING_INVITE:") or
             "PENDING_INVITE:" in order.shipping_address
         ):
@@ -628,7 +629,8 @@ async def payment_callback(
             elif (group_order.leader_id is not None and 
                   order.user_id is not None and 
                   group_order.leader_id == order.user_id and
-                  order.user_id != 0):  # Additional check for invalid user_id
+                  order.user_id != 0 and
+                  not was_invited_checkout):  # Additional check for invalid user_id
                 # ✅ User is the leader → invite page (NULL-safe comparison)
                 is_leader = True
                 logger.info(f"Leader order detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /invite")
@@ -966,10 +968,10 @@ async def get_order_by_authority(
         
         # Leader/invitee hints
         group_order_id = getattr(order, "group_order_id", None)
-        is_invited = False
+        is_invited = bool(getattr(order, "is_invited_checkout", False))
         
         # ✅ CORRECT: Check if user is invited (has group_order_id but is NOT the leader)
-        if group_order_id:
+        if group_order_id and not is_invited:
             try:
                 group_order = db.query(GroupOrder).filter(GroupOrder.id == group_order_id).first()
                 if group_order:
