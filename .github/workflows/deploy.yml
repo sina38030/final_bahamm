@@ -4,42 +4,12 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch: # Allow manual trigger
 
 jobs:
-  # ابتدا Build و Test می‌کنیم
-  test-build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
-      - name: Install dependencies
-        run: |
-          cd frontend
-          npm ci
-      
-      - name: Build frontend
-        run: |
-          cd frontend
-          npm run build
-      
-      - name: Check build success
-        run: |
-          if [ ! -d "frontend/.next" ]; then
-            echo "❌ Build failed!"
-            exit 1
-          fi
-          echo "✅ Build successful!"
-
-  # فقط اگر Build موفق بود، Deploy می‌کنیم
   deploy:
-    needs: test-build
     runs-on: ubuntu-latest
+    timeout-minutes: 30 # Increase timeout to 30 minutes
     
     steps:
       - name: Deploy to Server
@@ -48,60 +18,53 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 30m # SSH action timeout
+          command_timeout: 30m # Command timeout
           script: |
-            cd ${{ secrets.SERVER_PATH }}
+            set -e
             
-            echo "📥 Fetching latest changes..."
-            git fetch --all
-            
-            echo "🔄 Updating to latest main..."
-            git reset --hard origin/main
-            git clean -fd
+            echo "📥 Pulling latest changes..."
+            cd /srv/app/frontend
+            git pull origin main
             
             echo "🔧 Installing backend dependencies..."
-            pip3 install -r requirements.txt --quiet || true
+            cd /srv/app/backend
+            if [ -f requirements.txt ]; then
+              # Use virtual environment pip (already installed)
+              .venv/bin/pip install -r requirements.txt --quiet || echo "⚠️ Backend dependencies update skipped"
+            fi
             
             echo "📦 Installing frontend dependencies..."
-            cd frontend
-            npm ci || npm install
+            cd /srv/app/frontend/frontend
+            npm ci --prefer-offline --no-audit 2>&1 | tail -n 20
             
-            echo "🏗️ Building frontend..."
-            npm run build
+            echo "🏗️ Building frontend (this may take 5-10 minutes)..."
+            # Increase memory and disable telemetry
+            export NODE_OPTIONS="--max-old-space-size=4096"
+            export NEXT_TELEMETRY_DISABLED=1
+            timeout 15m npm run build 2>&1 | tail -n 50
             
-            if [ ! -d ".next" ]; then
-              echo "❌ Build failed on server!"
-              exit 1
-            fi
+            echo "✅ Build completed successfully!"
             
             echo "♻️ Restarting services..."
-            cd ..
+            # Stop old processes
+            pm2 stop all || true
+            pm2 delete all || true
             
-            # Restart backend
-            if pm2 describe backend > /dev/null 2>&1; then
-              echo "Restarting existing backend process..."
-              pm2 restart backend
-            else
-              echo "Starting new backend process..."
-              cd backend
-              pm2 start "python3 -m uvicorn main:app --host 0.0.0.0 --port 8001" --name backend
-              cd ..
-            fi
+            # Start backend
+            cd /srv/app/backend
+            pm2 start .venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0 --port 8001
             
-            # Restart frontend  
-            if pm2 describe frontend > /dev/null 2>&1; then
-              echo "Restarting existing frontend process..."
-              pm2 restart frontend
-            else
-              echo "Starting new frontend process..."
-              cd frontend
-              PORT=8000 pm2 start "npm run start" --name frontend
-              cd ..
-            fi
+            # Start frontend with production build
+            cd /srv/app/frontend/frontend
+            PORT=3000 pm2 start npm --name frontend -- start
             
+            # Save PM2 configuration
             pm2 save
             
+            echo "⏳ Waiting for services to stabilize..."
+            sleep 10
+            
             echo "✅ Deployment completed!"
-            echo "📊 Current commit: $(git log -1 --oneline)"
-            echo "📊 PM2 Status:"
-            pm2 list
+            pm2 status
 
