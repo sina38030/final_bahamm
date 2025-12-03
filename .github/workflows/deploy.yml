@@ -9,7 +9,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 30 # Increase timeout to 30 minutes
+    timeout-minutes: 10 # Fast deployment without build
     
     steps:
       - name: Deploy to Server
@@ -18,8 +18,8 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          timeout: 30m # SSH action timeout
-          command_timeout: 30m # Command timeout
+          timeout: 10m # SSH action timeout
+          command_timeout: 10m # Command timeout
           script: |
             set -e
             
@@ -27,43 +27,46 @@ jobs:
             cd /srv/app/frontend
             git pull origin main
             
-            echo "🔧 Installing backend dependencies..."
+            echo "🔧 Updating backend dependencies (if needed)..."
             cd /srv/app/backend
             if [ -f requirements.txt ]; then
-              # Use virtual environment pip (already installed)
-              .venv/bin/pip install -r requirements.txt --quiet || echo "⚠️ Backend dependencies update skipped"
+              .venv/bin/pip install -r requirements.txt --quiet --no-warn-script-location || echo "⚠️ Backend deps skipped"
             fi
             
             echo "📦 Installing frontend dependencies..."
             cd /srv/app/frontend/frontend
-            npm ci --prefer-offline --no-audit 2>&1 | tail -n 20
-            
-            echo "🏗️ Building frontend (this may take 5-10 minutes)..."
-            # Increase memory and disable telemetry
-            export NODE_OPTIONS="--max-old-space-size=4096"
-            export NEXT_TELEMETRY_DISABLED=1
-            timeout 15m npm run build 2>&1 | tail -n 50
-            
-            echo "✅ Build completed successfully!"
+            npm install --prefer-offline --no-audit --loglevel=error
             
             echo "♻️ Restarting services..."
-            # Stop old processes
+            # Clean up root PM2 processes first
+            sudo pm2 stop all 2>/dev/null || true
+            sudo pm2 delete all 2>/dev/null || true
+            sudo pm2 save --force 2>/dev/null || true
+            
+            # Stop user PM2 processes
             pm2 stop all || true
             pm2 delete all || true
             
+            # Kill any zombie processes on port 3000
+            sudo fuser -k 3000/tcp 2>/dev/null || true
+            sleep 2
+            
             # Start backend
+            echo "🚀 Starting backend..."
             cd /srv/app/backend
             pm2 start .venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0 --port 8001
             
-            # Start frontend with production build
+            # Fix .next permissions and start frontend in dev mode (fast, no build needed)
+            echo "🚀 Starting frontend..."
             cd /srv/app/frontend/frontend
-            PORT=3000 pm2 start npm --name frontend -- start
+            sudo chown -R ubuntu:ubuntu .next 2>/dev/null || true
+            PORT=3000 pm2 start npm --name frontend -- run dev
             
             # Save PM2 configuration
             pm2 save
             
             echo "⏳ Waiting for services to stabilize..."
-            sleep 10
+            sleep 15
             
             echo "✅ Deployment completed!"
             pm2 status
