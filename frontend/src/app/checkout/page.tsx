@@ -938,6 +938,37 @@ function CheckoutPageContent() {
     console.log('💳 Payment method:', paymentMethod);
     console.log('🏠 Has address:', hasAddress);
     
+    // ✅ NEW SECURITY CHECK: Verify Telegram user matches authenticated user
+    // This prevents invited users from using the leader's token in Telegram mini app
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      const currentTelegramUser = tg.initDataUnsafe?.user;
+      
+      if (currentTelegramUser && user && user.telegram_id) {
+        const currentTgId = String(currentTelegramUser.id);
+        const tokenTgId = String(user.telegram_id);
+        
+        if (currentTgId !== tokenTgId) {
+          console.error('[Checkout] 🚨 SECURITY: Telegram ID mismatch detected!');
+          console.error('[Checkout]   Current Telegram user ID:', currentTgId);
+          console.error('[Checkout]   Token owner Telegram ID:', tokenTgId);
+          
+          alert('خطای احراز هویت. لطفا دوباره وارد شوید');
+          
+          // Clear invalid token and redirect to home
+          try {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user');
+          } catch {}
+          
+          router.push('/');
+          return;
+        } else {
+          console.log('[Checkout] ✅ Telegram ID verification passed:', currentTgId);
+        }
+      }
+    }
+    
     const canProceedWithoutAddress = isInvitedUser && greenToggle;
     if (!hasAddress && !canProceedWithoutAddress) {
       alert('لطفاً ابتدا آدرس خود را انتخاب کنید');

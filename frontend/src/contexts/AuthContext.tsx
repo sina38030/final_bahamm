@@ -361,6 +361,108 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
           } catch {}
           
+          // ✅ NEW FEATURE: Force re-authentication for invited users in Telegram mini app
+          // This ensures each invited user is authenticated with their OWN Telegram account
+          // preventing them from inheriting the leader's authentication token
+          const tg = window.Telegram.WebApp;
+          const currentTelegramUser = tg.initDataUnsafe?.user;
+          
+          if (currentTelegramUser) {
+            const currentTelegramId = String(currentTelegramUser.id);
+            const existingToken = localStorage.getItem('auth_token');
+            
+            // Check if there's an existing token and if the Telegram user matches
+            if (existingToken && user) {
+              const tokenTelegramId = user.telegram_id ? String(user.telegram_id) : null;
+              
+              if (tokenTelegramId && tokenTelegramId !== currentTelegramId) {
+                // Mismatch! The current Telegram user is different from the token owner
+                console.log('[AuthContext] 🔄 Telegram ID mismatch detected!');
+                console.log('[AuthContext]   Token owner Telegram ID:', tokenTelegramId);
+                console.log('[AuthContext]   Current Telegram user ID:', currentTelegramId);
+                console.log('[AuthContext]   Clearing old token and forcing re-authentication...');
+                
+                // Clear the old token
+                localStorage.removeItem('auth_token');
+                setToken(null);
+                setUser(null);
+                
+                // Force fresh Telegram authentication with the NEW user's data
+                console.log('[AuthContext] 🔑 Attempting Telegram login for invited user:', currentTelegramId);
+                
+                telegramLogin({
+                  init_data: tg.initData,
+                  init_data_unsafe: tg.initDataUnsafe
+                }).then(success => {
+                  if (success) {
+                    console.log('[AuthContext] ✅ Invited user authenticated successfully with their own account');
+                    // After successful auth, redirect to landingM
+                    setTimeout(() => {
+                      router.push(`/landingM?invite=${startParam}`);
+                    }, 500);
+                  } else {
+                    console.log('[AuthContext] ⚠️ Telegram auth failed, redirecting to landingM (will show phone auth modal)');
+                    // Redirect anyway, landingM will handle showing auth modal
+                    setTimeout(() => {
+                      router.push(`/landingM?invite=${startParam}`);
+                    }, 500);
+                  }
+                });
+                return;
+              } else if (!tokenTelegramId) {
+                // Token exists but no telegram_id (phone auth user)
+                // For invited users, we prefer Telegram auth, so clear and re-auth
+                console.log('[AuthContext] 🔄 Existing token has no telegram_id, forcing Telegram auth for invited user');
+                
+                localStorage.removeItem('auth_token');
+                setToken(null);
+                setUser(null);
+                
+                telegramLogin({
+                  init_data: tg.initData,
+                  init_data_unsafe: tg.initDataUnsafe
+                }).then(success => {
+                  if (success) {
+                    console.log('[AuthContext] ✅ Invited user authenticated with Telegram');
+                    setTimeout(() => {
+                      router.push(`/landingM?invite=${startParam}`);
+                    }, 500);
+                  } else {
+                    console.log('[AuthContext] ⚠️ Telegram auth failed, redirecting to landingM');
+                    setTimeout(() => {
+                      router.push(`/landingM?invite=${startParam}`);
+                    }, 500);
+                  }
+                });
+                return;
+              } else {
+                // Telegram IDs match - user is already authenticated correctly
+                console.log('[AuthContext] ✅ Telegram user already authenticated correctly');
+              }
+            } else if (!existingToken) {
+              // No token exists - need to authenticate the invited user
+              console.log('[AuthContext] 🔑 No existing token, authenticating invited user with Telegram ID:', currentTelegramId);
+              
+              telegramLogin({
+                init_data: tg.initData,
+                init_data_unsafe: tg.initDataUnsafe
+              }).then(success => {
+                if (success) {
+                  console.log('[AuthContext] ✅ Invited user authenticated successfully');
+                  setTimeout(() => {
+                    router.push(`/landingM?invite=${startParam}`);
+                  }, 500);
+                } else {
+                  console.log('[AuthContext] ⚠️ Telegram auth failed, redirecting to landingM');
+                  setTimeout(() => {
+                    router.push(`/landingM?invite=${startParam}`);
+                  }, 500);
+                }
+              });
+              return;
+            }
+          }
+          
           // Redirect to landingM with invite code
           setTimeout(() => {
             router.push(`/landingM?invite=${startParam}`);
