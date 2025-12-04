@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { API_BASE_URL } from '../utils/api';
+import { getApiUrl } from '../utils/api';
 import { apiClient } from '../utils/apiClient';
 import { syncTokenFromURL } from '../utils/crossDomainAuth';
 
@@ -687,7 +687,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Login (request OTP)
   const login = async (phone: string, userType: 'CUSTOMER' | 'MERCHANT') => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/send-verification`, {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/auth/send-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -711,7 +712,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Verify OTP
   const verifyOtp = async (code: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/verify`, {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/auth/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -766,7 +768,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       console.log('[AuthContext] Attempting Telegram login...');
       
-      const response = await fetch(`${API_BASE_URL}/auth/telegram-login`, {
+      const apiUrl = getApiUrl();
+      console.log('[AuthContext] Using API URL:', apiUrl);
+      
+      const response = await fetch(`${apiUrl}/auth/telegram-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(telegramUser)
@@ -913,14 +918,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      console.log(`[${new Date().toISOString()}] AuthContext: Sending fetch request to ${API_BASE_URL}/auth/complete-profile`);
+      const apiUrl = getApiUrl();
+      console.log(`[${new Date().toISOString()}] AuthContext: Sending fetch request to ${apiUrl}/auth/complete-profile`);
       const startTime = Date.now();
       
       // Simulate slow network for testing
       console.log(`[${new Date().toISOString()}] AuthContext: Adding artificial delay (2 seconds) for testing`);
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      const response = await fetch(`${API_BASE_URL}/auth/complete-profile`, {
+      const response = await fetch(`${apiUrl}/auth/complete-profile`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

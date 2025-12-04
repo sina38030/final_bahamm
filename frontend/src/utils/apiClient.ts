@@ -2,7 +2,7 @@
  * API Client with automatic JWT token attachment
  */
 
-import { API_BASE_URL } from './api';
+import { getApiUrl } from './api';
 import { safeStorage } from './safeStorage';
 
 // Custom fetch wrapper that automatically adds JWT token
@@ -25,7 +25,8 @@ export const apiClient = {
       headers,
     };
 
-    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+    const apiBaseUrl = getApiUrl();
+    const url = endpoint.startsWith('http') ? endpoint : `${apiBaseUrl}${endpoint}`;
     
     try {
       console.log(`[ApiClient] ${config.method || 'GET'} ${url}`);
@@ -95,7 +96,8 @@ export const apiClient = {
       body: formData,
     };
 
-    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+    const apiBaseUrl = getApiUrl();
+    const url = endpoint.startsWith('http') ? endpoint : `${apiBaseUrl}${endpoint}`;
     
     try {
       console.log(`[ApiClient] POST (FormData) ${url}`);
