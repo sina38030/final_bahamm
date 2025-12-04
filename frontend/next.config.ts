@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
 	// Enable standalone output for Docker
 	output: 'standalone',
 	
+	// Allow cross-origin requests from production domain in dev mode
+	allowedDevOrigins: ['https://bahamm.ir', 'https://www.bahamm.ir', 'http://bahamm.ir', 'http://www.bahamm.ir'],
+	
 	// Development mode optimizations
 	modularizeImports: {
 		'@/components': {
