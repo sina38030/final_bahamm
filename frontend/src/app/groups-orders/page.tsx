@@ -516,23 +516,10 @@ export default function GroupsOrdersPage() {
       const res = await apiClient.get('/group-orders/my-groups-and-orders');
       if (!res.ok) {
         const text = await res.text().catch(() => '');
-        let errorMessage = `HTTP ${res.status}`;
-        try {
-          const errorData = JSON.parse(text);
-          errorMessage = errorData.detail || errorData.message || text || errorMessage;
-        } catch {
-          errorMessage = text || errorMessage;
-        }
-        throw new Error(errorMessage);
+        throw new Error(text || `HTTP ${res.status}`);
       }
       
-      let data;
-      try {
-        data = await res.json();
-      } catch (jsonError) {
-        console.error('Failed to parse JSON response:', jsonError);
-        throw new Error('خطا در پردازش پاسخ سرور');
-      }
+      const data = await res.json();
 
       // فقط گروه‌هایی که کاربر لیدر آن‌هاست در تب «گروه‌ها» نمایش داده شوند
       const leaderGroupsRaw = (data.groups || []).filter((g: any) => g && g.is_leader === true);
@@ -600,10 +587,7 @@ export default function GroupsOrdersPage() {
     } catch (e: any) {
       console.error('=== UNIFIED API ERROR ===');
       console.error('Error:', e);
-      console.error('Error message:', e?.message);
-      console.error('Error stack:', e?.stack);
-      const errorMessage = e?.message || 'خطا در دریافت اطلاعات';
-      setOrdersError(errorMessage);
+      setOrdersError(e?.message || 'خطا در دریافت اطلاعات');
       setGroupIds([]);
       setGroupsMeta([]);
       setOrders([]);
