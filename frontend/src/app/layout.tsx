@@ -29,8 +29,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fa" dir="rtl" className={iransans.variable} suppressHydrationWarning>
       <head>
         {/* Preconnect links removed to avoid localhost references in production */}
-        {/* Telegram Mini App Script */}
-        <script src="https://telegram.org/js/telegram-web-app.js" async></script>
+        {/* Telegram Mini App Script - MUST be synchronous for Android compatibility */}
+        <script src="https://telegram.org/js/telegram-web-app.js"></script>
         {/* Early chunk-error recovery: catch failed Next.js chunk loads and reload once */}
         <script
           dangerouslySetInnerHTML={{

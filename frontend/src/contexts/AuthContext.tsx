@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { getApiUrl } from '../utils/api';
 import { apiClient } from '../utils/apiClient';
 import { syncTokenFromURL } from '../utils/crossDomainAuth';
+import { isUsingMemoryStorage } from '../utils/safeStorage';
 
 // Define user type
 export interface User {
@@ -159,6 +160,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const loadUserFromStorage = async () => {
       try {
+        // Platform detection for debugging Android issues
+        const tg = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null;
+        const usingMemory = isUsingMemoryStorage();
+        
+        if (tg) {
+          console.log('[AuthContext] 📱 Telegram Mini App detected');
+          console.log('[AuthContext] Platform:', tg.platform || 'unknown');
+          console.log('[AuthContext] Version:', tg.version || 'unknown');
+          console.log('[AuthContext] InitData available:', !!tg.initData);
+          console.log('[AuthContext] ColorScheme:', tg.colorScheme || 'unknown');
+          console.log('[AuthContext] Hostname:', window.location.hostname);
+          console.log('[AuthContext] Protocol:', window.location.protocol);
+          if (usingMemory) {
+            console.warn('[AuthContext] ⚠️ Using in-memory storage fallback! Auth data will NOT persist across navigations.');
+          }
+        } else {
+          console.log('[AuthContext] 🌐 Running in browser (not Telegram)');
+        }
+        
+        if (usingMemory) {
+          console.warn('[AuthContext] ⚠️ localStorage unavailable - using memory storage. This may cause auth issues on page refresh.');
+        }
+        
         // First, check if there's a token in the URL (cross-domain sync)
         const tokenSyncedFromURL = syncTokenFromURL();
         if (tokenSyncedFromURL) {
@@ -815,9 +839,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     
     console.log('[AuthContext] Telegram WebApp detected, attempting auto-login...');
+    console.log('[AuthContext] Platform:', tg.platform, '| Version:', tg.version);
     
     // Mark Telegram WebApp as ready
     tg.ready();
+    
+    // Expand the mini app (required for Android compatibility)
+    try {
+      tg.expand();
+      console.log('[AuthContext] Telegram WebApp expanded successfully');
+    } catch (e) {
+      console.warn('[AuthContext] Failed to expand Telegram WebApp:', e);
+    }
     
     // Attempt auto-login
     const success = await telegramLogin();

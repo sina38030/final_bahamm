@@ -5,6 +5,10 @@
  * the correct API base URL to use. Now properly handles SSR and
  * Android WebView hydration issues.
  */
+
+// Debug flag - set to true to see API URL detection logs
+const DEBUG_API_URL = false;
+
 export function getApiUrl(): string {
   // During SSR, return production URL to avoid empty string issues
   if (typeof window === 'undefined') {
@@ -28,12 +32,23 @@ export function getApiUrl(): string {
   // Auto-detect based on hostname
   const protocol = window.location.protocol;
   const hostname = window.location.hostname;
+  
+  // Debug logging for Android troubleshooting
+  if (DEBUG_API_URL) {
+    const tgPlatform = (window as any).Telegram?.WebApp?.platform || 'unknown';
+    console.log('[API] Detection - hostname:', hostname, '| protocol:', protocol, '| Telegram platform:', tgPlatform);
+  }
 
   // Production domains: use nginx reverse proxy (same domain)
+  // IMPORTANT: Always use HTTPS for production to avoid mixed content issues on Android
   if (hostname === 'bahamm.ir' || 
       hostname === 'www.bahamm.ir' || 
       hostname === 'staging.bahamm.ir') {
-    return `${protocol}//${hostname}/api`;
+    // Force HTTPS for production (Android WebView may report http incorrectly)
+    const safeProtocol = 'https:';
+    const apiUrl = `${safeProtocol}//${hostname}/api`;
+    if (DEBUG_API_URL) console.log('[API] Using production URL:', apiUrl);
+    return apiUrl;
   }
 
   // Development: direct connection to backend
@@ -42,6 +57,8 @@ export function getApiUrl(): string {
   }
 
   // Production fallback (important for Android WebView compatibility)
+  // This catches cases where Android Telegram WebView uses a different hostname
+  if (DEBUG_API_URL) console.log('[API] Using fallback production URL');
   return 'https://bahamm.ir/api';
 }
 

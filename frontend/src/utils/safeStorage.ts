@@ -1,6 +1,10 @@
 /**
  * Safe wrapper around localStorage that gracefully falls back
- * when Storage is unavailable (e.g. private mode, embedded WebViews).
+ * when Storage is unavailable (e.g. private mode, embedded WebViews like Android Telegram).
+ * 
+ * IMPORTANT: On Android Telegram WebView, localStorage may be restricted.
+ * This wrapper provides a working in-memory fallback that persists data
+ * for the duration of the session.
  */
 
 type StorageLike = {
@@ -12,22 +16,32 @@ type StorageLike = {
   setItem(key: string, value: string): void;
 };
 
+// In-memory storage that actually stores data (for Android WebView fallback)
+const memoryStore: Map<string, string> = new Map();
 const memoryStorage: StorageLike = {
   get length() {
-    return 0;
+    return memoryStore.size;
   },
-  clear() {},
-  getItem() {
-    return null;
+  clear() {
+    memoryStore.clear();
   },
-  key() {
-    return null;
+  getItem(key: string) {
+    return memoryStore.get(key) ?? null;
   },
-  removeItem() {},
-  setItem() {},
+  key(index: number) {
+    const keys = Array.from(memoryStore.keys());
+    return keys[index] ?? null;
+  },
+  removeItem(key: string) {
+    memoryStore.delete(key);
+  },
+  setItem(key: string, value: string) {
+    memoryStore.set(key, value);
+  },
 };
 
 let resolvedStorage: StorageLike | null = null;
+let usingMemoryFallback = false;
 
 function resolveStorage(): StorageLike {
   if (resolvedStorage) {
@@ -36,6 +50,7 @@ function resolveStorage(): StorageLike {
 
   if (typeof window === 'undefined') {
     resolvedStorage = memoryStorage;
+    usingMemoryFallback = true;
     return resolvedStorage;
   }
 
@@ -45,11 +60,20 @@ function resolveStorage(): StorageLike {
     storage.setItem(testKey, '1');
     storage.removeItem(testKey);
     resolvedStorage = storage;
-  } catch {
+  } catch (e) {
+    console.warn('[SafeStorage] ⚠️ localStorage unavailable, using in-memory fallback. Error:', e);
+    console.warn('[SafeStorage] This may happen in Android Telegram WebView or private browsing mode.');
     resolvedStorage = memoryStorage;
+    usingMemoryFallback = true;
   }
 
   return resolvedStorage;
+}
+
+// Export flag to check if we're using memory fallback
+export function isUsingMemoryStorage(): boolean {
+  resolveStorage(); // Ensure storage is resolved
+  return usingMemoryFallback;
 }
 
 export const safeStorage: StorageLike = {
