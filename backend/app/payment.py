@@ -65,12 +65,14 @@ class ZarinPalPayment:
             logger.info(f"Sending payment request to ZarinPal: {self.base_url}request.json")
             logger.info(f"Request data: {data}")
             
-            response = requests.post(
-                f"{self.base_url}request.json",
-                json=data,  # Use json parameter instead of data with json.dumps
-                headers=headers,
-                timeout=10
-            )
+            # Use httpx for async support with timeout
+            import httpx
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(
+                    f"{self.base_url}request.json",
+                    json=data,
+                    headers=headers
+                )
             
             logger.info(f"ZarinPal response status: {response.status_code}")
             logger.info(f"ZarinPal response text: {response.text}")
@@ -154,12 +156,14 @@ class ZarinPalPayment:
                 'Accept': 'application/json'
             }
             
-            response = requests.post(
-                f"{self.base_url}verify.json",
-                json=data,  # Use json parameter instead of data with json.dumps
-                headers=headers,
-                timeout=10
-            )
+            # Use httpx for async support with timeout  
+            import httpx
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(
+                    f"{self.base_url}verify.json",
+                    json=data,
+                    headers=headers
+                )
             
             result = response.json()
             logger.info(f"ZarinPal payment verification response: {result}")

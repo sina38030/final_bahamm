@@ -11,6 +11,7 @@ from app import models
 from app.routes import init_routes
 from app.utils.logging import get_logger
 from app.services.group_expiry import group_expiry_service
+from app.middleware.request_tracking import RequestTrackingMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import joinedload
 
@@ -166,6 +167,11 @@ app.add_middleware(
 # Enable gzip compression on both apps for faster responses over the wire
 app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=5)
 api_app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=5)
+
+# Add request tracking middleware to monitor slow requests and prevent 524 timeouts
+# This MUST be added after CORS and GZip but before routes
+app.add_middleware(RequestTrackingMiddleware)
+api_app.add_middleware(RequestTrackingMiddleware)
 
 @app.get("/")
 async def root():

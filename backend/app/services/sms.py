@@ -81,12 +81,13 @@ class SMSService:
                 logger.info(f"Melipayamak API URL: {self.melipayamak_api_url}")
                 
                 # Send request with timeout and proper error handling
+                # Reduced timeout to 15s to prevent request timeouts
                 try:
                     logger.info("Sending HTTP POST request to Melipayamak OTP API")
                     response = requests.post(
                         self.melipayamak_api_url, 
                         json=data,
-                        timeout=30,  # 30 second timeout
+                        timeout=15,  # 15 second timeout (reduced from 30s)
                         headers={'Content-Type': 'application/json'}
                     )
                     logger.info(f"Melipayamak response status code: {response.status_code}")
