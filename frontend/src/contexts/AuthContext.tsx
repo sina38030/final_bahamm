@@ -198,6 +198,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (storedToken && storedUser) {
           const parsedUser = JSON.parse(storedUser);
           console.log('[AuthContext] Loading user from localStorage:', parsedUser);
+          
+          // ✅ CRITICAL FIX: Validate that stored user matches current Telegram user
+          // This prevents showing the wrong account when switching Telegram users on the same device
+          if (isTelegramEnv && tg?.initDataUnsafe?.user?.id) {
+            const currentTelegramId = tg.initDataUnsafe.user.id;
+            const storedTelegramId = parsedUser.telegram_id;
+            
+            console.log('[AuthContext] 🔍 Telegram account validation:');
+            console.log('[AuthContext]   Current Telegram ID:', currentTelegramId);
+            console.log('[AuthContext]   Stored user Telegram ID:', storedTelegramId);
+            
+            if (storedTelegramId && storedTelegramId !== currentTelegramId) {
+              console.warn('[AuthContext] ⚠️ TELEGRAM ACCOUNT MISMATCH! Stored user belongs to different account.');
+              console.log('[AuthContext] 🔄 Clearing old session and logging in with current Telegram account...');
+              
+              // Clear old session
+              localStorage.removeItem('auth_token');
+              localStorage.removeItem('user');
+              setToken(null);
+              setUser(null);
+              
+              // Force login with current Telegram account
+              const telegramAuthSuccess = await checkTelegramAuth();
+              if (telegramAuthSuccess) {
+                console.log('[AuthContext] ✅ Successfully logged in with current Telegram account');
+              } else {
+                console.error('[AuthContext] ❌ Failed to login with current Telegram account');
+              }
+              return; // Exit early after re-authentication
+            } else {
+              console.log('[AuthContext] ✅ Telegram account validation passed');
+            }
+          }
+          
           setToken(storedToken);
           setUser(parsedUser);
           
@@ -208,9 +242,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const response = await apiClient.get('/users/me');
             if (response.ok) {
               freshUserData = await response.json();
-              console.log('[AuthContext] User data refreshed from server, coins:', freshUserData.coins);
+              console.log('[AuthContext] User data refreshed from server, coins:', freshUserData?.coins);
               setUser(freshUserData);
-              localStorage.setItem('user', JSON.stringify(freshUserData));
+              if (freshUserData) {
+                localStorage.setItem('user', JSON.stringify(freshUserData));
+              }
             }
           } catch (err) {
             console.error('[AuthContext] Failed to refresh user data:', err);
