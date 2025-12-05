@@ -192,7 +192,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const storedToken = localStorage.getItem('auth_token');
         const storedUser = localStorage.getItem('user');
 
-        const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
+        // Reuse the detected Telegram WebApp instance above to avoid redeclaration issues
         const isTelegramEnv = Boolean(tg && tg.initData);
 
         if (storedToken && storedUser) {
