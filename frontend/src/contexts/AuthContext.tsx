@@ -192,24 +192,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const storedToken = localStorage.getItem('auth_token');
         const storedUser = localStorage.getItem('user');
 
+        const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
+        const isTelegramEnv = Boolean(tg && tg.initData);
+
         if (storedToken && storedUser) {
-          console.log('[AuthContext] Loading user from localStorage:', JSON.parse(storedUser));
-          setToken(storedToken);
           const parsedUser = JSON.parse(storedUser);
+          console.log('[AuthContext] Loading user from localStorage:', parsedUser);
+          setToken(storedToken);
           setUser(parsedUser);
           
           // Immediately fetch fresh user data from server to get latest coins
           console.log('[AuthContext] Fetching fresh user data from server...');
+          let freshUserData: User | null = null;
           try {
             const response = await apiClient.get('/users/me');
             if (response.ok) {
-              const freshUserData = await response.json();
+              freshUserData = await response.json();
               console.log('[AuthContext] User data refreshed from server, coins:', freshUserData.coins);
               setUser(freshUserData);
               localStorage.setItem('user', JSON.stringify(freshUserData));
             }
           } catch (err) {
             console.error('[AuthContext] Failed to refresh user data:', err);
+          }
+
+          // If we are inside Telegram but the stored user is not linked to Telegram, force Telegram auth
+          const telegramIdInUser = (freshUserData || parsedUser)?.telegram_id;
+          if (isTelegramEnv && !telegramIdInUser) {
+            console.log('[AuthContext] Telegram environment detected but user lacks telegram_id. Forcing Telegram login to bind account.');
+            await telegramLogin({
+              init_data: tg?.initData,
+              init_data_unsafe: tg?.initDataUnsafe
+            });
           }
         } else {
           console.log('[AuthContext] No stored auth data found');
