@@ -38,7 +38,8 @@ class NotificationService:
 
         # Determine notification channels based on user type
         should_send_sms = user.phone_number and user.is_phone_verified
-        should_send_telegram = user.telegram_id is not None
+        telegram_id = getattr(user, "telegram_id", None)
+        should_send_telegram = telegram_id is not None
 
         logger.info(f"📱 send_notification for user {user.id}: should_send_sms={should_send_sms}, should_send_telegram={should_send_telegram}")
 
@@ -67,11 +68,11 @@ class NotificationService:
         if should_send_telegram:
             try:
                 telegram_success = await telegram_service.send_notification(
-                    str(user.telegram_id), title, telegram_message, order_id
+                    str(telegram_id), title, telegram_message, order_id
                 )
                 results["telegram"] = telegram_success
                 if telegram_success:
-                    logger.info(f"Telegram notification sent to user {user.id} (telegram_id: {user.telegram_id})")
+                    logger.info(f"Telegram notification sent to user {user.id} (telegram_id: {telegram_id})")
                 else:
                     logger.error(f"Failed to send Telegram notification to user {user.id}")
             except Exception as e:

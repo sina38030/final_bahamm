@@ -986,13 +986,19 @@ class PaymentService:
                 new_member = self.db.query(User).filter(User.id == new_member_order.user_id).first()
             member_handle = self._format_group_member_identifier(new_member, new_member_order)
 
-            if leader.telegram_id:
+            telegram_id = getattr(leader, "telegram_id", None)
+            if telegram_id:
                 await self._send_telegram_leader_group_join_notification(
                     leader=leader,
                     group_order=group_order,
                     member_handle=member_handle
                 )
                 return
+            else:
+                logger.warning(
+                    f"Leader {leader.id} is a Telegram user but has no telegram_id stored; "
+                    f"skipping Telegram notification for group {group_id}"
+                )
 
             if not leader.phone_number or not leader.is_phone_verified:
                 logger.info(f"Leader {leader.id} has no verified phone number, skipping SMS notification")
