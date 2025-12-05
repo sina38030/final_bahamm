@@ -27,7 +27,6 @@ class Settings(BaseSettings):
     # Can be overridden via environment variable
     PAYMENT_CALLBACK_BASE_URL: Optional[str] = None  # Will be auto-detected if None
     
-    @property
     def get_payment_callback_base_url(self) -> str:
         """Auto-detect callback URL based on FRONTEND_URL"""
         if self.PAYMENT_CALLBACK_BASE_URL:
@@ -40,7 +39,6 @@ class Settings(BaseSettings):
             # Production: use nginx proxy path
             return f"{self.FRONTEND_URL}/backend/api"
 
-    @property
     def get_frontend_public_url(self) -> str:
         """Return the public-facing frontend base URL (no backend path).
 

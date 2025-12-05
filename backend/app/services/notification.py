@@ -120,7 +120,7 @@ class NotificationService:
         return telegram_text
 
     def _groups_orders_link(self) -> str:
-        base = (self._settings.get_frontend_public_url or "").strip()
+        base = (self._settings.get_frontend_public_url() or "").strip()
         if not base or "localhost" in base or "127.0.0.1" in base:
             base = "https://bahamm.ir"
         if base.endswith("/"):

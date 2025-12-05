@@ -252,7 +252,7 @@ class PaymentService:
             result = await zarinpal.request_payment(
                 amount=total_amount,
                 description=description,
-                callback_url=f"{settings.get_payment_callback_base_url}/payment/callback",
+                callback_url=f"{settings.get_payment_callback_base_url()}/payment/callback",
                 mobile=mobile,
                 email=email
             )
@@ -332,6 +332,10 @@ class PaymentService:
                 order.status = "در انتظار"
                 order.payment_ref_id = verification_result["ref_id"]
                 order.paid_at = datetime.now(TEHRAN_TZ)
+                
+                # Initialize settlement tracking flags
+                settlement_paid_flag = False
+                settlement_message = None
                 
                 # Initialize notification tracking
                 notification_group_id = None
@@ -921,7 +925,7 @@ class PaymentService:
             payment_result = await zarinpal.request_payment(
                 amount=amount_rial,
                 description=description,
-                callback_url=f"{settings.get_payment_callback_base_url}/payment/callback"
+                callback_url=f"{settings.get_payment_callback_base_url()}/payment/callback"
             )
             
             logger.info(f"ZarinPal payment result: {payment_result}")
@@ -1141,7 +1145,7 @@ class PaymentService:
             
             # Determine the API base URL
             # Try to use the frontend public URL, fallback to localhost
-            api_base = settings.get_frontend_public_url or "http://localhost:3000"
+            api_base = settings.get_frontend_public_url() or "http://localhost:3000"
             
             # Call the frontend API endpoint that has the correct pricing logic
             api_url = f"{api_base}/api/groups/{group_id}"
