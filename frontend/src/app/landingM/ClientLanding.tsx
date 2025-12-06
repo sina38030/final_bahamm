@@ -51,9 +51,6 @@ interface SelectionProduct extends Product {
 }
 
 export default function ClientLanding({ invite, initialProducts, initialGroupOrderData, initialGroupMeta, initialServerNowMs }: { invite: string; initialProducts?: any[]; initialGroupOrderData?: any; initialGroupMeta?: any; initialServerNowMs?: number }) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9ef5ac87-412c-432c-8165-a8064261b9c1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientLanding.tsx:53',message:'Component mount - initial props',data:{hasInvite:!!invite,initialProductsCount:initialProducts?.length||0,hasInitialGroupData:!!initialGroupOrderData,hasInitialGroupMeta:!!initialGroupMeta,initialServerNowMs},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-  // #endregion
   const router = useRouter();
   const { items: globalCartItems, addItem, updateQuantity, removeItem } = useCart();
   const [rotatingTextIndex, setRotatingTextIndex] = useState(0);
@@ -67,9 +64,6 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
   const [groupOrderData, setGroupOrderData] = useState<any>(initialGroupOrderData ?? null);
   const [loading, setLoading] = useState(false);
   const [productsData, setProductsData] = useState<any[]>(Array.isArray(initialProducts) ? initialProducts : []);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9ef5ac87-412c-432c-8165-a8064261b9c1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientLanding.tsx:66',message:'State initialized',data:{productsDataCount:Array.isArray(initialProducts)?initialProducts.length:0,hasGroupOrderData:!!(initialGroupOrderData??null)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-  // #endregion
   const [authOpen, setAuthOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<null | 'leader' | 'custom'>(null);
   const [groupStatus, setGroupStatus] = useState<'ongoing' | 'success' | 'failed' | null>(null);
@@ -91,9 +85,6 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
         if (Number.isFinite(srvNow) && srvNow > 0) {
           const clientNow = Date.now();
           const skew = clientNow - srvNow;
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9ef5ac87-412c-432c-8165-a8064261b9c1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientLanding.tsx:87',message:'Countdown expiry calculation',data:{expiresAtMs:initialGroupMeta.expiresAtMs,serverNowMs:srvNow,clientNow,skew,finalExpiryMs:Number(initialGroupMeta.expiresAtMs)+skew},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           return Number(initialGroupMeta.expiresAtMs) + skew;
         }
         return Number(initialGroupMeta.expiresAtMs);
@@ -301,9 +292,6 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
   }, [selectionProducts, groupOrderData]);
 
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9ef5ac87-412c-432c-8165-a8064261b9c1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientLanding.tsx:294',message:'Products fetch useEffect - entry',data:{hasInitialProducts:Array.isArray(initialProducts)&&initialProducts.length>0,initialProductsCount:initialProducts?.length||0,apiBase},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     if (Array.isArray(initialProducts) && initialProducts.length > 0) {
       debugLog('📦 Using server-provided initial products:', `count=${initialProducts.length}`);
       return;
@@ -314,15 +302,9 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
       .then((data) => {
         debugLog('📦 Products data loaded:', Array.isArray(data) ? `count=${data.length}` : data);
         setProductsData(data);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9ef5ac87-412c-432c-8165-a8064261b9c1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientLanding.tsx:304',message:'Products fetch - success',data:{productsCount:Array.isArray(data)?data.length:0,dataType:typeof data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
       })
       .catch((error) => {
         console.error('❌ Error fetching products:', error);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9ef5ac87-412c-432c-8165-a8064261b9c1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientLanding.tsx:309',message:'Products fetch - error',data:{error:String(error),errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
       });
   }, [apiBase]);
 
@@ -349,9 +331,6 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
   useEffect(() => {
     const inviteCode = invite;
     debugLog('🔍 Invite code from URL:', inviteCode);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9ef5ac87-412c-432c-8165-a8064261b9c1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientLanding.tsx:331',message:'Group order fetch useEffect - entry',data:{inviteCode,hasInitialGroupOrderData:!!(initialGroupOrderData&&initialGroupOrderData.success),apiBase},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     try {
       if (inviteCode) localStorage.setItem('last_invite_code', inviteCode);
     } catch {}
@@ -361,9 +340,6 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
         debugLog('📋 Group data items:', initialGroupOrderData.items?.length || 0);
         setGroupOrderData(initialGroupOrderData);
         const statusRaw = String(initialGroupOrderData?.status || '').toLowerCase();
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9ef5ac87-412c-432c-8165-a8064261b9c1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientLanding.tsx:342',message:'Group order - using SSR data',data:{itemsCount:initialGroupOrderData.items?.length||0,status:statusRaw,inviteCode},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         if (statusRaw.includes('final') || statusRaw.includes('success') || statusRaw.includes('موفق')) {
           setGroupStatus('success');
           setDisabledJoin(true);
@@ -382,9 +358,6 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
           .then(data => {
             debugLog('📋 Raw response data:', data?.success ? 'success' : 'fail');
             debugLog('📋 Group data items:', data?.items?.length || 0);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/9ef5ac87-412c-432c-8165-a8064261b9c1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientLanding.tsx:360',message:'Group order fetch - success',data:{success:!!data.success,itemsCount:data?.items?.length||0,status:data?.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
             if (data.success) {
               setGroupOrderData(data);
               const statusRaw2 = String(data?.status || '').toLowerCase();
@@ -405,9 +378,6 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
           })
           .catch(error => {
             console.error('❌ Error fetching group order:', error);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/9ef5ac87-412c-432c-8165-a8064261b9c1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientLanding.tsx:381',message:'Group order fetch - error',data:{error:String(error),errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
           })
           .finally(() => {
             setLoading(false);
@@ -582,9 +552,6 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
   const handleAddToCart = (productId: number) => {
     setCustomCart(prev => {
       const newCart = { ...prev, [productId]: 1 };
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9ef5ac87-412c-432c-8165-a8064261b9c1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientLanding.tsx:552',message:'Cart - add to cart',data:{productId,newCustomCart:Object.keys(newCart).length,globalCartItemsCount:globalCartItems.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
       return newCart;
     });
     try {
