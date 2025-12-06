@@ -3,7 +3,20 @@
  */
 
 function sanitizeBase(url: string): string {
-  return url.replace(/\/$/, '');
+  return url.replace(/\/+$/, '');
+}
+
+function normalizeBackendCandidate(value?: string | null): string | null {
+  if (!value || typeof value !== 'string') return null;
+  let trimmed = sanitizeBase(value.trim());
+  if (!trimmed) return null;
+
+  // If the candidate already includes /api, strip it so getApiBase can re-append consistently
+  if (trimmed.toLowerCase().endsWith('/api')) {
+    trimmed = sanitizeBase(trimmed.slice(0, -4));
+  }
+
+  return trimmed || null;
 }
 
 function resolveBackendOrigin(): string {
@@ -17,10 +30,18 @@ function resolveBackendOrigin(): string {
     process.env.INTERNAL_BACKEND_URL,
     process.env.API_BASE_URL,
     process.env.NEXT_PUBLIC_API_URL,
-  ].filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+    process.env.NEXT_PUBLIC_API_BASE_URL,
+    process.env.NEXT_PUBLIC_BACKEND_URL,
+  ];
 
-  const raw = candidates.length > 0 ? candidates[0]! : 'http://localhost:8001';
-  return sanitizeBase(raw.trim());
+  for (const candidate of candidates) {
+    const resolved = normalizeBackendCandidate(candidate);
+    if (resolved) {
+      return resolved;
+    }
+  }
+
+  return 'http://localhost:8001';
 }
 
 /**
