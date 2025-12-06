@@ -1,6 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiBase } from '@/utils/serverBackend';
 
+const DEFAULT_PROD_API_BASE = 'https://bahamm.ir/backend/api';
+
+function sanitizeBase(url: string): string {
+  return url.replace(/\/+$/, '');
+}
+
+function getResolvedApiBase(request: NextRequest): string {
+  let apiBase = getApiBase();
+  const host = request.headers.get('host') || '';
+  const isProdHost = /bahamm\.ir$/i.test(host);
+
+  if (isProdHost && apiBase.includes('localhost')) {
+    const fallback = sanitizeBase(
+      process.env.PAYMENT_API_FALLBACK || DEFAULT_PROD_API_BASE
+    );
+    console.warn(
+      `[Payment API] Host ${host} resolved backend to localhost (${apiBase}). Falling back to ${fallback}`
+    );
+    apiBase = fallback;
+  }
+
+  return apiBase;
+}
+
+async function readResponseBody(response: Response): Promise<{ data: any; raw: string }> {
+  const raw = await response.text();
+  if (!raw) {
+    return { data: {}, raw };
+  }
+
+  try {
+    return { data: JSON.parse(raw), raw };
+  } catch {
+    return { data: { raw }, raw };
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -84,17 +121,29 @@ export async function POST(request: NextRequest) {
       console.log('[Payment API] No auth token found, proceeding as guest');
     }
 
-    const response = await fetch(`${getApiBase()}${endpoint}`, {
+    let apiBase = getResolvedApiBase(request);
+    if (!apiBase.endsWith('/api')) {
+      apiBase = `${apiBase}/api`;
+    }
+
+    const targetUrl = `${apiBase}${endpoint}`;
+    console.log(`[Payment API] Forwarding checkout request to ${targetUrl} (items=${items?.length || 0})`);
+
+    const response = await fetch(targetUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
     });
 
-    const data = await response.json();
+    const { data, raw } = await readResponseBody(response);
 
     if (!response.ok) {
+      console.error(
+        `[Payment API] Backend responded ${response.status} for ${targetUrl}:`,
+        data?.detail || data?.error || raw?.slice(0, 500)
+      );
       return NextResponse.json(
-        { error: data.detail || 'Payment request failed' },
+        { error: data.detail || data.error || 'Payment request failed' },
         { status: response.status }
       );
     }
