@@ -990,30 +990,33 @@ class PaymentService:
                 new_member = self.db.query(User).filter(User.id == new_member_order.user_id).first()
             member_handle = self._format_group_member_identifier(new_member, new_member_order)
 
-            # Try Telegram notification first for Telegram users
+            # Telegram users: ONLY Telegram notifications (no SMS fallback)
+            # Website users: ONLY SMS notifications
             telegram_id = getattr(leader, "telegram_id", None)
-            telegram_success = False
             
             if telegram_id:
-                logger.info(f"🔔 Attempting Telegram notification to leader {leader.id} (telegram_id: {telegram_id}) for group {group_id}")
+                # This is a Telegram user - send Telegram notification ONLY
+                logger.info(f"🔔 Telegram user detected: leader {leader.id} (telegram_id: {telegram_id})")
+                logger.info(f"🔔 Attempting Telegram notification for group {group_id}")
                 try:
                     await self._send_telegram_leader_group_join_notification(
                         leader=leader,
                         group_order=group_order,
                         member_handle=member_handle
                     )
-                    telegram_success = True
                     logger.info(f"✅ Telegram notification sent successfully to leader {leader.id}")
-                    return  # Success, no need for SMS fallback
                 except Exception as tg_error:
                     logger.error(f"❌ Failed to send Telegram notification to leader {leader.id}: {str(tg_error)}")
                     logger.error(f"   Telegram ID: {telegram_id}")
-                    logger.error(f"   Will try SMS fallback if available")
+                    logger.error(f"   Note: Telegram users only receive Telegram notifications (no SMS fallback)")
                     import traceback
                     logger.error(f"   Traceback: {traceback.format_exc()}")
-                    # Continue to SMS fallback below
-            else:
-                logger.info(f"Leader {leader.id} has no telegram_id, will try SMS notification")
+                # Telegram users get ONLY Telegram notifications - exit here
+                return
+            
+            # If we reach here, this is a website user (no telegram_id)
+            # Send SMS notification for website users ONLY
+            logger.info(f"Website user detected: leader {leader.id} (no telegram_id), sending SMS notification")
 
             if not leader.phone_number or not leader.is_phone_verified:
                 logger.info(f"Leader {leader.id} has no verified phone number, skipping SMS notification")
