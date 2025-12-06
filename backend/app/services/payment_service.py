@@ -82,6 +82,7 @@ class PaymentService:
 
             # Create order with simple working approach
             # Store mode and group target info in delivery_slot as JSON if provided
+            # Compact delivery_slot metadata to stay under DB limits (Postgres enforces varchar length)
             delivery_info = delivery_slot
             has_group_metadata = (
                 bool(mode) or
@@ -90,30 +91,31 @@ class PaymentService:
                 expected_friends is not None or
                 allow_consolidation is not None
             )
-            if has_group_metadata and delivery_slot:
+            if has_group_metadata:
                 import json
-                delivery_info = json.dumps({
-                    "delivery_slot": delivery_slot,
-                    **({"mode": mode} if mode else {}),
-                    **({"friends": friends} if friends is not None else {}),
-                    **({"max_friends": max_friends} if max_friends is not None else {}),
-                    **({"expected_friends": expected_friends} if expected_friends is not None else {}),
-                    **({"allow_consolidation": bool(allow_consolidation)} if allow_consolidation is not None else {}),
-                })
-            elif has_group_metadata:
-                import json
-                payload = {}
+                compact_payload = {}
+                if delivery_slot:
+                    compact_payload["ds"] = delivery_slot  # delivery_slot
                 if mode:
-                    payload["mode"] = mode
+                    compact_payload["m"] = mode  # mode
                 if friends is not None:
-                    payload["friends"] = friends
+                    compact_payload["f"] = friends
                 if max_friends is not None:
-                    payload["max_friends"] = max_friends
+                    compact_payload["mx"] = max_friends
                 if expected_friends is not None:
-                    payload["expected_friends"] = expected_friends
+                    compact_payload["ex"] = expected_friends
                 if allow_consolidation is not None:
-                    payload["allow_consolidation"] = bool(allow_consolidation)
-                delivery_info = json.dumps(payload)
+                    compact_payload["ac"] = bool(allow_consolidation)
+
+                if compact_payload:
+                    delivery_info = json.dumps(compact_payload, ensure_ascii=False)
+                    # Final safeguard: if still too long for legacy varchar(100), trim to essential keys
+                    if isinstance(delivery_info, str) and len(delivery_info) > 95:
+                        minimal_payload = {
+                            k: v for k, v in compact_payload.items()
+                            if k in ("ds", "m", "ac") and v is not None
+                        }
+                        delivery_info = json.dumps(minimal_payload, ensure_ascii=False)
                 
             order = Order(
                 user_id=resolved_user_id,
@@ -485,9 +487,12 @@ class PaymentService:
                             import json
                             delivery_info = json.loads(order.delivery_slot)
                             if isinstance(delivery_info, dict):
-                                order_mode = delivery_info.get('mode')
+                                # Support both legacy verbose keys and new compact keys
+                                order_mode = delivery_info.get('mode') or delivery_info.get('m')
                                 if 'allow_consolidation' in delivery_info:
                                     leader_allow_consolidation = delivery_info.get('allow_consolidation')
+                                elif 'ac' in delivery_info:
+                                    leader_allow_consolidation = delivery_info.get('ac')
                                 logger.info(f"📦 Order {order.id} mode extracted from delivery_slot: {order_mode}")
                         except Exception as e:
                             # If not JSON, treat as regular delivery_slot
