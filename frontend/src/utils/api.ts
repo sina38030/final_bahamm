@@ -62,13 +62,19 @@ export function getApiUrl(): string {
   return 'https://bahamm.ir/api';
 }
 
-// Backward compatibility - export as constant but compute properly
-// This ensures existing code continues to work
-export const API_BASE_URL = (() => {
-  if (typeof window !== 'undefined') {
-    return getApiUrl();
+// Backward compatibility - compute lazily to avoid module initialization issues
+// This is a getter that computes the API URL on first access
+let _cachedApiUrl: string | undefined;
+
+export function getApiBaseUrl(): string {
+  if (_cachedApiUrl === undefined) {
+    _cachedApiUrl = getApiUrl();
   }
-  // During module initialization (SSR), return empty string
-  // but this will be replaced on client-side
-  return '';
-})();
+  return _cachedApiUrl;
+}
+
+// For backward compatibility with existing code that uses API_BASE_URL
+// Export a getter-based constant that computes on access
+// Note: Direct usage of API_BASE_URL at module initialization is discouraged
+// Use getApiUrl() or getApiBaseUrl() instead for guaranteed availability
+export const API_BASE_URL = typeof window !== 'undefined' ? getApiUrl() : 'https://bahamm.ir/api';

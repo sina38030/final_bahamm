@@ -2,8 +2,28 @@
  * API Client with automatic JWT token attachment
  */
 
-import { getApiUrl } from './api';
+import * as apiModule from './api';
 import { safeStorage } from './safeStorage';
+
+// Defensive wrapper for getApiUrl to handle module loading issues
+const getApiUrl = (): string => {
+  if (typeof apiModule.getApiUrl === 'function') {
+    return apiModule.getApiUrl();
+  }
+  // Fallback
+  console.warn('[apiClient] getApiUrl not available, using fallback');
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname === 'bahamm.ir' || hostname === 'www.bahamm.ir') {
+      return `https://${hostname}/api`;
+    }
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:8001/api';
+    }
+    return 'https://bahamm.ir/api';
+  }
+  return 'https://bahamm.ir/api';
+};
 
 // Custom fetch wrapper that automatically adds JWT token
 export const apiClient = {

@@ -2,10 +2,31 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { getApiUrl } from '../utils/api';
+import * as apiModule from '../utils/api';
 import { apiClient } from '../utils/apiClient';
 import { syncTokenFromURL } from '../utils/crossDomainAuth';
 import { isUsingMemoryStorage } from '../utils/safeStorage';
+
+// Defensive wrapper for getApiUrl to handle module loading issues
+const getApiUrl = (): string => {
+  // Check if the function exists
+  if (typeof apiModule.getApiUrl === 'function') {
+    return apiModule.getApiUrl();
+  }
+  // Fallback: log warning and return production URL
+  console.warn('[AuthContext] getApiUrl not available, using fallback');
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname === 'bahamm.ir' || hostname === 'www.bahamm.ir') {
+      return `https://${hostname}/api`;
+    }
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:8001/api';
+    }
+    return 'https://bahamm.ir/api';
+  }
+  return 'https://bahamm.ir/api';
+};
 
 // Define user type
 export interface User {
