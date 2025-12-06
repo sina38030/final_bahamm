@@ -1,6 +1,6 @@
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import StaleDataError
+from sqlalchemy.exc import SQLAlchemyError
 from typing import Dict, Any, Optional, List, Union, Tuple
 from datetime import datetime, timedelta, timezone
 import json
@@ -164,6 +164,19 @@ class PaymentService:
                 self.db.add(order_item)
             
             logger.info(f"All order items created, requesting payment")
+            
+            # Commit the order and items to database before calling external payment gateway
+            # This prevents StaleDataError when updating the order with payment authority
+            try:
+                self.db.commit()
+            except Exception as commit_error:
+                logger.error(f"Failed to commit order {order.id} before payment: {commit_error}")
+                try:
+                    self.db.rollback()
+                except Exception:
+                    pass
+                raise
+            
             # If total amount is zero (free order), skip gateway and synthesize an authority
             if total_amount <= 0:
                 authority = f"FREE{order.id}{int(datetime.now(TEHRAN_TZ).timestamp())}"
@@ -280,13 +293,15 @@ class PaymentService:
             )
 
             if result["success"]:
+                # Refresh order object since we committed earlier
+                self.db.refresh(order)
                 order.payment_authority = result["authority"]
-                self.db.flush()
-                # Ensure order and items are persisted before returning
+                # Persist the payment authority
                 try:
                     self.db.commit()
-                except Exception:
+                except Exception as authority_commit_error:
                     # If commit fails, rollback to avoid broken session
+                    logger.error(f"Failed to commit payment authority for order {order.id}: {authority_commit_error}")
                     try:
                         self.db.rollback()
                     except Exception:
@@ -306,13 +321,13 @@ class PaymentService:
                 }
             else:
                 return {"success": False, "error": result.get("error", "gateway failed")}
-        except StaleDataError as e:
+        except SQLAlchemyError as e:
             # Database rowcount mismatch (e.g., transaction rolled back or stale session)
             try:
                 self.db.rollback()
             except Exception:
                 pass
-            logger.exception(f"StaleDataError creating payment order: {e}")
+            logger.exception(f"Database error creating payment order: {e}")
             return {"success": False, "error": "خطا در ایجاد سفارش پرداخت. لطفا دوباره تلاش کنید."}
         except TypeError as e:
             # Handles cases like "'str' object is not callable" from misconfigured settings
