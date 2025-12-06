@@ -3884,6 +3884,59 @@ async def delete_review(
         logger.error(f"Error deleting review: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@admin_router.post("/test-telegram-notification/{user_id}")
+async def test_telegram_notification(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Test endpoint to verify Telegram notifications work for a specific user.
+    Useful for debugging notification issues.
+    """
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return {"error": "User not found", "user_id": user_id}
+        
+        telegram_id = getattr(user, 'telegram_id', None)
+        if not telegram_id:
+            return {
+                "error": "User has no telegram_id",
+                "user_id": user_id,
+                "phone_number": getattr(user, 'phone_number', None)
+            }
+        
+        from app.services.telegram import telegram_service
+        
+        # Test message
+        test_message = (
+            "🧪 <b>تست اعلان تلگرام</b>\n\n"
+            "اگر این پیام را می‌بینید، سیستم اعلان‌های تلگرام به درستی کار می‌کند!\n\n"
+            "✅ ربات به درستی پیکربندی شده است\n"
+            "✅ شما با ربات ارتباط برقرار کرده‌اید\n"
+            "✅ اعلان‌های گروهی به شما ارسال خواهد شد"
+        )
+        
+        logger.info(f"🧪 Testing Telegram notification for user {user_id} (telegram_id: {telegram_id})")
+        result = await telegram_service.send_message(str(telegram_id), test_message)
+        
+        return {
+            "success": result,
+            "user_id": user_id,
+            "telegram_id": telegram_id,
+            "telegram_username": getattr(user, 'telegram_username', None),
+            "message": "Test notification sent" if result else "Failed to send notification",
+            "hint": "If failed, user may need to start the bot first by searching @Bahamm_bot in Telegram and clicking START"
+        }
+    except Exception as e:
+        logger.error(f"Error testing Telegram notification: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return {
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
+
 @admin_router.get("/secondary-groups")
 async def get_secondary_groups(
     skip: int = Query(0, ge=0),

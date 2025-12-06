@@ -10,13 +10,16 @@ settings = get_settings()
 class TelegramService:
     def __init__(self):
         self.bot_token = settings.TELEGRAM_BOT_TOKEN
+        self.bot_username = getattr(settings, 'TELEGRAM_BOT_USERNAME', 'Bahamm_bot')
         self.base_url = f"https://api.telegram.org/bot{self.bot_token}"
         self.is_test_mode = not self.bot_token or self.bot_token == ""
 
         if self.is_test_mode:
-            logger.warning("Telegram bot token not configured. Using test mode.")
+            logger.warning("⚠️ Telegram bot token not configured. Using test mode - NO REAL MESSAGES WILL BE SENT!")
+            logger.warning("   Set TELEGRAM_BOT_TOKEN in config.py to enable Telegram notifications")
         else:
-            logger.info("Telegram notification service initialized")
+            logger.info(f"✅ Telegram notification service initialized with bot @{self.bot_username}")
+            logger.info(f"   Bot token: {self.bot_token[:10]}...{self.bot_token[-10:]}")
 
     async def send_message(self, telegram_id: str, message: str) -> bool:
         """
@@ -30,9 +33,10 @@ class TelegramService:
             bool: True if message was sent successfully, False otherwise
         """
         if self.is_test_mode:
-            logger.info(f"[TEST MODE] Telegram message to {telegram_id}: {message}")
+            logger.warning(f"⚠️ TELEGRAM IN TEST MODE - Bot token not configured!")
+            logger.info(f"[TEST MODE] Would send to {telegram_id}: {message}")
             print(f"*** TELEGRAM MESSAGE TO {telegram_id}: {message} ***")
-            return True
+            return False  # Changed to False to trigger fallback
 
         try:
             url = f"{self.base_url}/sendMessage"
@@ -42,22 +46,30 @@ class TelegramService:
                 "parse_mode": "HTML"  # Allow basic formatting
             }
 
+            logger.info(f"📤 Sending Telegram message to {telegram_id} via {url}")
             response = requests.post(url, json=data, timeout=30)
 
             if response.status_code == 200:
                 result = response.json()
                 if result.get("ok"):
-                    logger.info(f"Telegram message sent successfully to {telegram_id}")
+                    logger.info(f"✅ Telegram message sent successfully to {telegram_id}")
                     return True
                 else:
-                    logger.error(f"Telegram API error: {result.get('description')}")
+                    error_desc = result.get('description', 'Unknown error')
+                    logger.error(f"❌ Telegram API error: {error_desc}")
+                    if "bot can't initiate conversation" in error_desc.lower():
+                        logger.error(f"   💡 User {telegram_id} needs to start the bot first!")
+                        logger.error(f"   💡 User should search for @{getattr(self, 'bot_username', 'your_bot')} in Telegram and click START")
                     return False
             else:
-                logger.error(f"Telegram API HTTP error: {response.status_code}")
+                logger.error(f"❌ Telegram API HTTP error: {response.status_code}")
+                logger.error(f"   Response: {response.text[:200]}")
                 return False
 
         except Exception as e:
-            logger.error(f"Failed to send Telegram message to {telegram_id}: {str(e)}")
+            logger.error(f"❌ Failed to send Telegram message to {telegram_id}: {str(e)}")
+            import traceback
+            logger.error(f"   Traceback: {traceback.format_exc()}")
             return False
 
     async def send_notification(self, telegram_id: str, title: str, message: str, order_id: Optional[int] = None) -> bool:

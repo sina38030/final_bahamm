@@ -990,19 +990,30 @@ class PaymentService:
                 new_member = self.db.query(User).filter(User.id == new_member_order.user_id).first()
             member_handle = self._format_group_member_identifier(new_member, new_member_order)
 
+            # Try Telegram notification first for Telegram users
             telegram_id = getattr(leader, "telegram_id", None)
+            telegram_success = False
+            
             if telegram_id:
-                await self._send_telegram_leader_group_join_notification(
-                    leader=leader,
-                    group_order=group_order,
-                    member_handle=member_handle
-                )
-                return
+                logger.info(f"🔔 Attempting Telegram notification to leader {leader.id} (telegram_id: {telegram_id}) for group {group_id}")
+                try:
+                    await self._send_telegram_leader_group_join_notification(
+                        leader=leader,
+                        group_order=group_order,
+                        member_handle=member_handle
+                    )
+                    telegram_success = True
+                    logger.info(f"✅ Telegram notification sent successfully to leader {leader.id}")
+                    return  # Success, no need for SMS fallback
+                except Exception as tg_error:
+                    logger.error(f"❌ Failed to send Telegram notification to leader {leader.id}: {str(tg_error)}")
+                    logger.error(f"   Telegram ID: {telegram_id}")
+                    logger.error(f"   Will try SMS fallback if available")
+                    import traceback
+                    logger.error(f"   Traceback: {traceback.format_exc()}")
+                    # Continue to SMS fallback below
             else:
-                logger.warning(
-                    f"Leader {leader.id} is a Telegram user but has no telegram_id stored; "
-                    f"skipping Telegram notification for group {group_id}"
-                )
+                logger.info(f"Leader {leader.id} has no telegram_id, will try SMS notification")
 
             if not leader.phone_number or not leader.is_phone_verified:
                 logger.info(f"Leader {leader.id} has no verified phone number, skipping SMS notification")
@@ -1039,23 +1050,35 @@ class PaymentService:
     ) -> None:
         """
         Send the tiered Telegram notification to a mini-app leader.
+        Raises exception if notification fails.
         """
-        paid_members = self._count_paid_group_members(group_order)
-        link = notification_service.get_groups_orders_link()
-        title, message = self._build_telegram_group_join_message(member_handle, paid_members, link)
+        try:
+            paid_members = self._count_paid_group_members(group_order)
+            link = notification_service.get_groups_orders_link()
+            title, message = self._build_telegram_group_join_message(member_handle, paid_members, link)
 
-        await notification_service.send_notification(
-            user=leader,
-            title=title,
-            message=message,
-            group_id=group_order.id,
-            include_references=False
-        )
+            logger.info(f"📨 Sending Telegram notification: title='{title}', to user {leader.id}, telegram_id={leader.telegram_id}")
+            
+            result = await notification_service.send_notification(
+                user=leader,
+                title=title,
+                message=message,
+                group_id=group_order.id,
+                include_references=False
+            )
+            
+            if not result.get("telegram", False):
+                error_msg = f"Telegram notification failed for leader {leader.id}, group {group_order.id}"
+                logger.error(f"❌ {error_msg}")
+                raise Exception(error_msg)
 
-        logger.info(
-            f"📨 Sent Telegram new member notification to leader {leader.id} "
-            f"for group {group_order.id} (members={paid_members})"
-        )
+            logger.info(
+                f"✅ Sent Telegram new member notification to leader {leader.id} "
+                f"for group {group_order.id} (members={paid_members})"
+            )
+        except Exception as e:
+            logger.error(f"❌ Error in _send_telegram_leader_group_join_notification: {str(e)}")
+            raise  # Re-raise to trigger fallback in caller
 
     def _count_paid_group_members(self, group_order: GroupOrder) -> int:
         """
