@@ -121,7 +121,10 @@ async def process_payment(
             return await request_payment_public(payment_request, db)
             
     except Exception as e:
-        logger.error(f"Payment processing error: {e}")
+        logger.error(f"❌ Payment processing error: {e}")
+        logger.error(f"   Error type: {type(e)}")
+        import traceback
+        logger.error(f"   Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Payment processing failed: {str(e)}")
 
 # Payment verification endpoint that frontend calls
@@ -174,29 +177,41 @@ async def create_payment_order_public(
     ایجاد سفارش جدید و درخواست پرداخت (با احراز هویت اختیاری)
     """
     try:
+        logger.info(f"🔄 Starting create_payment_order_public")
+        logger.info(f"📦 Order data: items_count={len(order_data.items)}, amount={getattr(order_data, 'amount', None)}, invite_code={getattr(order_data, 'invite_code', None)}")
+        logger.info(f"👤 Current user: {current_user.id if current_user else 'None'}")
+
         payment_service = PaymentService(db)
+        logger.info(f"✅ PaymentService initialized")
 
         # Calculate total amount
         # Priority: if client provided an explicit amount (Rial), use it as-is
         if getattr(order_data, 'amount', None) is not None:
             try:
                 total_amount_rial = int(order_data.amount)
-            except Exception:
+                logger.info(f"💰 Using explicit amount: {total_amount_rial} rial")
+            except Exception as e:
+                logger.error(f"❌ Error parsing explicit amount: {e}")
                 total_amount_rial = 0
         else:
             # Compute from items (Tomans -> Rial)
             total_amount_toman = sum(item.price * item.quantity for item in order_data.items)
+            logger.info(f"🧮 Calculated from items: {total_amount_toman} toman")
             # Apply consolidation discount for invited users who opted in
             try:
                 is_invited = bool(getattr(order_data, 'invite_code', None))
                 consolidation_on = bool(getattr(order_data, 'allow_consolidation', False))
-            except Exception:
+                logger.info(f"🎯 Invite check: is_invited={is_invited}, consolidation_on={consolidation_on}")
+            except Exception as e:
+                logger.error(f"❌ Error checking invite/consolidation flags: {e}")
                 is_invited = False
                 consolidation_on = False
             if is_invited and consolidation_on:
                 # Fixed consolidation discount: 10,000 Tomans
                 total_amount_toman = max(0, total_amount_toman - 10000)
+                logger.info(f"💸 Applied consolidation discount: {total_amount_toman} toman after discount")
             total_amount_rial = int(total_amount_toman * 10)
+            logger.info(f"💰 Final calculated amount: {total_amount_rial} rial")
 
         # Prepare items for service
         items = [
@@ -207,6 +222,7 @@ async def create_payment_order_public(
             }
             for item in order_data.items
         ]
+        logger.info(f"📦 Prepared items: {len(items)} items for service")
 
         # Simplified invited flow: do NOT resolve group at creation time.
         # If an invite_code exists, we will mark the order as invited using PENDING_INVITE
@@ -218,27 +234,46 @@ async def create_payment_order_public(
         ship_to_leader = False
         if getattr(order_data, 'invite_code', None) and getattr(order_data, 'allow_consolidation', False):
             ship_to_leader = True
+            logger.info(f"🚚 Ship to leader enabled for invited user with consolidation")
 
         # Leader flow previously created as regular order; let it proceed to payment order creation
 
+        logger.info(f"🔧 Calling PaymentService.create_payment_order with:")
+        logger.info(f"   user_id: {current_user.id if current_user else None}")
+        logger.info(f"   items_count: {len(items)}")
+        logger.info(f"   total_amount: {total_amount_rial}")
+        logger.info(f"   description: {order_data.description}")
+        logger.info(f"   mobile: {order_data.mobile}")
+        logger.info(f"   shipping_address: {bool(order_data.shipping_address)}")
+        logger.info(f"   mode: {order_data.mode}")
+        logger.info(f"   is_invited_checkout: {bool(getattr(order_data, 'invite_code', None))}")
+
         # Create payment order with optional user authentication
-        result = await payment_service.create_payment_order(
-            user_id=current_user.id if current_user else None,
-            items=items,
-            total_amount=total_amount_rial,
-            description=order_data.description,
-            mobile=order_data.mobile,
-            email=order_data.email,
-            shipping_address=order_data.shipping_address,
-            delivery_slot=order_data.delivery_slot,
-            mode=order_data.mode,
-            allow_consolidation=getattr(order_data, 'allow_consolidation', None),
-            ship_to_leader_address=ship_to_leader,
-            friends=getattr(order_data, 'friends', None),
-            max_friends=getattr(order_data, 'max_friends', None),
-            expected_friends=getattr(order_data, 'expected_friends', None),
-            is_invited_checkout=bool(getattr(order_data, 'invite_code', None)),
-        )
+        try:
+            result = await payment_service.create_payment_order(
+                user_id=current_user.id if current_user else None,
+                items=items,
+                total_amount=total_amount_rial,
+                description=order_data.description,
+                mobile=order_data.mobile,
+                email=order_data.email,
+                shipping_address=order_data.shipping_address,
+                delivery_slot=order_data.delivery_slot,
+                mode=order_data.mode,
+                allow_consolidation=getattr(order_data, 'allow_consolidation', None),
+                ship_to_leader_address=ship_to_leader,
+                friends=getattr(order_data, 'friends', None),
+                max_friends=getattr(order_data, 'max_friends', None),
+                expected_friends=getattr(order_data, 'expected_friends', None),
+                is_invited_checkout=bool(getattr(order_data, 'invite_code', None)),
+            )
+            logger.info(f"✅ PaymentService.create_payment_order returned: success={result.get('success')}")
+        except Exception as service_error:
+            logger.error(f"❌ PaymentService.create_payment_order failed: {str(service_error)}")
+            logger.error(f"   Error type: {type(service_error)}")
+            import traceback
+            logger.error(f"   Traceback: {traceback.format_exc()}")
+            raise
         
         if result["success"]:
             # Post-create linking for group orders
@@ -265,9 +300,12 @@ async def create_payment_order_public(
             )
         else:
             raise HTTPException(status_code=400, detail=result["error"])
-            
+
     except Exception as e:
-        logger.error(f"Create payment order error: {str(e)}")
+        logger.error(f"❌ Create payment order error: {str(e)}")
+        logger.error(f"   Error type: {type(e)}")
+        import traceback
+        logger.error(f"   Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="خطا در ایجاد سفارش پرداخت")
 
 @router.post("/create-order", response_model=PaymentResponse)
