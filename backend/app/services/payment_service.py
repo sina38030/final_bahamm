@@ -1,5 +1,6 @@
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import StaleDataError
 from typing import Dict, Any, Optional, List, Union, Tuple
 from datetime import datetime, timedelta, timezone
 import json
@@ -20,6 +21,24 @@ settings = get_settings()
 class PaymentService:
     def __init__(self, db: Session):
         self.db = db
+    
+    def _resolve_callback_base_url(self) -> str:
+        """
+        Safely resolve the payment callback base URL even if the settings method
+        was shadowed/misconfigured as a plain string.
+        """
+        try:
+            base = settings.get_payment_callback_base_url
+            base = base() if callable(base) else base
+        except Exception:
+            base = None
+        if not base:
+            try:
+                base = settings.get_frontend_public_url()
+            except Exception:
+                base = settings.FRONTEND_URL
+        base = (base or "").strip().rstrip("/")
+        return base or "http://localhost:8001/api"
     
     # Removed complex state machine logic for simplicity
 
@@ -61,6 +80,7 @@ class PaymentService:
             settlement_paid_flag = False
             settlement_message = None
             logger.info(f"Creating order: user_id={user_id}, amount={total_amount}, items={len(items)}")
+            callback_base_url = self._resolve_callback_base_url()
             
             # Resolve or create user from mobile if not provided
             resolved_user_id = user_id
@@ -254,7 +274,7 @@ class PaymentService:
             result = await zarinpal.request_payment(
                 amount=total_amount,
                 description=description,
-                callback_url=f"{settings.get_payment_callback_base_url()}/payment/callback",
+                callback_url=f"{callback_base_url}/payment/callback",
                 mobile=mobile,
                 email=email
             )
@@ -286,9 +306,29 @@ class PaymentService:
                 }
             else:
                 return {"success": False, "error": result.get("error", "gateway failed")}
+        except StaleDataError as e:
+            # Database rowcount mismatch (e.g., transaction rolled back or stale session)
+            try:
+                self.db.rollback()
+            except Exception:
+                pass
+            logger.exception(f"StaleDataError creating payment order: {e}")
+            return {"success": False, "error": "خطا در ایجاد سفارش پرداخت. لطفا دوباره تلاش کنید."}
+        except TypeError as e:
+            # Handles cases like "'str' object is not callable" from misconfigured settings
+            try:
+                self.db.rollback()
+            except Exception:
+                pass
+            logger.exception(f"Type error creating payment order: {e}")
+            return {"success": False, "error": "پیکربندی پرداخت نامعتبر است. لطفا دوباره تلاش کنید."}
         except Exception as e:
-            logger.error(f"Error creating payment order: {e}")
-            raise
+            try:
+                self.db.rollback()
+            except Exception:
+                pass
+            logger.exception(f"Error creating payment order: {e}")
+            return {"success": False, "error": "خطای داخلی در ایجاد سفارش پرداخت"}
 
     async def verify_and_complete_payment(
         self,
