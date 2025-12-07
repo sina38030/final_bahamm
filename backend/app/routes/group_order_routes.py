@@ -207,11 +207,11 @@ async def create_secondary_group(
     while db.query(GroupOrder).filter(func.lower(GroupOrder.invite_token) == token.lower()).first():
         token = _gen_token()
 
-    # Set expiry 24 hours from now
+    # Set expiry 24 hours from when the user PAID (synced with button timer)
     paid_at = source_order.paid_at or source_order.created_at or datetime.now(TEHRAN_TZ)
     if getattr(paid_at, 'tzinfo', None) is None:
         paid_at = paid_at.replace(tzinfo=TEHRAN_TZ)
-    expires_at = datetime.now(TEHRAN_TZ) + timedelta(hours=24)
+    expires_at = paid_at + timedelta(hours=24)
 
     # Build items snapshot from the source order
     items = []

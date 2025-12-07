@@ -1554,47 +1554,23 @@ function RefundButtonWithTimer({ authority }: { authority: string }) {
         const data = await res.json().catch(() => null as any);
         if (!data?.success || !data.order) return;
         const ord = data.order;
-        const code = (ord?.group_buy?.invite_code) || (ord?.id ? `GB${ord.id}${String(authority).slice(0, 8)}` : '');
-        if (!code) return;
-        const gRes = await fetch(`/api/groups/${encodeURIComponent(code)}`);
-        if (!gRes.ok) return;
-        const g = await gRes.json().catch(() => null as any);
-        if (abort || !g) return;
-        // Do NOT hide based on primary group status; only the backend-provided secondary-window deadline controls visibility
-        const expiresAtMsCamel = (g as any)?.expiresAtMs;
-        const expiresAtMsSnake = (g as any)?.expires_at_ms;
-        const expiresAtCamel = (g as any)?.expiresAt;
-        const expiresAtSnake = (g as any)?.expires_at;
-        const expiresInSecondsCamel = (g as any)?.expiresInSeconds;
-        const expiresInSecondsSnake = (g as any)?.expires_in_seconds;
-        const remainingSecondsCamel = (g as any)?.remainingSeconds;
-        const remainingSecondsSnake = (g as any)?.remaining_seconds;
-
-        if (expiresAtMsCamel != null || expiresAtMsSnake != null) {
-          const target = Number(expiresAtMsCamel != null ? expiresAtMsCamel : expiresAtMsSnake) || 0;
-          if (target > 0) {
-            setExpiryMs(target);
-            try { safeStorage.setItem(authExpiryKey, String(target)); } catch {}
+        if (abort) return;
+        
+        // Calculate expiry based on USER's paid_at + 24 hours (not group's expiry)
+        // This is the user's personal 24-hour window to create their secondary group
+        const paidAtStr = ord?.paid_at || ord?.paidAt || ord?.created_at || ord?.createdAt;
+        if (paidAtStr) {
+          const paidAtMs = Date.parse(paidAtStr);
+          if (!Number.isNaN(paidAtMs)) {
+            const target = paidAtMs + (24 * 60 * 60 * 1000); // paid_at + 24 hours
+            if (target > Date.now()) {
+              setExpiryMs(target);
+              try { safeStorage.setItem(authExpiryKey, String(target)); } catch {}
+            } else {
+              // Expired - hide the button
+              setHide(true);
+            }
           }
-        } else if (remainingSecondsCamel != null || remainingSecondsSnake != null) {
-          const secs = Math.max(0, Number(remainingSecondsCamel != null ? remainingSecondsCamel : remainingSecondsSnake) || 0);
-          const target = Date.now() + secs * 1000;
-          setExpiryMs(target);
-          try { safeStorage.setItem(authExpiryKey, String(target)); } catch {}
-        } else if (expiresInSecondsCamel != null || expiresInSecondsSnake != null) {
-          const secs = Math.max(0, Number(expiresInSecondsCamel != null ? expiresInSecondsCamel : expiresInSecondsSnake) || 0);
-          const target = Date.now() + secs * 1000;
-          setExpiryMs(target);
-          try { safeStorage.setItem(authExpiryKey, String(target)); } catch {}
-        } else if (expiresAtCamel || expiresAtSnake) {
-          const raw = String(expiresAtCamel || expiresAtSnake);
-          const parsed = Date.parse(raw);
-          if (!Number.isNaN(parsed)) {
-            setExpiryMs(parsed);
-            try { safeStorage.setItem(authExpiryKey, String(parsed)); } catch {}
-          }
-        } else {
-          // No fallback: only backend controls the deadline
         }
       } catch {}
     })();

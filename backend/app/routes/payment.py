@@ -1052,6 +1052,7 @@ async def get_order_by_authority(
                 "payment_authority": order.payment_authority,
                 "payment_ref_id": order.payment_ref_id,
                 "created_at": order.created_at.isoformat(),
+                "paid_at": order.paid_at.isoformat() if order.paid_at else None,
                 "group_order_id": group_order_id,
                 "is_invited": is_invited,
                 "items": order_items,
