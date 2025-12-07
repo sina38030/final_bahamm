@@ -79,7 +79,7 @@ class Settings(BaseSettings):
     # Alternative: Custom Telegram API Base URL (e.g., Cloudflare Worker proxy)
     # If set, replaces https://api.telegram.org with this URL
     # Example: https://telegram-proxy.your-domain.workers.dev
-    TELEGRAM_API_BASE_URL: Optional[str] = None
+    TELEGRAM_API_BASE_URL: Optional[str] = 'https://telegram-api-proxy.sina38030.workers.dev'
 
     class Config:
         env_file = ".env"

@@ -1,6 +1,11 @@
 # Telegram API Proxy Setup for Iranian Servers
 
-## Problem
+## ✅ STATUS: CONFIGURED AND WORKING
+
+**Worker URL:** `https://telegram-api-proxy.sina38030.workers.dev`
+**Configured:** December 7, 2025
+
+## Problem (SOLVED)
 The server at 185.231.181.208 cannot reach `api.telegram.org` due to regional blocking.
 Other services (GitHub, Google) work fine.
 
