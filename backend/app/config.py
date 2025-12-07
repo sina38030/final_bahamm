@@ -70,6 +70,11 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str = "8413343514:AAFiyFNsJUSuEh0aLG9dZxSnSHwAyRPK09E"
     TELEGRAM_BOT_USERNAME: str = "Bahamm_bot"  # Your bot username (without @)
     TELEGRAM_MINIAPP_NAME: str = "bahamm"  # Your mini app name configured in BotFather
+    
+    # Telegram API Proxy (required for servers in regions where Telegram is blocked)
+    # Format: http://host:port or socks5://host:port or socks5://user:pass@host:port
+    # Leave empty to connect directly (works in most regions)
+    TELEGRAM_API_PROXY: Optional[str] = None
 
     class Config:
         env_file = ".env"

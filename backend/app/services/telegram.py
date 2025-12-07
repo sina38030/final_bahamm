@@ -13,6 +13,17 @@ class TelegramService:
         self.bot_username = getattr(settings, 'TELEGRAM_BOT_USERNAME', 'Bahamm_bot')
         self.base_url = f"https://api.telegram.org/bot{self.bot_token}"
         self.is_test_mode = not self.bot_token or self.bot_token == ""
+        
+        # Proxy configuration for regions where Telegram is blocked
+        proxy_url = getattr(settings, 'TELEGRAM_API_PROXY', None)
+        if proxy_url:
+            self.proxies = {
+                'http': proxy_url,
+                'https': proxy_url
+            }
+            logger.info(f"🌐 Telegram API proxy configured: {proxy_url[:20]}...")
+        else:
+            self.proxies = None
 
         if self.is_test_mode:
             logger.warning("⚠️ Telegram bot token not configured. Using test mode - NO REAL MESSAGES WILL BE SENT!")
@@ -20,6 +31,8 @@ class TelegramService:
         else:
             logger.info(f"✅ Telegram notification service initialized with bot @{self.bot_username}")
             logger.info(f"   Bot token: {self.bot_token[:10]}...{self.bot_token[-10:]}")
+            if not self.proxies:
+                logger.warning("   ⚠️ No proxy configured - if Telegram is blocked, set TELEGRAM_API_PROXY")
 
     async def send_message(self, telegram_id: str, message: str) -> bool:
         """
@@ -47,7 +60,9 @@ class TelegramService:
             }
 
             logger.info(f"📤 Sending Telegram message to {telegram_id} via {url}")
-            response = requests.post(url, json=data, timeout=30)
+            if self.proxies:
+                logger.info(f"   Using proxy: {list(self.proxies.values())[0][:20]}...")
+            response = requests.post(url, json=data, timeout=30, proxies=self.proxies)
 
             if response.status_code == 200:
                 result = response.json()
