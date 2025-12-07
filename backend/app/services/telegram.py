@@ -11,8 +11,17 @@ class TelegramService:
     def __init__(self):
         self.bot_token = settings.TELEGRAM_BOT_TOKEN
         self.bot_username = getattr(settings, 'TELEGRAM_BOT_USERNAME', 'Bahamm_bot')
-        self.base_url = f"https://api.telegram.org/bot{self.bot_token}"
         self.is_test_mode = not self.bot_token or self.bot_token == ""
+        
+        # Support custom API base URL (e.g., Cloudflare Worker proxy)
+        custom_base_url = getattr(settings, 'TELEGRAM_API_BASE_URL', None)
+        if custom_base_url:
+            # Remove trailing slash if present
+            custom_base_url = custom_base_url.rstrip('/')
+            self.base_url = f"{custom_base_url}/bot{self.bot_token}"
+            logger.info(f"🌐 Using custom Telegram API URL: {custom_base_url}")
+        else:
+            self.base_url = f"https://api.telegram.org/bot{self.bot_token}"
         
         # Proxy configuration for regions where Telegram is blocked
         proxy_url = getattr(settings, 'TELEGRAM_API_PROXY', None)
@@ -31,8 +40,8 @@ class TelegramService:
         else:
             logger.info(f"✅ Telegram notification service initialized with bot @{self.bot_username}")
             logger.info(f"   Bot token: {self.bot_token[:10]}...{self.bot_token[-10:]}")
-            if not self.proxies:
-                logger.warning("   ⚠️ No proxy configured - if Telegram is blocked, set TELEGRAM_API_PROXY")
+            if not self.proxies and not custom_base_url:
+                logger.warning("   ⚠️ No proxy/custom URL configured - if Telegram is blocked, set TELEGRAM_API_BASE_URL or TELEGRAM_API_PROXY")
 
     async def send_message(self, telegram_id: str, message: str) -> bool:
         """

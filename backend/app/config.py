@@ -75,6 +75,11 @@ class Settings(BaseSettings):
     # Format: http://host:port or socks5://host:port or socks5://user:pass@host:port
     # Leave empty to connect directly (works in most regions)
     TELEGRAM_API_PROXY: Optional[str] = None
+    
+    # Alternative: Custom Telegram API Base URL (e.g., Cloudflare Worker proxy)
+    # If set, replaces https://api.telegram.org with this URL
+    # Example: https://telegram-proxy.your-domain.workers.dev
+    TELEGRAM_API_BASE_URL: Optional[str] = None
 
     class Config:
         env_file = ".env"
