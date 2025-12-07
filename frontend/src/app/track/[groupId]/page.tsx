@@ -497,7 +497,7 @@ export default function TrackPage() {
       setToast("گروه با موفقیت تکمیل شد.");
       // Signal home page to show result modal on next visits (persist across sessions)
       try {
-        sessionStorage.setItem('gb-show-on-home', String(groupId));
+        try { sessionStorage.setItem('gb-show-on-home', String(groupId)); } catch {}
         const key = 'gb-pending';
         const raw = localStorage.getItem(key);
         const list = raw ? JSON.parse(raw) : [];

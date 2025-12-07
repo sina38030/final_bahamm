@@ -1767,6 +1767,15 @@ function LazyTrackEmbed({
   useEffect(() => {
     if (!containerRef.current) return;
     const el = containerRef.current;
+    
+    // Check if IntersectionObserver is available (missing on some Android WebViews)
+    if (typeof IntersectionObserver === 'undefined') {
+      // Fallback: immediately set as visible
+      setVisible(true);
+      setMountedOnce(true);
+      return;
+    }
+    
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {

@@ -98,9 +98,17 @@ export default function FruitMergeGame() {
       }
     };
     resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(container);
-    return () => ro.disconnect();
+    
+    // Check if ResizeObserver is available (missing on some Android WebViews)
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(resize);
+      ro.observe(container);
+      return () => ro.disconnect();
+    }
+    
+    // Fallback: use window resize event
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
   }, []);
 
   // Seeded RNG init

@@ -90,7 +90,8 @@ export const useGroupBuyResultModal = ({
     const delta = leaderOwes ? Math.max(0, rawDelta) : refundDue ? Math.min(0, rawDelta) : 0;
 
     // Check if modal was already shown in this session
-    const modalShown = sessionStorage.getItem(`gb-modal-${groupId}`);
+    let modalShown: string | null = null;
+    try { modalShown = sessionStorage.getItem(`gb-modal-${groupId}`); } catch {}
     
     // Determine if we should show the modal
     const shouldShow = !modalShown || delta !== 0 || leaderOwes || refundDue; // restore previous show conditions
@@ -108,7 +109,7 @@ export const useGroupBuyResultModal = ({
   const closeModal = () => {
     setIsModalOpen(false);
     if (groupBuyData?.groupId) {
-      sessionStorage.setItem(`gb-modal-${groupBuyData.groupId}`, '1');
+      try { sessionStorage.setItem(`gb-modal-${groupBuyData.groupId}`, '1'); } catch {}
     }
   };
 

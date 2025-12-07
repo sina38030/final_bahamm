@@ -20,8 +20,10 @@ async function safeImport<T>(importer: () => Promise<T>, key: string): Promise<T
       const isChunkError = err?.name === 'ChunkLoadError' || /ChunkLoadError/.test(String(err));
       if (isClient && isChunkError) {
         const onceKey = `once-reload-${key}`;
-        if (!sessionStorage.getItem(onceKey)) {
-          sessionStorage.setItem(onceKey, '1');
+        let alreadyReloaded = false;
+        try { alreadyReloaded = !!sessionStorage.getItem(onceKey); } catch {}
+        if (!alreadyReloaded) {
+          try { sessionStorage.setItem(onceKey, '1'); } catch {}
           window.location.reload();
         }
       }

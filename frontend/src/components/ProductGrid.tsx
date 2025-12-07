@@ -151,6 +151,13 @@ export default function ProductGrid({
       return;
     }
 
+    // Check if IntersectionObserver is available (missing on some Android WebViews)
+    if (typeof IntersectionObserver === 'undefined') {
+      console.log('IntersectionObserver not available - showing all products');
+      setCursor(list.length);
+      return;
+    }
+
     const io = new IntersectionObserver(
       (e) => {
         if (e[0].isIntersecting) {

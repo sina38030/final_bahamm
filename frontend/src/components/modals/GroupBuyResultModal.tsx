@@ -149,7 +149,7 @@ const GroupBuyResultModal: React.FC<GroupBuyResultModalProps> = ({
       onClose();
       // Mark as seen; also remove from persistent pending list
       try {
-        sessionStorage.setItem(`gb-modal-${groupId}`, '1');
+        try { sessionStorage.setItem(`gb-modal-${groupId}`, '1'); } catch {}
         // Persist seen across sessions so it never re-appears unless cleared
         const seenKey = 'gb-seen';
         const rawSeen = localStorage.getItem(seenKey);

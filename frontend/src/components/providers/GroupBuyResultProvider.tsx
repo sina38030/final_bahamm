@@ -71,7 +71,8 @@ export const GroupBuyResultProvider: React.FC<GroupBuyResultProviderProps> = ({ 
         })
         .map((r: any) => String(r.id));
       for (const gid of successIds) {
-        const suppressedSession = sessionStorage.getItem(`gb-modal-${gid}`);
+        let suppressedSession: string | null = null;
+        try { suppressedSession = sessionStorage.getItem(`gb-modal-${gid}`); } catch {}
         let suppressedPersistent = false;
         try {
           const rawSeen = localStorage.getItem('gb-seen');
@@ -94,7 +95,8 @@ export const GroupBuyResultProvider: React.FC<GroupBuyResultProviderProps> = ({ 
           .slice(0, 30); // limit to avoid heavy scans
         for (const r of candidates) {
           const gid = String(r.id);
-          const suppressedSession = sessionStorage.getItem(`gb-modal-${gid}`);
+          let suppressedSession: string | null = null;
+          try { suppressedSession = sessionStorage.getItem(`gb-modal-${gid}`); } catch {}
           let suppressedPersistent = false;
           try {
             const rawSeen = localStorage.getItem('gb-seen');
@@ -156,7 +158,8 @@ export const GroupBuyResultProvider: React.FC<GroupBuyResultProviderProps> = ({ 
   // One-time trigger set after finalize on track page
   useEffect(() => {
     try {
-      const pending = sessionStorage.getItem('gb-show-on-home');
+      let pending: string | null = null;
+      try { pending = sessionStorage.getItem('gb-show-on-home'); } catch {}
       if (pending) {
         // Respect persistent seen
         let seen = false;
@@ -165,7 +168,7 @@ export const GroupBuyResultProvider: React.FC<GroupBuyResultProviderProps> = ({ 
           const seenArr = rawSeen ? JSON.parse(rawSeen) : [];
           seen = Array.isArray(seenArr) && seenArr.includes(String(pending));
         } catch {}
-        sessionStorage.removeItem('gb-show-on-home');
+        try { sessionStorage.removeItem('gb-show-on-home'); } catch {}
         if (!seen) {
           void showModalForGroup(pending, { force: true });
         }
