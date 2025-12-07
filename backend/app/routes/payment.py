@@ -1362,9 +1362,8 @@ async def get_group_invite_by_code(
             elif getattr(group_order, 'expires_at', None):
                 expires_at = group_order.expires_at
                 if expires_at.tzinfo is None:
-                    # If naive, assume it's UTC and convert to Tehran time
-                    from datetime import timezone as tz_module
-                    expires_at = expires_at.replace(tzinfo=tz_module.utc).astimezone(TEHRAN_TZ)
+                    # If naive, assume it's already Tehran time (as stored by the app)
+                    expires_at = expires_at.replace(tzinfo=TEHRAN_TZ)
                 remaining_seconds = max(0, int((expires_at - current_time).total_seconds()))
                 expires_at_ms = int(expires_at.timestamp() * 1000)
                 server_now_ms = int(current_time.timestamp() * 1000)
