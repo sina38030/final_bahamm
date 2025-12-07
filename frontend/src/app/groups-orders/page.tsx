@@ -1527,9 +1527,12 @@ function FailedLeaderRefundControls({ groupId }: { groupId: number }) {
 
 function RefundButtonWithTimer({ authority }: { authority: string }) {
   const router = useRouter();
+  const { token } = useAuth() as any;
   const [expiryMs, setExpiryMs] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [hide, setHide] = useState<boolean>(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [orderId, setOrderId] = useState<number | null>(null);
 
   // Local storage keys for cross-tab persistence
   const authExpiryKey = useMemo(() => `gb-expiry-by-authority-${String(authority)}`, [authority]);
@@ -1555,6 +1558,11 @@ function RefundButtonWithTimer({ authority }: { authority: string }) {
         if (!data?.success || !data.order) return;
         const ord = data.order;
         if (abort) return;
+        
+        // Save order ID for secondary group creation
+        if (ord?.id) {
+          setOrderId(ord.id);
+        }
         
         // Calculate expiry based on USER's paid_at + 24 hours (not group's expiry)
         // This is the user's personal 24-hour window to create their secondary group
@@ -1636,6 +1644,41 @@ function RefundButtonWithTimer({ authority }: { authority: string }) {
   };
   const toFa = (val: string | number) => String(val).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[parseInt(d)]);
 
+  // Create secondary group and redirect to the user's own group page
+  const handleCreateSecondaryGroup = async () => {
+    if (isCreating || !orderId) return;
+    
+    setIsCreating(true);
+    try {
+      // Create secondary group via the backend
+      const response = await fetch('/api/group-orders/create-secondary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ source_order_id: orderId }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && result.group_order_id) {
+        // Redirect to the track page for their NEW secondary group
+        router.push(`/track/${result.group_order_id}`);
+      } else {
+        console.error('Failed to create secondary group:', result);
+        // Fallback to original invite page
+        router.push(`/invite?authority=${encodeURIComponent(String(authority))}`);
+      }
+    } catch (error) {
+      console.error('Error creating secondary group:', error);
+      // Fallback to original invite page
+      router.push(`/invite?authority=${encodeURIComponent(String(authority))}`);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   // Hide the button once countdown reaches zero
   if (hide || (typeof timeLeft === 'number' && timeLeft === 0)) {
     return null;
@@ -1644,15 +1687,16 @@ function RefundButtonWithTimer({ authority }: { authority: string }) {
   return (
     <button
       className="text-sm px-3 py-1 rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
-      onClick={() => router.push(`/invite?authority=${encodeURIComponent(String(authority))}`)}
+      onClick={handleCreateSecondaryGroup}
+      disabled={isCreating}
     >
       <div className="flex flex-col items-center leading-tight">
-        <span>مبلغ پرداختیت رو پس بگیر!</span>
-        {typeof timeLeft === 'number' ? (
+        <span>{isCreating ? 'در حال ایجاد گروه...' : 'مبلغ پرداختیت رو پس بگیر!'}</span>
+        {!isCreating && typeof timeLeft === 'number' ? (
           <span className="text-[10px] opacity-90 mt-0.5">⏰ {toFa(formatTimer(timeLeft))}</span>
         ) : (
           // If we don't have a ticking state yet but have expiryMs, show immediate computed time
-          expiryMs ? (
+          !isCreating && expiryMs ? (
             <span className="text-[10px] opacity-90 mt-0.5">⏰ {toFa(formatTimer(Math.max(0, Math.floor((expiryMs - Date.now()) / 1000))))}</span>
           ) : null
         )}
