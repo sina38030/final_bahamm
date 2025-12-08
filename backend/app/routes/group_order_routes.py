@@ -186,8 +186,18 @@ async def create_secondary_group(
             if (isinstance(meta, dict) and 
                 str(meta.get('kind', '')).lower() == 'secondary' and 
                 int(meta.get('source_order_id', 0)) == int(source_order_id)):
-                # Secondary group already exists, return it
-                logger.info(f"✅ Secondary group {g.id} already exists for order {source_order_id}")
+                # Secondary group already exists - update expiry to match source order paid_at + 24h
+                from datetime import timedelta as td
+                paid_at_fix = source_order.paid_at or source_order.created_at or datetime.now(TEHRAN_TZ)
+                if getattr(paid_at_fix, 'tzinfo', None) is None:
+                    paid_at_fix = paid_at_fix.replace(tzinfo=TEHRAN_TZ)
+                correct_expiry = paid_at_fix + td(hours=24)
+                if g.expires_at != correct_expiry:
+                    g.expires_at = correct_expiry
+                    db.commit()
+                    logger.info(f"Updated secondary group {g.id} expiry to {correct_expiry}")
+                else:
+                    logger.info(f"Secondary group {g.id} already exists for order {source_order_id}")
                 return {
                     "success": True,
                     "group_order_id": g.id,
