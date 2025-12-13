@@ -24,18 +24,24 @@ jobs:
             set -e
             
             echo "📥 Pulling latest changes..."
-            cd /srv/app/frontend
+            cd /home/ubuntu/bahamm-git
             git pull origin main
             
-            echo "🔧 Updating backend dependencies (if needed)..."
-            cd /srv/app/backend
+            echo "🔧 Setting up backend virtual environment..."
+            cd /home/ubuntu/bahamm-git/backend
+            if [ ! -d "venv" ]; then
+              echo "Creating virtual environment..."
+              python3 -m venv venv
+            fi
+            
+            echo "🔧 Updating backend dependencies..."
             if [ -f requirements.txt ]; then
-              .venv/bin/pip install -r requirements.txt --quiet --no-warn-script-location || echo "⚠️ Backend deps skipped"
+              venv/bin/pip install -r requirements.txt --quiet --no-warn-script-location || echo "⚠️ Backend deps skipped"
             fi
             
             echo "📦 Installing frontend dependencies..."
-            cd /srv/app/frontend/frontend
-            npm install --prefer-offline --no-audit --loglevel=error
+            cd /home/ubuntu/bahamm-git/frontend/frontend
+            npm install --prefer-offline --no-audit --loglevel=error || echo "⚠️ Frontend deps skipped"
             
             echo "♻️ Restarting services..."
             # Clean up root PM2 processes first
@@ -53,12 +59,12 @@ jobs:
             
             # Start backend
             echo "🚀 Starting backend..."
-            cd /srv/app/backend
-            pm2 start .venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0 --port 8001
+            cd /home/ubuntu/bahamm-git/backend
+            pm2 start venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0 --port 8001
             
             # Fix .next permissions and start frontend in dev mode (fast, no build needed)
             echo "🚀 Starting frontend..."
-            cd /srv/app/frontend/frontend
+            cd /home/ubuntu/bahamm-git/frontend/frontend
             sudo chown -R ubuntu:ubuntu .next 2>/dev/null || true
             PORT=3000 pm2 start npm --name frontend -- run dev
             
