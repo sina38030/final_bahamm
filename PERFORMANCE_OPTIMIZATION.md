@@ -198,7 +198,7 @@ Based on these optimizations, you should see:
 
 1. **Install gunicorn** (if not already in production):
 ```bash
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
 cd /srv/app
 ```
 

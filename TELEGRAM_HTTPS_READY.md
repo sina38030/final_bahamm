@@ -74,8 +74,8 @@ https://embassy-breath-latitude-sbjct.trycloudflare.com
 | Type | URL | Purpose |
 |------|-----|---------|
 | **HTTPS (Telegram)** | https://embassy-breath-latitude-sbjct.trycloudflare.com | For Telegram Mini App |
-| **HTTP (Direct)** | http://185.231.181.208:3000 | Direct server access |
-| **Backend** | http://185.231.181.208:8002 | API endpoint |
+| **HTTP (Direct)** | http://188.121.103.118:3000 | Direct server access |
+| **Backend** | http://188.121.103.118:8002 | API endpoint |
 
 ### **Services Running**
 
@@ -126,13 +126,13 @@ The tunnel is currently running as a background process.
 
 **To check if it's running:**
 ```bash
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
 ps aux | grep cloudflared
 ```
 
 **If it stops, restart it:**
 ```bash
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
 cd /srv/app
 nohup cloudflared tunnel --url http://localhost:3000 > logs/cloudflared-staging.log 2>&1 &
 ```
@@ -152,7 +152,7 @@ The URL will change. When that happens:
 
 1. **Get new URL:**
    ```bash
-   ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+   ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
    cat /srv/app/logs/cloudflared-staging.log | grep trycloudflare.com | tail -1
    ```
 
@@ -165,7 +165,7 @@ The URL will change. When that happens:
 Set up a custom domain:
 
 **Option 1: Use bahamm.ir subdomain**
-1. Add DNS record: `staging.bahamm.ir` → `185.231.181.208`
+1. Add DNS record: `staging.bahamm.ir` → `188.121.103.118`
 2. Get SSL certificate: `sudo certbot --nginx -d staging.bahamm.ir`
 3. Use: `https://staging.bahamm.ir` in BotFather
 
@@ -180,19 +180,19 @@ Set up a custom domain:
 
 ### **Check Tunnel Status**
 ```bash
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
 ps aux | grep cloudflared | grep -v grep
 ```
 
 ### **View Tunnel Logs**
 ```bash
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
 tail -50 /srv/app/logs/cloudflared-staging.log
 ```
 
 ### **Restart Tunnel**
 ```bash
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
 pkill cloudflared
 nohup cloudflared tunnel --url http://localhost:3000 > /srv/app/logs/cloudflared-staging.log 2>&1 &
 sleep 5
@@ -201,7 +201,7 @@ cat /srv/app/logs/cloudflared-staging.log | grep trycloudflare.com
 
 ### **View All Services**
 ```bash
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
 pm2 status
 ```
 
@@ -237,7 +237,7 @@ pm2 status
 
 **Check backend logs:**
 ```bash
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
 pm2 logs bahamm-backend-staging --lines 50
 ```
 
@@ -256,17 +256,17 @@ pm2 logs bahamm-backend-staging --lines 50
 
 **Restart everything:**
 ```powershell
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 restart frontend-staging bahamm-backend-staging"
+ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa" "pm2 restart frontend-staging bahamm-backend-staging"
 ```
 
 **Check what's running:**
 ```powershell
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 status && echo '' && ps aux | grep cloudflared | grep -v grep"
+ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa" "pm2 status && echo '' && ps aux | grep cloudflared | grep -v grep"
 ```
 
 **View all logs:**
 ```powershell
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 logs --lines 20"
+ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa" "pm2 logs --lines 20"
 ```
 
 ---

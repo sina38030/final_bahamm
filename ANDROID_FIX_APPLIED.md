@@ -147,7 +147,7 @@ If you need to deploy manually:
 
 ```bash
 # SSH to server
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
 
 # Navigate to app directory
 cd /srv/app/frontend/frontend

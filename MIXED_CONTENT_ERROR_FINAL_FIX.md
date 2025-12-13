@@ -5,7 +5,7 @@
 
 ## Root Cause
 
-The admin page was making HTTP requests to `http://185.231.181.208:8002` from an HTTPS page (`https://staging.bahamm.ir`), which browsers block for security.
+The admin page was making HTTP requests to `http://188.121.103.118:8002` from an HTTPS page (`https://staging.bahamm.ir`), which browsers block for security.
 
 **Why this happened:**
 1. The `ADMIN_API_BASE_URL` was being computed at **module load time** (line 91)

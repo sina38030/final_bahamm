@@ -21,13 +21,13 @@ location /backend/static/ {
 
 1. **Upload files to server:**
    ```powershell
-   scp -i "C:\Users\User\.ssh\id_rsa" nginx_current.conf ubuntu@185.231.181.208:/srv/app/frontend/
-   scp -i "C:\Users\User\.ssh\id_rsa" deploy_nginx_fix.sh ubuntu@185.231.181.208:/srv/app/frontend/
+   scp -i "C:\Users\User\.ssh\id_rsa" nginx_current.conf ubuntu@188.121.103.118:/srv/app/frontend/
+   scp -i "C:\Users\User\.ssh\id_rsa" deploy_nginx_fix.sh ubuntu@188.121.103.118:/srv/app/frontend/
    ```
 
 2. **SSH into server:**
    ```powershell
-   ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+   ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
    ```
 
 3. **Run the deployment script:**
@@ -41,7 +41,7 @@ location /backend/static/ {
 
 1. **SSH into server:**
    ```powershell
-   ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+   ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
    ```
 
 2. **Upload the updated config:**

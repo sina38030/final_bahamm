@@ -5,13 +5,13 @@
 این دستور را در PowerShell کپی کنید و اجرا کنید:
 
 
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "cd /srv/app && git pull && cd frontend && rm -rf .next && npm run build && pm2 restart frontend"
+ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa" "cd /srv/app && git pull && cd frontend && rm -rf .next && npm run build && pm2 restart frontend"
 
 
 اگر با PM2 کار نمی‌کند، این را امتحان کنید:
 
 
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "cd /srv/app && git pull && cd frontend && rm -rf .next && npm run build && sudo systemctl restart frontend"
+ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa" "cd /srv/app && git pull && cd frontend && rm -rf .next && npm run build && sudo systemctl restart frontend"
 
 
 ================================================

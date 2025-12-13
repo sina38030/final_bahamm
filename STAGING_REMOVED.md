@@ -32,7 +32,7 @@
 #### 4. `backend/main.py` ✅
 - ❌ Removed all staging CORS origins:
   - localhost:3001, 3002, 8002
-  - 185.231.181.208:3000, 8002
+  - 188.121.103.118:3000, 8002
   - staging.bahamm.ir
   - staging-api.bahamm.ir
 - ✅ Kept production CORS origins:
@@ -88,7 +88,7 @@ Then choose from the menu:
 
 Connect to server:
 ```bash
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
 ```
 
 Stop and remove staging services:
@@ -129,7 +129,7 @@ curl http://localhost:8001/health
 - https://api.bahamm.ir
 
 **Server:**
-- SSH: `ubuntu@185.231.181.208`
+- SSH: `ubuntu@188.121.103.118`
 - Frontend: Port 3000 (localhost)
 - Backend: Port 8001 (localhost)
 
@@ -176,7 +176,7 @@ After running the setup:
 
 ### Frontend not starting?
 ```bash
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
 cd /srv/app/frontend/frontend
 npm install  # If dependencies are missing
 npm run build  # Rebuild production

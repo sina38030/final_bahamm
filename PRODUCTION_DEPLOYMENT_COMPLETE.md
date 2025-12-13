@@ -59,7 +59,7 @@ This bug caused ALL notification attempts to crash silently!
 
 Run on production:
 ```bash
-ssh ubuntu@185.231.181.208 'cd /srv/app/backend && /srv/app/venv/bin/python3 -c "
+ssh ubuntu@188.121.103.118 'cd /srv/app/backend && /srv/app/venv/bin/python3 -c "
 from app.database import SessionLocal
 from app.models import User
 db = SessionLocal()
@@ -89,7 +89,7 @@ Replace `{user_id}` with a Telegram user's ID.
 ### Test 4: Monitor Logs
 
 ```bash
-ssh ubuntu@185.231.181.208 'pm2 logs backend --lines 50 | grep -E "🔔|✅|❌|Telegram"'
+ssh ubuntu@188.121.103.118 'pm2 logs backend --lines 50 | grep -E "🔔|✅|❌|Telegram"'
 ```
 
 **Expected logs when someone joins:**
@@ -157,20 +157,20 @@ ssh ubuntu@185.231.181.208 'pm2 logs backend --lines 50 | grep -E "🔔|✅|❌|
 
 ```bash
 # 1. Copy fixed files to production
-scp backend/app/services/notification.py ubuntu@185.231.181.208:/srv/app/backend/app/services/
-scp backend/app/services/telegram.py ubuntu@185.231.181.208:/srv/app/backend/app/services/
-scp backend/app/services/payment_service.py ubuntu@185.231.181.208:/srv/app/backend/app/services/
-scp backend/app/routes/admin_routes.py ubuntu@185.231.181.208:/srv/app/backend/app/routes/
-scp backend/app/services/__init__.py ubuntu@185.231.181.208:/srv/app/backend/app/services/
+scp backend/app/services/notification.py ubuntu@188.121.103.118:/srv/app/backend/app/services/
+scp backend/app/services/telegram.py ubuntu@188.121.103.118:/srv/app/backend/app/services/
+scp backend/app/services/payment_service.py ubuntu@188.121.103.118:/srv/app/backend/app/services/
+scp backend/app/routes/admin_routes.py ubuntu@188.121.103.118:/srv/app/backend/app/routes/
+scp backend/app/services/__init__.py ubuntu@188.121.103.118:/srv/app/backend/app/services/
 
 # 2. Clear Python cache
-ssh ubuntu@185.231.181.208 'find /srv/app/backend/app/services -name "__pycache__" -type d -exec rm -rf {} +'
+ssh ubuntu@188.121.103.118 'find /srv/app/backend/app/services -name "__pycache__" -type d -exec rm -rf {} +'
 
 # 3. Restart backend
-ssh ubuntu@185.231.181.208 'pm2 restart backend'
+ssh ubuntu@188.121.103.118 'pm2 restart backend'
 
 # 4. Verify
-ssh ubuntu@185.231.181.208 'pm2 logs backend --lines 20 --nostream'
+ssh ubuntu@188.121.103.118 'pm2 logs backend --lines 20 --nostream'
 ```
 
 ---
@@ -186,7 +186,7 @@ Test it by:
 
 **Check logs in real-time:**
 ```bash
-ssh ubuntu@185.231.181.208 'pm2 logs backend --lines 0'
+ssh ubuntu@188.121.103.118 'pm2 logs backend --lines 0'
 ```
 
 Then trigger a group join and watch for notification messages!

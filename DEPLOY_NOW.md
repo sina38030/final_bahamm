@@ -61,7 +61,7 @@ Your site will be live at: **https://bahamm.ir**
 After deployment, check status:
 
 ```powershell
-ssh -i "C:\Users\User\.ssh\id_rsa" ubuntu@185.231.181.208
+ssh -i "C:\Users\User\.ssh\id_rsa" ubuntu@188.121.103.118
 cd /srv/app/frontend
 docker-compose -f docker-compose.prod.yml ps
 ```

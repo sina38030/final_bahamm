@@ -15,7 +15,7 @@ This bypasses Cloudflare entirely for staging:
 1. Go to: https://dash.cloudflare.com
 2. Login and select: bahamm.ir
 3. Click: DNS (in left sidebar)
-4. Find row: staging | A | 185.231.181.208
+4. Find row: staging | A | 188.121.103.118
 5. Click the ORANGE CLOUD ☁ to make it GRAY ☁
 6. Save (it saves automatically)
 7. Wait 1 minute

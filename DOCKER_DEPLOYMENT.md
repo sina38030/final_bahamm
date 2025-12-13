@@ -105,7 +105,7 @@ git commit -m "Your changes"
 git push origin main
 
 # Deploy to server
-ssh -i "C:\Users\User\.ssh\id_rsa" ubuntu@185.231.181.208 "cd /srv/app && ./deploy.sh"
+ssh -i "C:\Users\User\.ssh\id_rsa" ubuntu@188.121.103.118 "cd /srv/app && ./deploy.sh"
 ```
 
 ### Or Use the PowerShell Script

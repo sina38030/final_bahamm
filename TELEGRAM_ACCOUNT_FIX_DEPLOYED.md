@@ -157,7 +157,7 @@ If you still see the wrong account after deploying:
 
 3. **Verify Production:**
    ```powershell
-   ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 restart frontend"
+   ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa" "pm2 restart frontend"
    ```
 
 4. **Check Logs:**
@@ -166,7 +166,7 @@ If you still see the wrong account after deploying:
    Check browser console for "[AuthContext]" logs
    
    # Production
-   ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 logs frontend --lines 100"
+   ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa" "pm2 logs frontend --lines 100"
    ```
 
 ---
@@ -198,7 +198,7 @@ If the issue still occurs after testing:
 3. Clear all browser/Telegram cache
 4. Verify the fix is in production with:
    ```bash
-   ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" 'wc -l /srv/app/frontend/frontend/src/contexts/AuthContext.tsx'
+   ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa" 'wc -l /srv/app/frontend/frontend/src/contexts/AuthContext.tsx'
    # Should show: 1197 lines (or 1198)
    ```
 

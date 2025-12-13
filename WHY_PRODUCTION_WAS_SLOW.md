@@ -329,7 +329,7 @@ Results:
 ### Option 2: Manual Deploy
 
 ```powershell
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
 cd /srv/app
 git pull origin main
 docker-compose -f docker-compose.prod.yml build --no-cache
@@ -339,7 +339,7 @@ docker-compose -f docker-compose.prod.yml up -d
 ### Option 3: Zero-Downtime Deploy
 
 ```powershell
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
 cd /srv/app
 ./deploy.sh
 ```

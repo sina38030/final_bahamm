@@ -6,7 +6,7 @@
 **Configured:** December 7, 2025
 
 ## Problem (SOLVED)
-The server at 185.231.181.208 cannot reach `api.telegram.org` due to regional blocking.
+The server at 188.121.103.118 cannot reach `api.telegram.org` due to regional blocking.
 Other services (GitHub, Google) work fine.
 
 ## Solution: Cloudflare Worker Proxy

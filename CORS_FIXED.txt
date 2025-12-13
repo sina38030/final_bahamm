@@ -10,14 +10,14 @@ Issue: CORS blocking requests from frontend to backend
 ═══════════════════════════════════════════════════════════════
 
 Error Message:
-  "Access to fetch at 'http://185.231.181.208:8002/api/...' 
-   from origin 'http://185.231.181.208:3000' has been blocked 
+  "Access to fetch at 'http://188.121.103.118:8002/api/...' 
+   from origin 'http://188.121.103.118:3000' has been blocked 
    by CORS policy: No 'Access-Control-Allow-Origin' header 
    is present on the requested resource."
 
 Root Cause:
   Backend CORS configuration didn't include the server IP address
-  (http://185.231.181.208:3000) in the allowed origins list.
+  (http://188.121.103.118:3000) in the allowed origins list.
 
 ═══════════════════════════════════════════════════════════════
   SOLUTION
@@ -26,8 +26,8 @@ Root Cause:
 File Modified: backend/main.py
 
 Added to CORS allowed origins:
-  ✓ http://185.231.181.208:3000  (Frontend staging)
-  ✓ http://185.231.181.208:8002  (Backend staging)
+  ✓ http://188.121.103.118:3000  (Frontend staging)
+  ✓ http://188.121.103.118:8002  (Backend staging)
 
 Changes applied to BOTH CORS middleware instances:
   1. api_app.add_middleware (line ~96)
@@ -38,11 +38,11 @@ Changes applied to BOTH CORS middleware instances:
 ═══════════════════════════════════════════════════════════════
 
 Tested with curl:
-  $ curl -H 'Origin: http://185.231.181.208:3000' \
+  $ curl -H 'Origin: http://188.121.103.118:3000' \
     http://localhost:8002/api/health
 
 Response Headers:
-  ✓ access-control-allow-origin: http://185.231.181.208:3000
+  ✓ access-control-allow-origin: http://188.121.103.118:3000
   ✓ access-control-allow-credentials: true
 
 ═══════════════════════════════════════════════════════════════
@@ -50,7 +50,7 @@ Response Headers:
 ═══════════════════════════════════════════════════════════════
 
 1. Open your browser
-2. Go to: http://185.231.181.208:3000
+2. Go to: http://188.121.103.118:3000
 3. Press Ctrl+Shift+R (Windows/Linux) or Cmd+Shift+R (Mac)
    to perform a hard refresh
 4. Or: Open DevTools (F12) → Application → Clear Storage → 
@@ -70,8 +70,8 @@ Expected Result:
 Backend now accepts requests from:
   • localhost:3000, 3001, 3002, 8000, 8002
   • 127.0.0.1:3000, 3001, 3002, 8000, 8002
-  • http://185.231.181.208:3000 ← NEW
-  • http://185.231.181.208:8002 ← NEW
+  • http://188.121.103.118:3000 ← NEW
+  • http://188.121.103.118:8002 ← NEW
   • https://bahamm.ir (production)
   • https://app.bahamm.ir
   • https://staging.bahamm.ir
@@ -101,26 +101,26 @@ Backend now accepts requests from:
 3. Check browser console (F12) for any remaining errors
 
 4. Verify backend is running:
-   curl http://185.231.181.208:8002/health
+   curl http://188.121.103.118:8002/health
 
 5. Check backend logs:
-   ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+   ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
    pm2 logs bahamm-backend-staging
 
 ═══════════════════════════════════════════════════════════════
   QUICK REFERENCE
 ═══════════════════════════════════════════════════════════════
 
-Frontend URL: http://185.231.181.208:3000
-Backend URL:  http://185.231.181.208:8002
-Admin Panel:  http://185.231.181.208:3000/admin-full
+Frontend URL: http://188.121.103.118:3000
+Backend URL:  http://188.121.103.118:8002
+Admin Panel:  http://188.121.103.118:3000/admin-full
 
 Restart Backend:
-  ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+  ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
   pm2 restart bahamm-backend-staging
 
 View Logs:
-  ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+  ssh ubuntu@188.121.103.118 -i "C:\Users\User\.ssh\id_rsa"
   pm2 logs bahamm-backend-staging --lines 50
 
 ═══════════════════════════════════════════════════════════════
