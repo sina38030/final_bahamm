@@ -40,7 +40,7 @@ jobs:
             fi
             
             echo "📦 Installing frontend dependencies..."
-            cd /home/ubuntu/bahamm-git/frontend/frontend
+            cd /home/ubuntu/bahamm-git/frontend
             npm install --prefer-offline --no-audit --loglevel=error || echo "⚠️ Frontend deps skipped"
             
             echo "♻️ Restarting services..."
@@ -64,7 +64,7 @@ jobs:
             
             # Fix .next permissions and start frontend in dev mode (fast, no build needed)
             echo "🚀 Starting frontend..."
-            cd /home/ubuntu/bahamm-git/frontend/frontend
+            cd /home/ubuntu/bahamm-git/frontend
             sudo chown -R ubuntu:ubuntu .next 2>/dev/null || true
             PORT=3000 pm2 start npm --name frontend -- run dev
             
