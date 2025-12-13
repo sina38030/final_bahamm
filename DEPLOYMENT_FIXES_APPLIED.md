@@ -98,7 +98,7 @@ Then watch the deployment:
 ### Option 2: Manual Deploy (Backup)
 If you want to deploy immediately without testing the workflow:
 ```powershell
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "cd /srv/app/frontend && git pull origin main && cd /srv/app/frontend/frontend && npm ci --prefer-offline --no-audit && export NODE_OPTIONS='--max-old-space-size=4096' && npm run build && pm2 stop all && pm2 delete all && cd /srv/app/backend && pm2 start .venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0 --port 8001 && cd /srv/app/frontend/frontend && PORT=3000 pm2 start npm --name frontend -- start && pm2 save && pm2 status"
+ssh ubuntu@<YOUR_SERVER_IP> -i "<PATH_TO_YOUR_PRIVATE_KEY>" "cd /srv/app/frontend && git pull origin main && cd /srv/app/frontend/frontend && npm ci --prefer-offline --no-audit && export NODE_OPTIONS='--max-old-space-size=4096' && npm run build && pm2 stop all && pm2 delete all && cd /srv/app/backend && pm2 start .venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0 --port 8001 && cd /srv/app/frontend/frontend && PORT=3000 pm2 start npm --name frontend -- start && pm2 save && pm2 status"
 ```
 
 ---
@@ -138,13 +138,13 @@ ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "cd /srv/app/frontend 
 ### During Deployment:
 ```bash
 # In separate terminal, watch server logs
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 logs"
+ssh ubuntu@<YOUR_SERVER_IP> -i "<PATH_TO_YOUR_PRIVATE_KEY>" "pm2 logs"
 ```
 
 ### After Deployment:
 ```bash
 # Check status
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 status"
+ssh ubuntu@<YOUR_SERVER_IP> -i "<PATH_TO_YOUR_PRIVATE_KEY>" "pm2 status"
 
 # Test website
 curl https://bahamm.ir
@@ -164,7 +164,7 @@ Options:
 ### Server Crashes?
 ```bash
 # Quick fix:
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 stop all && pm2 delete all && cd /srv/app/backend && pm2 start .venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0 --port 8001 && cd /srv/app/frontend/frontend && PORT=3000 pm2 start npm --name frontend -- run dev && pm2 save"
+ssh ubuntu@<YOUR_SERVER_IP> -i "<PATH_TO_YOUR_PRIVATE_KEY>" "pm2 stop all && pm2 delete all && cd /srv/app/backend && pm2 start .venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0 --port 8001 && cd /srv/app/frontend/frontend && PORT=3000 pm2 start npm --name frontend -- run dev && pm2 save"
 ```
 
 See `SERVER_RESTART_GUIDE.md` for detailed recovery steps.

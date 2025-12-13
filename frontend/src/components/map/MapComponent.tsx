@@ -9,7 +9,7 @@ let L: any = null;
 
 interface MapComponentProps {
   center: { lat: number; lng: number } | null | undefined;
-  onLocationChange: (lat: number, lng: number) => void;
+  onLocationChange: (lat: number, lng: number, isUserDrag?: boolean) => void;
   invalidateTrigger?: number;
 }
 
@@ -20,6 +20,8 @@ export default function MapComponent({ center, onLocationChange, invalidateTrigg
   const onLocationChangeRef = useRef(onLocationChange);
   const [isClient, setIsClient] = useState(false);
   const [isLeafletLoaded, setIsLeafletLoaded] = useState(false);
+  // Track if the current move is programmatic (from setView) vs user drag
+  const isProgrammaticMoveRef = useRef(false);
 
   // Default center coordinates (Mashhad, Iran)
   const defaultCenter = { lat: 36.2605, lng: 59.6168 };
@@ -102,7 +104,10 @@ export default function MapComponent({ center, onLocationChange, invalidateTrigg
     // Report location on move end only to reduce jitter
     const handleMoveEnd = () => {
       const c = map.getCenter();
-      onLocationChangeRef.current(c.lat, c.lng);
+      const isUserDrag = !isProgrammaticMoveRef.current;
+      console.log('[MapComponent Debug] moveend fired - isProgrammaticMove:', isProgrammaticMoveRef.current, 'isUserDrag:', isUserDrag);
+      isProgrammaticMoveRef.current = false; // Reset the flag
+      onLocationChangeRef.current(c.lat, c.lng, isUserDrag);
     };
     map.on('moveend', handleMoveEnd);
 
@@ -178,7 +183,11 @@ export default function MapComponent({ center, onLocationChange, invalidateTrigg
       const current = map.getCenter();
       const target = L.latLng(safeCenter.lat, safeCenter.lng);
       const distance = map.distance(current, target);
+      console.log('[MapComponent Debug] center prop changed - current:', current.lat, current.lng, 'target:', target.lat, target.lng, 'distance:', distance);
       if (distance > 5) {
+        // Mark this as a programmatic move so moveend handler knows it's not a user drag
+        console.log('[MapComponent Debug] Calling setView (programmatic)');
+        isProgrammaticMoveRef.current = true;
         map.setView(target, map.getZoom(), { animate: false });
       }
     } catch (error) {

@@ -744,8 +744,8 @@ function InvitePageContent() {
       
       // If we already created a group, just open share
       if (createdGroup && createdGroup.shareUrl) {
-        setShareSheetOpen(true);
-        return;
+      setShareSheetOpen(true);
+      return;
       }
       // Always create (or reuse) a secondary group for invited user's share
       if (!order) { setShareSheetOpen(true); return; }

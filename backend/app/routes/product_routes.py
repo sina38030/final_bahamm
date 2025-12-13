@@ -232,13 +232,16 @@ def create_product_review(
     except Exception:
         computed_display_name = None
 
+    # Use provided approved value if set (for admin-created reviews), otherwise default to False
+    is_approved = review_data.approved if review_data.approved is not None else False
+    
     review = Review(
         product_id=product_id,
         user_id=review_data.user_id,
         rating=review_data.rating,
         comment=review_data.comment,
         display_name=computed_display_name,
-        approved=False  # Reviews need admin approval by default
+        approved=is_approved  # Admin reviews can be auto-approved, user reviews need approval
     )
 
     # Allow overriding created_at if provided (admin/manual entry)

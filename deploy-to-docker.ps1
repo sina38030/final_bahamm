@@ -3,8 +3,10 @@
 # Domain: bahamm.ir ONLY (no subdomains)
 # =====================================================
 
-$SERVER = "ubuntu@185.231.181.208"
-$KEY = "C:\Users\User\.ssh\id_rsa"
+$SERVER = $env:BAHAMM_SERVER
+if (-not $SERVER) { $SERVER = "ubuntu@<YOUR_SERVER_IP>" }
+$KEY = $env:BAHAMM_SSH_KEY
+if (-not $KEY) { $KEY = "<PATH_TO_YOUR_PRIVATE_KEY>" }
 $APP_DIR = "/srv/app/frontend"
 
 Write-Host ""
@@ -47,17 +49,17 @@ ssh -i $KEY $SERVER @"
 cd ${APP_DIR} && cat > .env.prod << 'EOF'
 # Database Configuration
 POSTGRES_USER=bahamm_user
-POSTGRES_PASSWORD=bahamm_secure_password_2025
+POSTGRES_PASSWORD=change-me-use-a-strong-random-password
 POSTGRES_DB=bahamm
 
 # Backend Configuration
-SECRET_KEY=bahamm-production-secret-key-2025-secure
+SECRET_KEY=change-me-use-a-strong-random-secret
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=525600
 
 # SMS Configuration
 SMS_PROVIDER=melipayamak
-MELIPAYAMAK_API_KEY=60292d2280404143914d559366fa43f9
+MELIPAYAMAK_API_KEY=change-me-real-api-key
 
 # Frontend URLs - ONLY bahamm.ir (no subdomains)
 NEXT_PUBLIC_BACKEND_URL=https://bahamm.ir

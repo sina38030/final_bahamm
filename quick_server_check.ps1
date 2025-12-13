@@ -1,7 +1,12 @@
 # Quick server status check
 
-$SERVER = "ubuntu@185.231.181.208"
-$SSH_KEY = "C:\Users\User\.ssh\id_rsa"
+$SERVER_HOST = $env:BAHAMM_SSH_HOST
+if (-not $SERVER_HOST) { $SERVER_HOST = "<YOUR_SERVER_IP>" }
+$SERVER_USER = $env:BAHAMM_SSH_USER
+if (-not $SERVER_USER) { $SERVER_USER = "ubuntu" }
+$SERVER = "$SERVER_USER@$SERVER_HOST"
+$SSH_KEY = $env:BAHAMM_SSH_KEY
+if (-not $SSH_KEY) { $SSH_KEY = "<PATH_TO_YOUR_PRIVATE_KEY>" }
 
 Write-Host "Quick Server Status Check" -ForegroundColor Cyan
 Write-Host "=========================" -ForegroundColor Cyan
@@ -9,7 +14,7 @@ Write-Host ""
 
 # Check if server is reachable
 Write-Host "Pinging server..." -ForegroundColor Yellow
-$ping = Test-Connection -ComputerName 185.231.181.208 -Count 2 -Quiet
+$ping = Test-Connection -ComputerName $SERVER_HOST -Count 2 -Quiet
 if ($ping) {
     Write-Host "✓ Server is reachable" -ForegroundColor Green
 } else {

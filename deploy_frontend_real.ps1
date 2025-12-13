@@ -1,9 +1,12 @@
 # Deploy Frontend to Real Production Server
 # اطلاعات واقعی سرور
 
-$SERVER_USER = "ubuntu"
-$SERVER_HOST = "185.231.181.208"
-$SSH_KEY = "C:\Users\User\.ssh\id_rsa"
+$SERVER_USER = $env:BAHAMM_SSH_USER
+if (-not $SERVER_USER) { $SERVER_USER = "ubuntu" }
+$SERVER_HOST = $env:BAHAMM_SSH_HOST
+if (-not $SERVER_HOST) { $SERVER_HOST = "<YOUR_SERVER_IP>" }
+$SSH_KEY = $env:BAHAMM_SSH_KEY
+if (-not $SSH_KEY) { $SSH_KEY = "<PATH_TO_YOUR_PRIVATE_KEY>" }
 $FRONTEND_PATH = "/srv/app/frontend"
 $APP_PATH = "/srv/app"
 

@@ -13,7 +13,7 @@ import io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 # Test with both tokens to see which one works
-OLD_TOKEN = "8413343514:AAFiyFNsJUSuEh0aLG9dZxSnSHwAyRPK09E"
+OLD_TOKEN = "<YOUR_TELEGRAM_BOT_TOKEN>"
 NEW_TOKEN = "8401301600:AAESD_wvk1dw0O9HQT_jNkWIdlpCp5GNlwc"
 
 def verify_telegram_init_data(init_data: str, bot_token: str) -> bool:

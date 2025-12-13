@@ -180,7 +180,7 @@ Each time you restart ngrok, repeat:
 - Look at ngrok inspector (http://localhost:4040) for request details
 
 ## Your Current Bot Configuration:
-- Bot Token: `8413343514:AAFiyFNsJUSuEh0aLG9dZxSnSHwAyRPK09E`
+- Bot Token: `<YOUR_TELEGRAM_BOT_TOKEN>`
 - Bot Username: `@Bahamm_bot`
 - Mini App Name: `bahamm`
 

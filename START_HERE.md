@@ -98,7 +98,7 @@ ngrok free tier URLs change each restart. When you restart ngrok:
 
 **Your Bot Info:**
 - Username: `@Bahamm_bot`
-- Token: `8413343514:AAFiyFNsJUSuEh0aLG9dZxSnSHwAyRPK09E`
+- Token: `<YOUR_TELEGRAM_BOT_TOKEN>`
 
 
 

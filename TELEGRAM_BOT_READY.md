@@ -164,7 +164,7 @@ Open @Bahamm_bot → Menu button → App loads!
 ## 📝 Bot Information:
 
 - **Bot Username:** `@Bahamm_bot`
-- **Bot Token:** `8413343514:AAFiyFNsJUSuEh0aLG9dZxSnSHwAyRPK09E`
+- **Bot Token:** `<YOUR_TELEGRAM_BOT_TOKEN>`
 - **Mini App Name:** `bahamm`
 
 ---

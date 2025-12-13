@@ -5,7 +5,9 @@ from typing import Optional
 class Settings(BaseSettings):
     # Use relative path from project root - works on both Windows and Linux
     DATABASE_URL: str = "sqlite:///./bahamm1.db"
-    SECRET_KEY: str = "dev-secret-key-for-bahamm-app-2025"
+    # IMPORTANT: Set SECRET_KEY via environment (.env/.env.prod) in production.
+    # The default is for local development only.
+    SECRET_KEY: str = "dev-secret-key-change-me"
     ALGORITHM: str = "HS256"
     # Default token lifetime set long to keep users logged in until explicit logout
     # You can override via env var ACCESS_TOKEN_EXPIRE_MINUTES
@@ -13,11 +15,13 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 525600
 
     SMS_PROVIDER: str = "melipayamak"
-    MELIPAYAMAK_API_KEY: str = "60292d2280404143914d559366fa43f9"
+    # IMPORTANT: Set MELIPAYAMAK_API_KEY via environment in production (do NOT hardcode).
+    MELIPAYAMAK_API_KEY: str = ""
     SMS_FORCE_TEST_MODE: bool = False
 
     # Payment Gateway Configuration (ZarinPal)
-    ZARINPAL_MERCHANT_ID: str = "2cea1309-4a05-4f02-82ce-9a6d183db8a4"  # Real merchant ID
+    # IMPORTANT: Set ZARINPAL_MERCHANT_ID via environment in production (do NOT hardcode).
+    ZARINPAL_MERCHANT_ID: str = ""
     ZARINPAL_SANDBOX: bool = False
     # Auto-detect: use production URL by default, can be overridden with env var for local dev
     FRONTEND_URL: str = "https://bahamm.ir"  # Can use env var for local dev: http://localhost:3000
@@ -67,7 +71,8 @@ class Settings(BaseSettings):
     # Telegram Mini App Configuration
     # Required for verifying Telegram WebApp authentication
     # Get your bot token from @BotFather on Telegram
-    TELEGRAM_BOT_TOKEN: str = "8413343514:AAFiyFNsJUSuEh0aLG9dZxSnSHwAyRPK09E"
+    # IMPORTANT: Set TELEGRAM_BOT_TOKEN via environment in production (do NOT hardcode).
+    TELEGRAM_BOT_TOKEN: str = ""
     TELEGRAM_BOT_USERNAME: str = "Bahamm_bot"  # Your bot username (without @)
     TELEGRAM_MINIAPP_NAME: str = "bahamm"  # Your mini app name configured in BotFather
     
@@ -79,10 +84,11 @@ class Settings(BaseSettings):
     # Alternative: Custom Telegram API Base URL (e.g., Cloudflare Worker proxy)
     # If set, replaces https://api.telegram.org with this URL
     # Example: https://telegram-proxy.your-domain.workers.dev
-    TELEGRAM_API_BASE_URL: Optional[str] = 'https://telegram-api-proxy.sina38030.workers.dev'
+    TELEGRAM_API_BASE_URL: Optional[str] = None
 
     class Config:
-        env_file = ".env"
+        # Support both local development and production docker-style env files
+        env_file = (".env", ".env.prod")
         extra = "allow"  # Allow extra fields to prevent validation errors
 
 @lru_cache()

@@ -74,7 +74,7 @@ pm2 restart backend
 cd /srv/app/backend
 .venv/bin/python3 -c "
 import requests
-r = requests.get('https://YOUR-WORKER.workers.dev/bot8413343514:AAFiyFNsJUSuEh0aLG9dZxSnSHwAyRPK09E/getMe', timeout=10)
+r = requests.get('https://YOUR-WORKER.workers.dev/bot<YOUR_TELEGRAM_BOT_TOKEN>/getMe', timeout=10)
 print(r.json())
 "
 ```

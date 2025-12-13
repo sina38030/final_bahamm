@@ -26,13 +26,14 @@ class SMSService:
                 api_key = settings.MELIPAYAMAK_API_KEY
                 self.melipayamak_api_url = f'https://console.melipayamak.com/api/send/otp/{api_key}'
                 self.is_test_mode = False
-                logger.info(f"Using Melipayamak API key: {api_key}")
+                # Never log secrets (API key)
+                logger.info("Melipayamak API key is configured")
             else:
                 logger.warning("MELIPAYAMAK_API_KEY is not set or empty. Using test mode.")
                 self.is_test_mode = True
         
             if self.provider == "melipayamak" and not self.is_test_mode:
-                logger.info(f"Melipayamak SMS service initialized with API URL: {self.melipayamak_api_url}")
+                logger.info("Melipayamak SMS service initialized with API URL: https://console.melipayamak.com/api/send/otp/<redacted>")
             else:
                 logger.info("SMS service initialized in TEST MODE")
             if self.force_test_mode:
@@ -78,7 +79,7 @@ class SMSService:
                 # Prepare request data for OTP API - exactly as specified by user
                 data = {'to': formatted_phone}
                 logger.info(f"Melipayamak OTP request data: {json.dumps(data)}")
-                logger.info(f"Melipayamak API URL: {self.melipayamak_api_url}")
+                logger.info("Melipayamak API URL: https://console.melipayamak.com/api/send/otp/<redacted>")
                 
                 # Send request with timeout and proper error handling
                 # Reduced timeout to 15s to prevent request timeouts

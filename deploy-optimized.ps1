@@ -4,8 +4,10 @@
 Write-Host "🚀 Deploying Performance Optimizations to Production" -ForegroundColor Green
 Write-Host ""
 
-$SERVER = "ubuntu@185.231.181.208"
-$KEY = "C:\Users\User\.ssh\id_rsa"
+$SERVER = $env:BAHAMM_SERVER
+if (-not $SERVER) { $SERVER = "ubuntu@<YOUR_SERVER_IP>" }
+$KEY = $env:BAHAMM_SSH_KEY
+if (-not $KEY) { $KEY = "<PATH_TO_YOUR_PRIVATE_KEY>" }
 $APP_DIR = "/srv/app"
 
 Write-Host "📡 Connecting to server: $SERVER" -ForegroundColor Cyan

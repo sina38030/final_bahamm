@@ -1,10 +1,14 @@
 # Production Server Management Script
-# Server: ubuntu@185.231.181.208
+# Configure via env vars:
+# - BAHAMM_SERVER (example: ubuntu@<YOUR_SERVER_IP>)
+# - BAHAMM_SSH_KEY (example: C:\path\to\id_rsa)
 # Frontend: Port 3000 (Production)
 # Backend: Port 8001 (Production)
 
-$SSH_KEY = "C:\Users\User\.ssh\id_rsa"
-$SERVER = "ubuntu@185.231.181.208"
+$SSH_KEY = $env:BAHAMM_SSH_KEY
+if (-not $SSH_KEY) { $SSH_KEY = "<PATH_TO_YOUR_PRIVATE_KEY>" }
+$SERVER = $env:BAHAMM_SERVER
+if (-not $SERVER) { $SERVER = "ubuntu@<YOUR_SERVER_IP>" }
 
 Write-Host "=== Bahamm Production Server Management ===" -ForegroundColor Cyan
 Write-Host ""

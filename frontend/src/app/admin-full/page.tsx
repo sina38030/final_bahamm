@@ -4288,7 +4288,7 @@ const getAdminAuthToken = (): string | null => {
       }
     };
 
-    // Load reviews for selected product
+    // Load reviews for selected product (using admin API to get ALL reviews including unapproved)
     useEffect(() => {
       if (!selectedProductId) {
         setReviews([]);
@@ -4299,7 +4299,8 @@ const getAdminAuthToken = (): string | null => {
       let alive = true;
       (async () => {
         try {
-          const data = await fetchJSON<any[]>(`${API_BASE_URL}/product/${selectedProductId}/reviews`, undefined, ctrl.signal);
+          // Use admin API to get all reviews (approved + unapproved) for this product
+          const data = await fetchJSON<any[]>(`${ADMIN_API_BASE_URL}/admin/reviews?product_id=${selectedProductId}`, undefined, ctrl.signal);
           if (!alive) return;
           setReviews(Array.isArray(data) ? data : []);
         } catch (err) {
@@ -4309,13 +4310,14 @@ const getAdminAuthToken = (): string | null => {
       return () => { alive = false; ctrl.abort(); };
     }, [selectedProductId]);
 
-    // Refresh reviews list
+    // Refresh reviews list (using admin API to get ALL reviews)
     const refreshReviews = () => {
       if (!selectedProductId) return;
       const ctrl = new AbortController();
       (async () => {
         try {
-          const data = await fetchJSON<any[]>(`${API_BASE_URL}/product/${selectedProductId}/reviews`, undefined, ctrl.signal);
+          // Use admin API to get all reviews (approved + unapproved) for this product
+          const data = await fetchJSON<any[]>(`${ADMIN_API_BASE_URL}/admin/reviews?product_id=${selectedProductId}`, undefined, ctrl.signal);
           setReviews(Array.isArray(data) ? data : []);
         } catch (err) {
           console.error('Refresh reviews error:', err);

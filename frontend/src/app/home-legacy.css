@@ -66,7 +66,7 @@ header#mainHeader.compact .top-card{padding-right:16px;padding-left:16px}
 .prod-img img{width:100%;height:100%;object-fit:cover}
 
 /* افزودن / تعداد */
-.add-btn,.qty-box{position:absolute;bottom:8px;left:8px;background:var(--bg);border:1px solid var(--primary);border-radius:22px;padding:4px 14px;font-size:.9rem;color:var(--primary);cursor:pointer;box-shadow:var(--shadow);user-select:none}
+.add-btn,.qty-box{position:absolute;bottom:22px;left:18px;background:var(--bg);border:1px solid var(--primary);border-radius:22px;padding:4px 14px;font-size:.9rem;color:var(--primary);cursor:pointer;box-shadow:var(--shadow);user-select:none}
 .qty-box{display:none;align-items:center;gap:10px}
 .qty-box button{border:none;background:transparent;font-size:10px;font-weight:700;width:24px;height:24px;text-align:center;border-radius:50%;color:var(--primary)}
 .qty-box .count{min-width:16px;text-align:center;font-weight:700;color:var(--primary)}

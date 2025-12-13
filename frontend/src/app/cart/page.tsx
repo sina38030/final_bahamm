@@ -239,7 +239,7 @@ export default function CartPage() {
       <section className="discount">
         {friends === 0 ? (
           <p className="text">
-            اگر هیچ دوستی عضو گروهت نشه، مبلغ سفارشت از{' '}
+            اگر هیچ کس عضو گروهت نشه، مبلغ سفارشت از{' '}
             <b className="pink">
               <Toman value={totals.alone} />
             </b>{' '}

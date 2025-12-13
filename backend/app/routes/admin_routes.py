@@ -547,6 +547,29 @@ async def create_product(
             form = await request.form()
             data = dict(form)
         
+        # Ensure a default store exists
+        store_id = int(data.get("store_id", 1))
+        existing_store = db.query(Store).filter(Store.id == store_id).first()
+        if not existing_store:
+            # Get or create a default admin user for the store
+            admin_user = db.query(User).filter(User.is_admin == True).first()
+            if not admin_user:
+                # Create a system admin user if none exists
+                admin_user = db.query(User).first()  # Use any existing user
+                if not admin_user:
+                    raise HTTPException(status_code=400, detail="هیچ کاربری وجود ندارد. ابتدا یک کاربر ایجاد کنید.")
+            
+            # Create default store
+            default_store = Store(
+                id=store_id,
+                name="فروشگاه باهم",
+                description="فروشگاه پیش‌فرض باهم",
+                merchant_id=admin_user.id
+            )
+            db.add(default_store)
+            db.commit()
+            logger.info(f"Created default store with ID {store_id}")
+        
         # Map the data to product fields
         product_data = {
             "name": data.get("name"),
@@ -555,7 +578,7 @@ async def create_product(
             # Prefer explicit market_price if provided; fallback to legacy solo_price
             "market_price": float(data.get("market_price", data.get("solo_price", 0))),
             "category_id": int(data.get("category_id")),
-            "store_id": int(data.get("store_id", 1)),
+            "store_id": store_id,
             "shipping_cost": float(data.get("shipping_cost", 0)),
             "friend_1_price": float(data.get("friend_1_price", 0)),
             "friend_2_price": float(data.get("friend_2_price", 0)),

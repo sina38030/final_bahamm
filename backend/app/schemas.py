@@ -436,6 +436,7 @@ class ReviewBase(BaseModel):
 
 class ReviewCreate(ReviewBase):
     user_id: int = 1  # Default to user 1 if not provided
+    approved: Optional[bool] = None  # If provided, use it; otherwise backend defaults to False
     # product_id is passed as path parameter, not in body
 
 class ReviewResponse(ReviewBase):

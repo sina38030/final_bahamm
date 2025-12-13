@@ -1,8 +1,10 @@
 # Production Server Restart Guide
 
-**Server:** 185.231.181.208  
-**User:** ubuntu  
-**SSH Key:** C:\Users\User\.ssh\id_rsa
+**Server:** `<YOUR_SERVER_IP>`  
+**User:** `<YOUR_SSH_USER>`  
+**SSH Key (local path):** `<PATH_TO_YOUR_PRIVATE_KEY>`
+
+> Security note: avoid committing real server IPs, usernames, or key paths into a shared repo. If you suspect compromise, rotate SSH keys and GitHub Actions secrets immediately.
 
 ---
 
@@ -12,12 +14,12 @@ If website shows 502 Bad Gateway error:
 
 ```powershell
 # Kill root PM2 processes and restart properly
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "sudo pm2 stop all && sudo pm2 delete all && sudo pm2 save --force && pm2 stop all && pm2 delete all && sudo fuser -k 3000/tcp && cd /srv/app/backend && pm2 start .venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0 --port 8001 && cd /srv/app/frontend/frontend && sudo chown -R ubuntu:ubuntu .next && PORT=3000 pm2 start npm --name frontend -- run dev && pm2 save"
+ssh <YOUR_SSH_USER>@<YOUR_SERVER_IP> -i "<PATH_TO_YOUR_PRIVATE_KEY>" "sudo pm2 stop all && sudo pm2 delete all && sudo pm2 save --force && pm2 stop all && pm2 delete all && sudo fuser -k 3000/tcp && cd /srv/app/backend && pm2 start .venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0 --port 8001 && cd /srv/app/frontend/frontend && sudo chown -R ubuntu:ubuntu .next && PORT=3000 pm2 start npm --name frontend -- run dev && pm2 save"
 ```
 
 Then verify:
 ```powershell
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "sleep 60 && pm2 status"
+ssh <YOUR_SSH_USER>@<YOUR_SERVER_IP> -i "<PATH_TO_YOUR_PRIVATE_KEY>" "sleep 60 && pm2 status"
 ```
 
 ---
@@ -28,38 +30,38 @@ ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "sleep 60 && pm2 statu
 
 ```powershell
 # Connect and restart everything
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 stop all && pm2 delete all && cd /srv/app/backend && pm2 start .venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0 --port 8001 && cd /srv/app/frontend/frontend && PORT=3000 pm2 start npm --name frontend -- run dev && pm2 save"
+ssh <YOUR_SSH_USER>@<YOUR_SERVER_IP> -i "<PATH_TO_YOUR_PRIVATE_KEY>" "pm2 stop all && pm2 delete all && cd /srv/app/backend && pm2 start .venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0 --port 8001 && cd /srv/app/frontend/frontend && PORT=3000 pm2 start npm --name frontend -- run dev && pm2 save"
 ```
 
 ### Restart Backend Only
 
 ```powershell
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 restart backend"
+ssh <YOUR_SSH_USER>@<YOUR_SERVER_IP> -i "<PATH_TO_YOUR_PRIVATE_KEY>" "pm2 restart backend"
 ```
 
 ### Restart Frontend Only
 
 ```powershell
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 restart frontend"
+ssh <YOUR_SSH_USER>@<YOUR_SERVER_IP> -i "<PATH_TO_YOUR_PRIVATE_KEY>" "pm2 restart frontend"
 ```
 
 ### Check Status
 
 ```powershell
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 status"
+ssh <YOUR_SSH_USER>@<YOUR_SERVER_IP> -i "<PATH_TO_YOUR_PRIVATE_KEY>" "pm2 status"
 ```
 
 ### View Logs
 
 ```powershell
 # Both services
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 logs --lines 50"
+ssh <YOUR_SSH_USER>@<YOUR_SERVER_IP> -i "<PATH_TO_YOUR_PRIVATE_KEY>" "pm2 logs --lines 50"
 
 # Backend only
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 logs backend --lines 50"
+ssh <YOUR_SSH_USER>@<YOUR_SERVER_IP> -i "<PATH_TO_YOUR_PRIVATE_KEY>" "pm2 logs backend --lines 50"
 
 # Frontend only
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 logs frontend --lines 50"
+ssh <YOUR_SSH_USER>@<YOUR_SERVER_IP> -i "<PATH_TO_YOUR_PRIVATE_KEY>" "pm2 logs frontend --lines 50"
 ```
 
 ---
@@ -246,6 +248,113 @@ curl -s http://localhost:3000 | grep -o '<title>.*</title>'
 - Never run PM2 commands as root (don't use `sudo pm2 start`)
 - Always use the ubuntu user for frontend/backend
 - Keep only one PM2 instance per user
+
+### RAM Reserved After Reboot (HugePages / Transparent HugePages)
+**Symptom:** After every reboot, `/proc/meminfo` shows something like:
+- `HugePages_Total: 1170`
+- `Hugetlb: 2396160 kB` (≈ 2.3GB reserved)
+
+**Important:**  
+- `HugePages_Total/Hugetlb` = **Explicit HugeTLB pool reserved by the kernel** (usually via kernel cmdline/GRUB or sysctl).  
+- **THP (Transparent HugePages)** is different and typically shows up as `AnonHugePages` in `/proc/meminfo`.
+
+#### Step 1: Quick Diagnostics (Copy & Paste)
+Run from your Windows machine (PowerShell):
+
+```powershell
+ssh <YOUR_SSH_USER>@<YOUR_SERVER_IP> -i "<PATH_TO_YOUR_PRIVATE_KEY>" "echo '### meminfo'; grep -E 'HugePages_Total|HugePages_Free|Hugepagesize|Hugetlb|AnonHugePages' /proc/meminfo; echo; echo '### nr_hugepages'; sysctl vm.nr_hugepages; echo; echo '### cmdline'; cat /proc/cmdline; echo; echo '### THP'; cat /sys/kernel/mm/transparent_hugepage/enabled; cat /sys/kernel/mm/transparent_hugepage/defrag"
+```
+
+#### Step 2: Find Who Sets `nr_hugepages` / HugeTLB Pool
+SSH into the server and run:
+
+```bash
+# Kernel cmdline (most common for HugePages_Total being non-zero at boot)
+cat /proc/cmdline | tr ' ' '\n' | grep -E 'hugepages|hugepagesz|default_hugepagesz' || true
+
+# Search sysctl config locations (some providers/agents drop files here)
+sudo grep -R --line-number --ignore-case -E 'nr_hugepages|hugepages' \
+  /etc/sysctl.conf /etc/sysctl.d /usr/lib/sysctl.d /lib/sysctl.d /run/sysctl.d 2>/dev/null || true
+```
+
+#### Step 3A (Fix): If `/proc/cmdline` Contains `hugepages=...`
+1. Edit GRUB config:
+
+```bash
+sudo nano /etc/default/grub
+```
+
+2. Remove any of these from `GRUB_CMDLINE_LINUX*` if present:
+- `hugepages=...`
+- `hugepagesz=...`
+- `default_hugepagesz=...`
+
+3. Apply + reboot:
+
+```bash
+sudo update-grub
+sudo reboot
+```
+
+#### Step 3B (Fix): If a sysctl file sets `vm.nr_hugepages`
+1. Edit the file you found (example):
+
+```bash
+sudo nano /etc/sysctl.d/99-custom.conf
+```
+
+2. Ensure it contains:
+
+```bash
+vm.nr_hugepages=0
+```
+
+3. Apply immediately (no reboot required, but reboot to confirm it stays 0):
+
+```bash
+sudo sysctl --system
+sysctl vm.nr_hugepages
+```
+
+#### Step 4 (Optional but Recommended): Disable THP (Transparent HugePages)
+Temporary (until reboot):
+
+```bash
+echo never | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
+echo never | sudo tee /sys/kernel/mm/transparent_hugepage/defrag
+```
+
+Permanent (systemd service — works across reboots on Ubuntu):
+
+```bash
+sudo tee /etc/systemd/system/disable-thp.service >/dev/null <<'EOF'
+[Unit]
+Description=Disable Transparent Huge Pages (THP)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'echo never > /sys/kernel/mm/transparent_hugepage/enabled'
+ExecStart=/bin/sh -c 'echo never > /sys/kernel/mm/transparent_hugepage/defrag'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now disable-thp.service
+systemctl status disable-thp.service --no-pager
+```
+
+Verify:
+
+```bash
+cat /sys/kernel/mm/transparent_hugepage/enabled
+cat /sys/kernel/mm/transparent_hugepage/defrag
+```
+
+**Note:** Disabling HugeTLB/THP is generally safe for typical web stacks, but if you knowingly run workloads that rely on hugepages (some DB/VM/DPDK setups), confirm before disabling.
 
 ---
 

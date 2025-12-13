@@ -10,7 +10,7 @@
 Mini App شما با یک bot خاص در BotFather تنظیم شده است. Token در `config.py` باید دقیقاً با همان bot مطابقت داشته باشد.
 
 **Token های موجود:**
-- Token قدیمی: `8413343514:AAFiyFNsJUSuEh0aLG9dZxSnSHwAyRPK09E`
+- Token قدیمی: `<YOUR_TELEGRAM_BOT_TOKEN>`
 - Token جدید (فعلی): `8401301600:AAESD_wvk1dw0O9HQT_jNkWIdlpCp5GNlwc`
 
 ### 2. بررسی تنظیمات در BotFather
@@ -65,7 +65,7 @@ python test_telegram_mini_app.py
 
 ```python
 # backend/app/config.py - خط 25
-TELEGRAM_BOT_TOKEN: str = "8413343514:AAFiyFNsJUSuEh0aLG9dZxSnSHwAyRPK09E"
+TELEGRAM_BOT_TOKEN: str = "<YOUR_TELEGRAM_BOT_TOKEN>"
 ```
 
 سپس backend را restart کنید.

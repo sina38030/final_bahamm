@@ -240,7 +240,7 @@ If something doesn't work:
 ---
 
 Your bot username: `@Bahamm_bot`
-Your bot token: `8413343514:AAFiyFNsJUSuEh0aLG9dZxSnSHwAyRPK09E`
+Your bot token: `<YOUR_TELEGRAM_BOT_TOKEN>`
 
 
 

@@ -36,10 +36,10 @@ class TelegramService:
 
         if self.is_test_mode:
             logger.warning("⚠️ Telegram bot token not configured. Using test mode - NO REAL MESSAGES WILL BE SENT!")
-            logger.warning("   Set TELEGRAM_BOT_TOKEN in config.py to enable Telegram notifications")
+            logger.warning("   Set TELEGRAM_BOT_TOKEN in environment (.env/.env.prod) to enable Telegram notifications")
         else:
             logger.info(f"✅ Telegram notification service initialized with bot @{self.bot_username}")
-            logger.info(f"   Bot token: {self.bot_token[:10]}...{self.bot_token[-10:]}")
+            # Never log secrets (bot token)
             if not self.proxies and not custom_base_url:
                 logger.warning("   ⚠️ No proxy/custom URL configured - if Telegram is blocked, set TELEGRAM_API_BASE_URL or TELEGRAM_API_PROXY")
 
@@ -68,7 +68,8 @@ class TelegramService:
                 "parse_mode": "HTML"  # Allow basic formatting
             }
 
-            logger.info(f"📤 Sending Telegram message to {telegram_id} via {url}")
+            # Never log the bot token (the URL contains it)
+            logger.info(f"📤 Sending Telegram message to {telegram_id} via Telegram API")
             if self.proxies:
                 logger.info(f"   Using proxy: {list(self.proxies.values())[0][:20]}...")
             response = requests.post(url, json=data, timeout=30, proxies=self.proxies)

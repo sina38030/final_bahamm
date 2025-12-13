@@ -196,7 +196,7 @@ Compared to ngrok:
 ## 📝 Your Bot Details
 
 - Username: `@Bahamm_bot`
-- Token: `8413343514:AAFiyFNsJUSuEh0aLG9dZxSnSHwAyRPK09E`
+- Token: `<YOUR_TELEGRAM_BOT_TOKEN>`
 - Mini App Name: `bahamm`
 
 ---

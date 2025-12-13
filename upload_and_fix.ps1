@@ -1,7 +1,9 @@
 # PowerShell script to upload fix script and run it on server
 
-$SERVER = "ubuntu@185.231.181.208"
-$SSH_KEY = "C:\Users\User\.ssh\id_rsa"
+$SERVER = $env:BAHAMM_SERVER
+if (-not $SERVER) { $SERVER = "ubuntu@<YOUR_SERVER_IP>" }
+$SSH_KEY = $env:BAHAMM_SSH_KEY
+if (-not $SSH_KEY) { $SSH_KEY = "<PATH_TO_YOUR_PRIVATE_KEY>" }
 $SCRIPT = "server_emergency_fix.sh"
 
 Write-Host "==========================================" -ForegroundColor Cyan

@@ -1,9 +1,12 @@
 # Remote Deployment Script for Bahamm Platform (Windows)
 # This script deploys from your Windows machine to the remote server
 
-$SSH_KEY = "C:\Users\User\.ssh\id_rsa"
-$SSH_USER = "ubuntu"
-$SSH_HOST = "185.231.181.208"
+$SSH_KEY = $env:BAHAMM_SSH_KEY
+if (-not $SSH_KEY) { $SSH_KEY = "<PATH_TO_YOUR_PRIVATE_KEY>" }
+$SSH_USER = $env:BAHAMM_SSH_USER
+if (-not $SSH_USER) { $SSH_USER = "ubuntu" }
+$SSH_HOST = $env:BAHAMM_SSH_HOST
+if (-not $SSH_HOST) { $SSH_HOST = "<YOUR_SERVER_IP>" }
 $APP_PATH = "/srv/app"
 
 Write-Host @"

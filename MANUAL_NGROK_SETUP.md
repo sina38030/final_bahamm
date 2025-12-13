@@ -226,7 +226,7 @@ Then follow the same steps above but use LocalTunnel URLs instead (they look lik
 - Backend port: **8001**
 - Frontend port: **3000**
 - Bot: **@Bahamm_bot**
-- Token: `8413343514:AAFiyFNsJUSuEh0aLG9dZxSnSHwAyRPK09E`
+- Token: `<YOUR_TELEGRAM_BOT_TOKEN>`
 
 ### ngrok Location:
 ```

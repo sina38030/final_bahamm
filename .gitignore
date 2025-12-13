@@ -11,6 +11,10 @@ backend/bahamm*.db*
 backend/logs/
 backend/uploads/
 
+# Deployment files
+*-deploy.zip
+*.zip
+
 ### macOS ###
 # General
 .DS_Store
@@ -789,3 +793,8 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+### Server Security Files ###
+# این فایل‌ها حاوی اطلاعات حساس سرور هستند
+SERVER_ACCESS_GUIDE.md
+secure_ssh.sh

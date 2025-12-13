@@ -6,12 +6,13 @@ authors = ["Shayan"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.13"
+python = "^3.12"
 fastapi = "^0.115.11"
 sqlalchemy = "^2.0.38"
 pydantic = "^2.10.6"
 email-validator = "^2.2.0"
 uvicorn = "^0.34.0"
+gunicorn = "^23.0.0"
 passlib = "1.7.4"
 bcrypt = "4.0.1"
 python-jose = {extras = ["cryptography"], version = "^3.4.0"}

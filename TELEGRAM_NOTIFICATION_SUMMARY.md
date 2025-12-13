@@ -53,7 +53,7 @@ When a new user joined a group on the Telegram mini app, **NO notification was s
 ### 4. Bot Token Configuration ✅
 **File:** `backend/app/config.py`
 
-- Bot token already configured: `8413343514:AAFiyFNsJUSuEh0aLG9dZxSnSHwAyRPK09E`
+- Bot token already configured: `<YOUR_TELEGRAM_BOT_TOKEN>`
 - Bot username: `@Bahamm_bot`
 
 **Lines:** 70-72 (already present)

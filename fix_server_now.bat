@@ -4,8 +4,9 @@ echo   BAHAMM.IR Server Fix
 echo ==========================================
 echo.
 
-set SERVER=ubuntu@185.231.181.208
-set SSH_KEY=C:\Users\User\.ssh\id_rsa
+REM Configure these before running:
+set SERVER=ubuntu@<YOUR_SERVER_IP>
+set SSH_KEY=<PATH_TO_YOUR_PRIVATE_KEY>
 
 echo Step 1: Stopping all services...
 echo ==========================================

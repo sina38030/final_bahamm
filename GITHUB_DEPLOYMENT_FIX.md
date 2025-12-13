@@ -101,7 +101,7 @@ The workflow will automatically:
 
 ### Manual Deploy (If Workflow Fails):
 ```powershell
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"
+ssh ubuntu@<YOUR_SERVER_IP> -i "<PATH_TO_YOUR_PRIVATE_KEY>"
 ```
 
 Then on server:
@@ -152,7 +152,7 @@ pm2 status
 ### Watch Server Logs:
 ```bash
 # In a separate terminal, SSH to server and watch logs
-ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 logs"
+ssh ubuntu@<YOUR_SERVER_IP> -i "<PATH_TO_YOUR_PRIVATE_KEY>" "pm2 logs"
 ```
 
 ---
@@ -163,9 +163,9 @@ ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "pm2 logs"
 
 #### 1. Check GitHub Secrets
 Ensure these are set in GitHub Settings → Secrets:
-- `SERVER_HOST`: `185.231.181.208`
+- `SERVER_HOST`: `<YOUR_SERVER_IP>`
 - `SERVER_USER`: `ubuntu`
-- `SSH_PRIVATE_KEY`: Contents of `C:\Users\User\.ssh\id_rsa`
+- `SSH_PRIVATE_KEY`: contents of your SSH private key (do not commit it)
 
 #### 2. Frontend Build Timeout
 If build still times out after 15 minutes:
@@ -244,7 +244,7 @@ Check website: https://bahamm.ir
 4. **Keep Backups**
    ```bash
    # Before major deploys, backup database
-   ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa" "cp /srv/app/bahamm1.db /srv/app/bahamm1.db.backup"
+   ssh ubuntu@<YOUR_SERVER_IP> -i "<PATH_TO_YOUR_PRIVATE_KEY>" "cp /srv/app/bahamm1.db /srv/app/bahamm1.db.backup"
    ```
 
 ---
@@ -254,7 +254,7 @@ Check website: https://bahamm.ir
 | Issue | Command |
 |-------|---------|
 | Check workflow status | Visit GitHub Actions tab |
-| SSH to server | `ssh ubuntu@185.231.181.208 -i "C:\Users\User\.ssh\id_rsa"` |
+| SSH to server | `ssh ubuntu@<YOUR_SERVER_IP> -i "<PATH_TO_YOUR_PRIVATE_KEY>"` |
 | Check PM2 status | `pm2 status` |
 | View logs | `pm2 logs --lines 50` |
 | Manual restart | See `SERVER_RESTART_GUIDE.md` |

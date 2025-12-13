@@ -50,7 +50,7 @@ There was no way to test if notifications worked for a specific user.
 
 The bot token is now properly configured:
 ```python
-TELEGRAM_BOT_TOKEN: str = "8413343514:AAFiyFNsJUSuEh0aLG9dZxSnSHwAyRPK09E"
+TELEGRAM_BOT_TOKEN: str = "<YOUR_TELEGRAM_BOT_TOKEN>"
 TELEGRAM_BOT_USERNAME: str = "Bahamm_bot"
 ```
 

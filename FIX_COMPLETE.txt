@@ -28,7 +28,7 @@
    - Includes troubleshooting hints
 
 4. ✅ backend/app/config.py
-   - Bot token verified: 8413343514:AAFiyFNsJUSuEh0aLG9dZxSnSHwAyRPK09E
+   - Bot token verified: <YOUR_TELEGRAM_BOT_TOKEN>
    - Bot username: @Bahamm_bot
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
