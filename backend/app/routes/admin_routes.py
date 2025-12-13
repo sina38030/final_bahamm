@@ -10,7 +10,7 @@ import json
 from pydantic import BaseModel
 
 from app.database import get_db
-from app.models import Product, Category, SubCategory, Order, User, Store, ProductImage, OrderItem, GroupOrder, Favorite, OrderState, Banner, Review, GroupOrderStatus, DeliverySlot
+from app.models import Product, Category, SubCategory, Order, User, UserType, Store, ProductImage, OrderItem, GroupOrder, Favorite, OrderState, Banner, Review, GroupOrderStatus, DeliverySlot
 from app.services.group_settlement_service import GroupSettlementService
 from app.services import notification_service
 from app.utils.logging import get_logger
@@ -552,12 +552,21 @@ async def create_product(
         existing_store = db.query(Store).filter(Store.id == store_id).first()
         if not existing_store:
             # Get or create a default admin user for the store
-            admin_user = db.query(User).filter(User.is_admin == True).first()
+            # NOTE: User model does not have `is_admin`. We treat the first MERCHANT as store owner,
+            # falling back to any existing user.
+            admin_user = db.query(User).filter(User.user_type == UserType.MERCHANT).first()
             if not admin_user:
-                # Create a system admin user if none exists
                 admin_user = db.query(User).first()  # Use any existing user
-                if not admin_user:
-                    raise HTTPException(status_code=400, detail="هیچ کاربری وجود ندارد. ابتدا یک کاربر ایجاد کنید.")
+            if not admin_user:
+                # First-run convenience: create a system merchant user to own the default store
+                admin_user = User(
+                    first_name="System",
+                    last_name="Admin",
+                    user_type=UserType.MERCHANT,
+                    is_phone_verified=True,
+                )
+                db.add(admin_user)
+                db.flush()  # ensure admin_user.id is available
             
             # Create default store
             default_store = Store(
@@ -661,15 +670,15 @@ async def create_product(
 
                 # Determine upload directory backend/app/uploads/product_<id>
                 from app.utils.logging import get_logger
-                logger = get_logger("uploads")
+                uploads_logger = get_logger("uploads")
                 backend_dir = Path(__file__).resolve().parents[1]
                 uploads_dir = backend_dir / "uploads" / f"product_{product.id}"
                 uploads_dir.mkdir(parents=True, exist_ok=True)
 
                 # Debug: log what we received
-                logger.info(f"Creating product {product.id} - form data keys: {list(data.keys())}")
-                logger.info(f"image_url in data: {data.get('image_url', 'NOT_PRESENT')}")
-                logger.info(f"main_image in form: {form.get('main_image') is not None}")
+                uploads_logger.info(f"Creating product {product.id} - form data keys: {list(data.keys())}")
+                uploads_logger.info(f"image_url in data: {data.get('image_url', 'NOT_PRESENT')}")
+                uploads_logger.info(f"main_image in form: {form.get('main_image') is not None}")
 
                 # Main image (single)
                 main_file = form.get("main_image")
@@ -685,7 +694,7 @@ async def create_product(
                         db.add(ProductImage(product_id=product.id, image_url=img_url, is_main=True))
                         has_main_image = True
                     except Exception as e:
-                        logger.error(f"Failed to save main_image: {e}")
+                        uploads_logger.error(f"Failed to save main_image: {e}")
 
                 # Additional images (list)
                 try:
@@ -704,7 +713,7 @@ async def create_product(
                         img_url = f"{static_base}/{dest.relative_to(backend_dir / 'uploads').as_posix()}"
                         db.add(ProductImage(product_id=product.id, image_url=img_url, is_main=False))
                     except Exception as e:
-                        logger.error(f"Failed to save image {i}: {e}")
+                        uploads_logger.error(f"Failed to save image {i}: {e}")
 
                 db.commit()
 
