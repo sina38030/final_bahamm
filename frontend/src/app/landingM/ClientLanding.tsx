@@ -9,7 +9,7 @@ import { useProductModal } from '@/hooks/useProductModal';
 import { useCart } from '@/contexts/CartContext';
 import { generateInviteLink, generateShareUrl, extractInviteCode } from '@/utils/linkGenerator';
 import { API_BASE_URL } from '@/utils/api';
-import { safeSessionStorage } from '@/utils/safeStorage';
+import { safeStorage, safeSessionStorage } from '@/utils/safeStorage';
 
 // Resilient dynamic import to auto-recover once from transient ChunkLoadError after HMR/build changes
 async function safeImport<T>(importer: () => Promise<T>, key: string): Promise<T> {
@@ -334,7 +334,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
     const inviteCode = invite;
     debugLog('🔍 Invite code from URL:', inviteCode);
     try {
-      if (inviteCode) localStorage.setItem('last_invite_code', inviteCode);
+      if (inviteCode) safeStorage.setItem('last_invite_code', inviteCode);
     } catch {}
     if (inviteCode) {
       if (initialGroupOrderData && initialGroupOrderData.success) {
@@ -710,8 +710,8 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
       return;
     }
     try {
-      const token = localStorage.getItem('auth_token');
-      const user = localStorage.getItem('user');
+      const token = safeStorage.getItem('auth_token');
+      const user = safeStorage.getItem('user');
       const isLoggedIn = !!token && !!user;
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/9ef5ac87-412c-432c-8165-a8064261b9c1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientLanding.tsx:701',message:'Join group - auth check',data:{isLoggedIn,hasToken:!!token,hasUser:!!user},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
@@ -723,7 +723,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
       }
     } catch {}
     try {
-      const rawUser = localStorage.getItem('user');
+      const rawUser = safeStorage.getItem('user');
       const parsedUser = rawUser ? JSON.parse(rawUser) : null;
       const currentPhone = normalizePhone(parsedUser?.phone_number || '');
       const leaderPhone = normalizePhone(groupOrderData?.leader_phone || '');
@@ -787,8 +787,8 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
       }
     });
     if (cartItemsWithPrices.length === 0) { alert('خطا: قیمت محصولات یافت نشد. لطفا دوباره تلاش کنید.'); return; }
-    localStorage.setItem('groupOrderCartItems', JSON.stringify(cartItemsWithPrices));
-    localStorage.setItem('groupOrderInfo', JSON.stringify({
+    safeStorage.setItem('groupOrderCartItems', JSON.stringify(cartItemsWithPrices));
+    safeStorage.setItem('groupOrderInfo', JSON.stringify({
       invite_code: groupOrderData.invite_code,
       leader_name: groupOrderData.leader_name,
       leader_phone: groupOrderData.leader_phone,
@@ -808,13 +808,13 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
       return;
     }
     try {
-      const token = localStorage.getItem('auth_token');
-      const user = localStorage.getItem('user');
+      const token = safeStorage.getItem('auth_token');
+      const user = safeStorage.getItem('user');
       const isLoggedIn = !!token && !!user;
       if (!isLoggedIn) { setPendingAction('custom'); setAuthOpen(true); return; }
     } catch {}
     try {
-      const rawUser = localStorage.getItem('user');
+      const rawUser = safeStorage.getItem('user');
       const parsedUser = rawUser ? JSON.parse(rawUser) : null;
       const currentPhone = normalizePhone(parsedUser?.phone_number || '');
       const leaderPhone = normalizePhone(groupOrderData?.leader_phone || '');
@@ -834,8 +834,8 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
       cartItemsWithPrices.push({ id, name, base_price, market_price, image, quantity: Number(qty) || 1, product_id: id, solo_price: solo, friend_1_price: friend1Raw || base_price, friend_2_price: Number(prod?.friend_2_price ?? 0) || 0, friend_3_price: Number(prod?.friend_3_price ?? 0) || 0 });
     });
     if (!cartItemsWithPrices.length) return;
-    localStorage.setItem('groupOrderCartItems', JSON.stringify(cartItemsWithPrices));
-    localStorage.setItem('groupOrderInfo', JSON.stringify({
+    safeStorage.setItem('groupOrderCartItems', JSON.stringify(cartItemsWithPrices));
+    safeStorage.setItem('groupOrderInfo', JSON.stringify({
       invite_code: groupOrderData.invite_code,
       leader_name: groupOrderData.leader_name,
       leader_phone: groupOrderData.leader_phone,
@@ -1057,8 +1057,8 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
           fetch('http://127.0.0.1:7242/ingest/9ef5ac87-412c-432c-8165-a8064261b9c1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientLanding.tsx:1035',message:'Auth success callback - entry',data:{pendingAction},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
           // #endregion
           try {
-            const token = localStorage.getItem('auth_token');
-            const user = localStorage.getItem('user');
+            const token = safeStorage.getItem('auth_token');
+            const user = safeStorage.getItem('user');
             if (token && user) {
               setAuthOpen(false);
               try {
@@ -1091,8 +1091,8 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
                   });
                 }
                 if (cartItemsWithPrices.length) {
-                  localStorage.setItem('groupOrderCartItems', JSON.stringify(cartItemsWithPrices));
-                  localStorage.setItem('groupOrderInfo', JSON.stringify({ invite_code: groupOrderData.invite_code, leader_name: groupOrderData.leader_name, leader_phone: groupOrderData.leader_phone, is_joining_group: true, allow_consolidation: groupOrderData.allow_consolidation || false }));
+                  safeStorage.setItem('groupOrderCartItems', JSON.stringify(cartItemsWithPrices));
+                  safeStorage.setItem('groupOrderInfo', JSON.stringify({ invite_code: groupOrderData.invite_code, leader_name: groupOrderData.leader_name, leader_phone: groupOrderData.leader_phone, is_joining_group: true, allow_consolidation: groupOrderData.allow_consolidation || false }));
                 }
                 router.push(`/checkout?mode=group&invited=true&invite_code=${encodeURIComponent(groupOrderData.invite_code)}&allow=${groupOrderData.allow_consolidation ? '1' : '0'}`);
                 return;
@@ -1113,8 +1113,8 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
                   cartItemsWithPrices.push({ id, name, base_price: base, market_price: market, image, quantity: Number(qty) || 1, product_id: id, solo_price: prices.solo_price, friend_1_price: prices.friend_1_price, friend_2_price: prices.friend_2_price, friend_3_price: prices.friend_3_price });
                 });
                 if (!cartItemsWithPrices.length) return;
-                localStorage.setItem('groupOrderCartItems', JSON.stringify(cartItemsWithPrices));
-                localStorage.setItem('groupOrderInfo', JSON.stringify({ invite_code: groupOrderData.invite_code, leader_name: groupOrderData.leader_name, leader_phone: groupOrderData.leader_phone, is_joining_group: true, allow_consolidation: groupOrderData.allow_consolidation || false }));
+                safeStorage.setItem('groupOrderCartItems', JSON.stringify(cartItemsWithPrices));
+                safeStorage.setItem('groupOrderInfo', JSON.stringify({ invite_code: groupOrderData.invite_code, leader_name: groupOrderData.leader_name, leader_phone: groupOrderData.leader_phone, is_joining_group: true, allow_consolidation: groupOrderData.allow_consolidation || false }));
                 router.push(`/checkout?mode=group&invited=true&invite_code=${encodeURIComponent(groupOrderData.invite_code)}&allow=${groupOrderData.allow_consolidation ? '1' : '0'}`);
                 return;
               }

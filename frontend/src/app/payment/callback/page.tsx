@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/utils/api';
+import { safeStorage } from '@/utils/safeStorage';
 
 // Debug: Log API_BASE_URL on module load
 console.log('[Payment Callback] API_BASE_URL:', API_BASE_URL);
@@ -37,7 +38,7 @@ function PaymentCallbackContent() {
       if (status === 'OK' && authority) {
         // CRITICAL FIX: Check if this authority has already been processed
         const processedKey = `processed_${authority}`;
-        const alreadyProcessed = typeof window !== 'undefined' ? localStorage.getItem(processedKey) : null;
+        const alreadyProcessed = typeof window !== 'undefined' ? safeStorage.getItem(processedKey) : null;
         
         if (alreadyProcessed) {
           console.log('[PaymentCallback] Authority already processed, redirecting to appropriate page');
@@ -76,7 +77,7 @@ function PaymentCallbackContent() {
           } else {
             // Invalid or incomplete cached data - clear it and re-process
             console.warn('[PaymentCallback] Cached data incomplete, clearing and re-processing:', processedData);
-            try { localStorage.removeItem(processedKey); } catch {}
+            try { safeStorage.removeItem(processedKey); } catch {}
             // Fall through to re-process the payment
           }
         }
@@ -89,7 +90,7 @@ function PaymentCallbackContent() {
           // Fallback deprecated API
           // @ts-ignore
           const isReloadDeprecated = typeof performance !== 'undefined' && performance.navigation && performance.navigation.type === 1;
-          const successReached = typeof window !== 'undefined' && localStorage.getItem('payment_success_reached') === 'true';
+          const successReached = typeof window !== 'undefined' && safeStorage.getItem('payment_success_reached') === 'true';
           if (isReload || isReloadDeprecated || successReached) {
             setStatus('success');
             setMessage('سفارش شما با موفقیت ثبت شد');
@@ -121,7 +122,7 @@ function PaymentCallbackContent() {
               groupId,
               timestamp: Date.now()
             };
-            try { localStorage.setItem(processedKey, JSON.stringify(processedData)); } catch {}
+            try { safeStorage.setItem(processedKey, JSON.stringify(processedData)); } catch {}
             
             // Determine target based on order type
             let target;
@@ -152,7 +153,7 @@ function PaymentCallbackContent() {
         const isInvitedFlow = invitedParam === '1';
         
         // Detect settlement flow (flag set before redirecting to bank)
-        const settlementFlag = typeof window !== 'undefined' ? localStorage.getItem('settlement_payment') : null;
+        const settlementFlag = typeof window !== 'undefined' ? safeStorage.getItem('settlement_payment') : null;
         const isSettlementFlow = !!settlementFlag;
         
         // Detect solo flow via cookie set at checkout
@@ -197,11 +198,11 @@ function PaymentCallbackContent() {
               const groupId = data.order.group_order_id || data.order.groupId || '';
               // Persist ship-to-leader state for this order if intent was set at checkout
               try {
-                const intent = localStorage.getItem('ship_to_leader_intent');
+                const intent = safeStorage.getItem('ship_to_leader_intent');
                 if (intent === '1') {
-                  localStorage.setItem(`ship_to_leader_order_${orderId}`, '1');
+                  safeStorage.setItem(`ship_to_leader_order_${orderId}`, '1');
                   // clear intent to avoid leaking to next orders
-                  localStorage.removeItem('ship_to_leader_intent');
+                  safeStorage.removeItem('ship_to_leader_intent');
                 }
               } catch {}
               
@@ -214,7 +215,7 @@ function PaymentCallbackContent() {
                 timestamp: Date.now()
               };
               try {
-                localStorage.setItem(processedKey, JSON.stringify(processedData));
+                safeStorage.setItem(processedKey, JSON.stringify(processedData));
                 console.log('[PaymentCallback] Stored processing result for authority:', authority);
               } catch {}
               
@@ -241,9 +242,9 @@ function PaymentCallbackContent() {
           if (isSettlement) {
             setStatus('success');
             setMessage('پرداخت تسویه با موفقیت انجام شد. تسویه گروه شما کامل شده است.');
-            try { localStorage.removeItem('settlement_payment'); } catch {}
-            const gid = typeof window !== 'undefined' ? localStorage.getItem('settlement_group_id') : null;
-            try { localStorage.removeItem('settlement_group_id'); } catch {}
+            try { safeStorage.removeItem('settlement_payment'); } catch {}
+            const gid = typeof window !== 'undefined' ? safeStorage.getItem('settlement_group_id') : null;
+            try { safeStorage.removeItem('settlement_group_id'); } catch {}
             // Verify in the background
             try {
               void fetch(`${API_BASE_URL}/payment`, {
@@ -256,20 +257,20 @@ function PaymentCallbackContent() {
             try {
               if (gid) {
                 const key = 'gb-settled';
-                const raw = localStorage.getItem(key);
+                const raw = safeStorage.getItem(key);
                 const arr = raw ? JSON.parse(raw) : [];
                 const next = Array.isArray(arr) ? Array.from(new Set([...arr, String(gid)])) : [String(gid)];
-                localStorage.setItem(key, JSON.stringify(next));
+                safeStorage.setItem(key, JSON.stringify(next));
                 // Also prune from my-active-groups to trigger storage listeners
                 const agKey = 'gb-my-active-groups';
-                const agRaw = localStorage.getItem(agKey);
+                const agRaw = safeStorage.getItem(agKey);
                 const agList = agRaw ? JSON.parse(agRaw) : [];
                 if (Array.isArray(agList) && agList.includes(String(gid))) {
                   const pruned = agList.filter((x: string) => String(x) !== String(gid));
-                  localStorage.setItem(agKey, JSON.stringify(pruned));
+                  safeStorage.setItem(agKey, JSON.stringify(pruned));
                 } else {
                   // touch the key to fire a storage event
-                  localStorage.setItem(agKey, JSON.stringify(agList));
+                  safeStorage.setItem(agKey, JSON.stringify(agList));
                 }
               }
             } catch {}
@@ -332,13 +333,13 @@ function PaymentCallbackContent() {
             // Fallback deprecated API
             // @ts-ignore
             const isReloadDeprecated = typeof performance !== 'undefined' && performance.navigation && performance.navigation.type === 1;
-            const successReached = typeof window !== 'undefined' && localStorage.getItem('payment_success_reached') === 'true';
+            const successReached = typeof window !== 'undefined' && safeStorage.getItem('payment_success_reached') === 'true';
             if (isReload || isReloadDeprecated || successReached) {
               setStatus('success');
               setMessage('سفارش شما با موفقیت ثبت شد');
               const processedKey = `processed_${authority}`;
               const processedData = { isInvited: false, timestamp: Date.now() };
-              try { localStorage.setItem(processedKey, JSON.stringify(processedData)); } catch {}
+              try { safeStorage.setItem(processedKey, JSON.stringify(processedData)); } catch {}
               try {
                 const res = await fetch(`${API_BASE_URL}/payment/order/${authority}`);
                 const data = await res.json();
@@ -351,7 +352,7 @@ function PaymentCallbackContent() {
           // Otherwise keep original behavior: redirect to invite page
           const processedKey = `processed_${authority}`;
           const processedData = { isInvited: false, timestamp: Date.now() };
-          try { localStorage.setItem(processedKey, JSON.stringify(processedData)); } catch {}
+          try { safeStorage.setItem(processedKey, JSON.stringify(processedData)); } catch {}
           // ✅ REMOVED: Let backend handle all redirects
           // The backend callback endpoint will determine the correct redirect
           console.log('[PaymentCallback] Letting backend handle redirect logic (default flow)');
@@ -377,7 +378,7 @@ function PaymentCallbackContent() {
     const authority = searchParams.get('Authority') || searchParams.get('authority');
     if (!authority || secondaryGroup) return;
     try {
-      const saved = localStorage.getItem(`secondary_group_${authority}`);
+      const saved = safeStorage.getItem(`secondary_group_${authority}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.expires_at) {

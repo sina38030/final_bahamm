@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { FaArrowRight } from "react-icons/fa";
+import { safeStorage } from "@/utils/safeStorage";
 
 type TimelineStage = "PENDING" | "PROCESSING" | "SHIPPED" | "COMPLETED";
 
@@ -144,7 +145,7 @@ export default function OrderTrackingPage() {
           if (!hasValidData) {
             console.log('No valid data found, trying direct backend call...'); // DEBUG
             try {
-              const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+              const token = typeof window !== 'undefined' ? safeStorage.getItem('auth_token') : null;
               const backendUrl = typeof window !== 'undefined' ? window.location.origin.replace(/\/$/, '') : '';
               const directRes = await fetch(`${backendUrl}/api/admin/orders/${encodeURIComponent(String(normalized.id))}`, {
                 method: 'GET',
@@ -182,7 +183,7 @@ export default function OrderTrackingPage() {
           const needsDetails = !normalized.address && !normalized.shipping_details && !normalized.delivery_slot;
           if (needsDetails) {
             try {
-              const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+              const token = typeof window !== 'undefined' ? safeStorage.getItem('auth_token') : null;
               const backendUrl = typeof window !== 'undefined' ? window.location.origin.replace(/\/$/, '') : '';
               const adminRes = await fetch(`${backendUrl}/api/admin/orders/${encodeURIComponent(String(normalized.id))}`, {
                 method: 'GET',

@@ -6,6 +6,7 @@ import { FaArrowRight, FaStar, FaEdit } from "react-icons/fa";
 import apiClient from "@/utils/apiClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { isReviewEligibleStatus } from "@/utils/orderStatus";
+import { safeStorage } from "@/utils/safeStorage";
 
 type OrderProductItem = {
   productId: number | string;
@@ -154,7 +155,7 @@ export default function OrderReviewPage() {
           });
           // Mark in localStorage that this order has been reviewed
           if (typeof window !== 'undefined' && orderId) {
-            localStorage.setItem(`order-${orderId}-reviewed-by-${user.id}`, 'true');
+            safeStorage.setItem(`order-${orderId}-reviewed-by-${user.id}`, 'true');
             // Also dispatch event immediately for other tabs/windows
             window.dispatchEvent(new CustomEvent('order-review-found', { 
               detail: { orderId: Number(orderId) } 
@@ -165,7 +166,7 @@ export default function OrderReviewPage() {
           setExistingReview(null);
           // Remove localStorage flag if no review exists
           if (typeof window !== 'undefined' && orderId) {
-            localStorage.removeItem(`order-${orderId}-reviewed-by-${user.id}`);
+            safeStorage.removeItem(`order-${orderId}-reviewed-by-${user.id}`);
           }
         }
       } catch (err) {
@@ -248,7 +249,7 @@ export default function OrderReviewPage() {
       
       // Store in localStorage and dispatch event
       if (typeof window !== 'undefined' && orderId && user?.id) {
-        localStorage.setItem(`order-${orderId}-reviewed-by-${user.id}`, 'true');
+        safeStorage.setItem(`order-${orderId}-reviewed-by-${user.id}`, 'true');
         window.dispatchEvent(new CustomEvent('order-review-submitted', { 
           detail: { orderId: Number(orderId) } 
         }));

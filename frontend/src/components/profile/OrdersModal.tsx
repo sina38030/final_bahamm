@@ -11,6 +11,7 @@ import {
     orderCounts
 } from '@/data/orders';
 import DeliveredOrderItem from './DeliveredOrderItem';
+import { safeStorage } from '@/utils/safeStorage';
 
 type Tab = {
     id: string;
@@ -56,7 +57,7 @@ export default function OrdersModal({ isOpen, onClose }: OrdersModalProps) {
             let userPhone: string | null = null;
 
             try {
-                const userData = localStorage.getItem('user');
+                const userData = safeStorage.getItem('user');
                 if (userData) {
                     const user = JSON.parse(userData);
                     userPhone = user.phone_number || user.phone || null;
@@ -67,14 +68,14 @@ export default function OrdersModal({ isOpen, onClose }: OrdersModalProps) {
 
             // Fallback to direct keys
             if (!userPhone) {
-                userPhone = localStorage.getItem('userPhone') ||
-                           localStorage.getItem('user_phone') ||
-                           localStorage.getItem('phone');
+                userPhone = safeStorage.getItem('userPhone') ||
+                           safeStorage.getItem('user_phone') ||
+                           safeStorage.getItem('phone');
             }
 
             if (!userPhone) {
                 console.warn('No user phone found for fetching groups. Available localStorage keys:', Object.keys(localStorage));
-                console.warn('Available localStorage values:', Object.keys(localStorage).map(key => ({ key, value: localStorage.getItem(key) })));
+                console.warn('Available localStorage values:', Object.keys(localStorage).map(key => ({ key, value: safeStorage.getItem(key) })));
                 return;
             }
 

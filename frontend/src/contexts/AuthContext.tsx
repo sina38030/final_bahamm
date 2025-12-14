@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import * as apiModule from '../utils/api';
 import { apiClient } from '../utils/apiClient';
 import { syncTokenFromURL } from '../utils/crossDomainAuth';
-import { isUsingMemoryStorage } from '../utils/safeStorage';
+import { safeStorage, isUsingMemoryStorage } from '../utils/safeStorage';
 
 // Defensive wrapper for getApiUrl to handle module loading issues
 const getApiUrl = (): string => {
@@ -136,7 +136,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       // Try to load from cache first for faster UI
-      const cachedAddresses = localStorage.getItem(`addresses_${user.id}`);
+      const cachedAddresses = safeStorage.getItem(`addresses_${user.id}`);
       let hadCachedAddresses = false;
       if (cachedAddresses) {
         try {
@@ -156,7 +156,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Always reflect server truth. If empty, clear cache to avoid misleading state
         if (Array.isArray(addressData)) {
           setAddresses(addressData);
-          localStorage.setItem(`addresses_${user.id}`, JSON.stringify(addressData));
+          safeStorage.setItem(`addresses_${user.id}`, JSON.stringify(addressData));
           console.log('[AuthContext] User addresses loaded from server:', addressData);
         }
       }
@@ -164,7 +164,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error('[AuthContext] Error loading addresses:', error);
       
       // Fallback to cache if server fails
-      const cachedAddresses = localStorage.getItem(`addresses_${user.id}`);
+      const cachedAddresses = safeStorage.getItem(`addresses_${user.id}`);
       if (cachedAddresses) {
         try {
           const parsedAddresses = JSON.parse(cachedAddresses);
@@ -210,8 +210,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.log('[AuthContext] Token synced from URL (cross-domain auth)');
         }
 
-        const storedToken = localStorage.getItem('auth_token');
-        const storedUser = localStorage.getItem('user');
+        const storedToken = safeStorage.getItem('auth_token');
+        const storedUser = safeStorage.getItem('user');
 
         // Reuse the detected Telegram WebApp instance above to avoid redeclaration issues
         const isTelegramEnv = Boolean(tg && tg.initData);
@@ -235,8 +235,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               console.log('[AuthContext] 🔄 Clearing old session and logging in with current Telegram account...');
               
               // Clear old session
-              localStorage.removeItem('auth_token');
-              localStorage.removeItem('user');
+              safeStorage.removeItem('auth_token');
+              safeStorage.removeItem('user');
               setToken(null);
               setUser(null);
               
@@ -266,7 +266,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               console.log('[AuthContext] User data refreshed from server, coins:', freshUserData?.coins);
               setUser(freshUserData);
               if (freshUserData) {
-                localStorage.setItem('user', JSON.stringify(freshUserData));
+                safeStorage.setItem('user', JSON.stringify(freshUserData));
               }
             }
           } catch (err) {
@@ -294,8 +294,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error('Error loading auth data:', error);
         // Clear potentially corrupted storage
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('user');
+        safeStorage.removeItem('auth_token');
+        safeStorage.removeItem('user');
       } finally {
         setLoading(false);
       }
@@ -350,7 +350,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             
             // Clear cart from localStorage after successful payment
             try {
-              localStorage.removeItem('cart_items');
+              safeStorage.removeItem('cart_items');
               console.log('[AuthContext] Cart cleared after successful payment');
             } catch (e) {
               console.warn('[AuthContext] Failed to clear cart:', e);
@@ -432,14 +432,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // ✅ FIX: Check if this invite code was already used for a completed payment
           // This prevents redirecting back to landingM when returning from payment
           try {
-            const completedInvite = localStorage.getItem('completed_invite_payment');
+            const completedInvite = safeStorage.getItem('completed_invite_payment');
             if (completedInvite === startParam) {
               console.log('[AuthContext] Invite code already used for payment, going to success page');
               // Find the order by checking processed_ keys
-              for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
+              for (let i = 0; i < safeStorage.length; i++) {
+                const key = safeStorage.key(i);
                 if (!key || !key.startsWith('processed_')) continue;
-                const raw = localStorage.getItem(key);
+                const raw = safeStorage.getItem(key);
                 if (!raw) continue;
                 try {
                   const parsed = JSON.parse(raw);
@@ -464,7 +464,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           
           if (currentTelegramUser) {
             const currentTelegramId = String(currentTelegramUser.id);
-            const existingToken = localStorage.getItem('auth_token');
+            const existingToken = safeStorage.getItem('auth_token');
             
             // Check if there's an existing token and if the Telegram user matches
             if (existingToken && user) {
@@ -478,7 +478,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 console.log('[AuthContext]   Clearing old token and forcing re-authentication...');
                 
                 // Clear the old token
-                localStorage.removeItem('auth_token');
+                safeStorage.removeItem('auth_token');
                 setToken(null);
                 setUser(null);
                 
@@ -509,7 +509,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 // For invited users, we prefer Telegram auth, so clear and re-auth
                 console.log('[AuthContext] 🔄 Existing token has no telegram_id, forcing Telegram auth for invited user');
                 
-                localStorage.removeItem('auth_token');
+                safeStorage.removeItem('auth_token');
                 setToken(null);
                 setUser(null);
                 
@@ -579,7 +579,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 
                 // Clear cart from localStorage after successful payment
                 try {
-                  localStorage.removeItem('cart_items');
+                  safeStorage.removeItem('cart_items');
                   console.log('[AuthContext] Cart cleared after payment return');
                 } catch (e) {
                   console.warn('[AuthContext] Failed to clear cart:', e);
@@ -662,7 +662,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setAddresses([]); // Clear addresses on logout
       } else if (e.key === 'auth_token' && e.newValue) {
         console.log('[AuthContext] Login detected in another tab');
-        const storedUser = localStorage.getItem('user');
+        const storedUser = safeStorage.getItem('user');
         if (storedUser) {
           setToken(e.newValue);
           setUser(JSON.parse(storedUser));
@@ -749,7 +749,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
+        safeStorage.setItem('user', JSON.stringify(userData));
         return userData;
       }
       return null;
@@ -770,7 +770,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(prev => {
           if (!prev) return prev;
           const updated = { ...prev, coins: newCoins } as User;
-          try { localStorage.setItem('user', JSON.stringify(updated)); } catch {}
+          try { safeStorage.setItem('user', JSON.stringify(updated)); } catch {}
           return updated;
         });
       }
@@ -822,7 +822,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const authToken = data.access_token;
         
         // Store token in localStorage and state
-        localStorage.setItem('auth_token', authToken);
+        safeStorage.setItem('auth_token', authToken);
         setToken(authToken);
 
         // Fetch user profile with new token
@@ -879,7 +879,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log('[AuthContext] Telegram login successful');
         
         // Store token
-        localStorage.setItem('auth_token', authToken);
+        safeStorage.setItem('auth_token', authToken);
         setToken(authToken);
         
         // Fetch user profile with the new token
@@ -937,7 +937,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Set authentication data directly (allows partial user and fills sensible defaults)
   const setAuthData = (authToken: string, userData?: Partial<User>) => {
     try {
-      localStorage.setItem('auth_token', authToken);
+      safeStorage.setItem('auth_token', authToken);
       setToken(authToken);
 
       if (userData) {
@@ -956,7 +956,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           is_phone_verified: userData.is_phone_verified ?? true,
         };
         setUser(mergedUser);
-        localStorage.setItem('user', JSON.stringify(mergedUser));
+        safeStorage.setItem('user', JSON.stringify(mergedUser));
       } else {
         // If no user data provided, try to populate from server in background
         void fetchUserProfile(authToken);
@@ -970,21 +970,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     try {
       const prevUserId = user?.id;
-      const oldToken = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+      const oldToken = typeof window !== 'undefined' ? safeStorage.getItem('auth_token') : null;
 
       // Clear auth core
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user');
+      safeStorage.removeItem('auth_token');
+      safeStorage.removeItem('user');
 
       // Clear legacy/global caches that can leak identity across users
-      try { localStorage.removeItem('userPhone'); } catch {}
-      try { localStorage.removeItem('userAddress'); } catch {}
+      try { safeStorage.removeItem('userPhone'); } catch {}
+      try { safeStorage.removeItem('userAddress'); } catch {}
 
       // Clear per-user caches for the current user
       if (prevUserId != null) {
-        try { localStorage.removeItem(`userAddress_${prevUserId}`); } catch {}
-        try { localStorage.removeItem(`addresses_${prevUserId}`); } catch {}
-        try { localStorage.removeItem(`userAddressDetails_${prevUserId}`); } catch {}
+        try { safeStorage.removeItem(`userAddress_${prevUserId}`); } catch {}
+        try { safeStorage.removeItem(`addresses_${prevUserId}`); } catch {}
+        try { safeStorage.removeItem(`userAddressDetails_${prevUserId}`); } catch {}
       }
 
       // Clear in-memory caches
@@ -1046,7 +1046,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const updatedUser = await response.json();
         console.log(`[${new Date().toISOString()}] AuthContext: Response successful, updating user state:`, updatedUser);
         setUser(updatedUser);
-        localStorage.setItem('user', JSON.stringify(updatedUser));
+        safeStorage.setItem('user', JSON.stringify(updatedUser));
         return true;
       } else {
         // Log the error response for debugging
@@ -1082,7 +1082,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setAddresses(updatedAddresses);
         
         // Cache addresses in localStorage
-        localStorage.setItem(`addresses_${user.id}`, JSON.stringify(updatedAddresses));
+        safeStorage.setItem(`addresses_${user.id}`, JSON.stringify(updatedAddresses));
         
         // Trigger storage event for cross-tab sync
         if (typeof window !== 'undefined') {
@@ -1127,7 +1127,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setAddresses(updatedAddresses);
         
         // Cache addresses in localStorage
-        localStorage.setItem(`addresses_${user.id}`, JSON.stringify(updatedAddresses));
+        safeStorage.setItem(`addresses_${user.id}`, JSON.stringify(updatedAddresses));
         
         // Trigger storage event for cross-tab sync
         if (typeof window !== 'undefined') {
@@ -1160,7 +1160,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setAddresses(updatedAddresses);
         
         // Cache addresses in localStorage
-        localStorage.setItem(`addresses_${user.id}`, JSON.stringify(updatedAddresses));
+        safeStorage.setItem(`addresses_${user.id}`, JSON.stringify(updatedAddresses));
         
         // Trigger storage event for cross-tab sync
         if (typeof window !== 'undefined') {

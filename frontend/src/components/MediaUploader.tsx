@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { API_BASE_URL } from '@/utils/api';
+import { safeStorage } from '@/utils/safeStorage';
 
 type UploadedFile = {
   name: string;
@@ -26,7 +27,7 @@ export default function MediaUploader() {
     try {
       if (typeof window === 'undefined') return;
       
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = safeStorage.getItem(STORAGE_KEY);
       console.log('📂 Loading from localStorage:', raw);
       
       if (raw) {
@@ -58,11 +59,11 @@ export default function MediaUploader() {
       if (typeof window === 'undefined') return;
       
       const dataToSave = JSON.stringify(files);
-      localStorage.setItem(STORAGE_KEY, dataToSave);
+      safeStorage.setItem(STORAGE_KEY, dataToSave);
       console.log('💾 Saved to localStorage:', files.length, 'files');
       
       // Verify save
-      const verify = localStorage.getItem(STORAGE_KEY);
+      const verify = safeStorage.getItem(STORAGE_KEY);
       if (verify === dataToSave) {
         console.log('✅ Save verified successfully');
       } else {
@@ -161,7 +162,7 @@ export default function MediaUploader() {
 
   const checkLocalStorage = () => {
     if (typeof window === 'undefined') return;
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = safeStorage.getItem(STORAGE_KEY);
     alert(`localStorage content:\n${raw || 'EMPTY'}`);
   };
 

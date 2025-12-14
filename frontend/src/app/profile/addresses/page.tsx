@@ -18,6 +18,7 @@ import * as Yup from "yup";
 import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { API_BASE_URL } from "@/utils/api";
+import { safeStorage } from "@/utils/safeStorage";
 
 const ModalMap = dynamic(() => import("@/components/common/ModalMap"), {
   ssr: false,
@@ -99,13 +100,13 @@ export default function AddressesPage() {
           const data = await response.json();
           setAddresses(data);
           // Also update localStorage for offline use (per-user cache)
-          localStorage.setItem(storageKey, JSON.stringify(data));
+          safeStorage.setItem(storageKey, JSON.stringify(data));
 
           // If server has no addresses but legacy localStorage exists (from old implementation), migrate them to server
           if (Array.isArray(data) && data.length === 0 && user?.id) {
             try {
-              const migratedFlag = localStorage.getItem(`addresses_migrated_${user.id}`);
-              const legacyRaw = localStorage.getItem('bahaam-user-addresses');
+              const migratedFlag = safeStorage.getItem(`addresses_migrated_${user.id}`);
+              const legacyRaw = safeStorage.getItem('bahaam-user-addresses');
               if (!migratedFlag && legacyRaw) {
                 const legacyList = JSON.parse(legacyRaw);
                 if (Array.isArray(legacyList) && legacyList.length > 0) {
@@ -134,7 +135,7 @@ export default function AddressesPage() {
                     } catch {}
                   }
                   // Mark migrated and refresh from server
-                  localStorage.setItem(`addresses_migrated_${user.id}`, '1');
+                  safeStorage.setItem(`addresses_migrated_${user.id}`, '1');
                   try {
                     const re = await fetch(`${API_BASE_URL}/users/addresses`, {
                       headers: { Authorization: `Bearer ${token}` },
@@ -142,7 +143,7 @@ export default function AddressesPage() {
                     if (re.ok) {
                       const migrated = await re.json();
                       setAddresses(migrated);
-                      localStorage.setItem(storageKey, JSON.stringify(migrated));
+                      safeStorage.setItem(storageKey, JSON.stringify(migrated));
                     }
                   } catch {}
                 }
@@ -177,7 +178,7 @@ export default function AddressesPage() {
   // Load addresses from localStorage
   const loadAddressesFromLocalStorage = () => {
     try {
-      const savedAddresses = localStorage.getItem(storageKey);
+      const savedAddresses = safeStorage.getItem(storageKey);
       if (savedAddresses) {
         const parsedAddresses = JSON.parse(savedAddresses);
         if (Array.isArray(parsedAddresses) && parsedAddresses.length > 0) {
@@ -233,7 +234,7 @@ export default function AddressesPage() {
           }
           
           // Update localStorage (per-user cache)
-          localStorage.setItem(
+          safeStorage.setItem(
             storageKey,
             JSON.stringify(editingAddressId 
               ? addresses.map(addr => addr.id === editingAddressId ? savedAddress : addr)
@@ -272,7 +273,7 @@ export default function AddressesPage() {
           setAddresses(prev => prev.filter(addr => addr.id !== id));
           
           // Update localStorage (per-user cache)
-          localStorage.setItem(
+          safeStorage.setItem(
             storageKey,
             JSON.stringify(addresses.filter(addr => addr.id !== id))
           );
@@ -297,7 +298,7 @@ export default function AddressesPage() {
       if (activeAddressId === id) setActiveAddressId(null);
       
       // Update localStorage
-      localStorage.setItem(
+      safeStorage.setItem(
         storageKey,
         JSON.stringify(addresses.filter(address => address.id !== id))
       );
@@ -327,7 +328,7 @@ export default function AddressesPage() {
           );
           
           // Update localStorage (per-user cache)
-          localStorage.setItem(
+          safeStorage.setItem(
             storageKey,
             JSON.stringify(addresses.map(addr => ({
               ...addr,
@@ -356,7 +357,7 @@ export default function AddressesPage() {
       );
       
       // Update localStorage
-      localStorage.setItem(
+      safeStorage.setItem(
         storageKey,
         JSON.stringify(addresses.map(addr => ({
           ...addr,

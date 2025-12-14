@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
 import { API_BASE_URL } from '@/utils/api';
 import apiClient from '@/utils/apiClient';
+import { safeStorage } from '@/utils/safeStorage';
 
 // Dynamic import of AddressMapModal component to avoid SSR issues
 const AddressMapModal = dynamic(() => import('@/components/map/AddressMapModal'), {
@@ -296,9 +297,9 @@ function CheckoutPageContent() {
     // Only run once
     if (groupOrderLoadedRef.current) return;
     
-    const groupInfo = localStorage.getItem('groupOrderInfo');
-    const groupCartItems = localStorage.getItem('groupOrderCartItems');
-    const oldGroupCart = localStorage.getItem('groupOrderCart'); // Legacy support
+    const groupInfo = safeStorage.getItem('groupOrderInfo');
+    const groupCartItems = safeStorage.getItem('groupOrderCartItems');
+    const oldGroupCart = safeStorage.getItem('groupOrderCart'); // Legacy support
     
     if (groupInfo && (groupCartItems || oldGroupCart)) {
       groupOrderLoadedRef.current = true;
@@ -359,9 +360,9 @@ function CheckoutPageContent() {
         }
         
         // Clear the localStorage after loading to prevent issues
-        localStorage.removeItem('groupOrderCartItems');
-        localStorage.removeItem('groupOrderCart');
-        localStorage.removeItem('groupOrderInfo');
+        safeStorage.removeItem('groupOrderCartItems');
+        safeStorage.removeItem('groupOrderCart');
+        safeStorage.removeItem('groupOrderInfo');
       } catch (error) {
         console.error('Error parsing group order data:', error);
       }
@@ -456,7 +457,7 @@ function CheckoutPageContent() {
       const uid = (user as any)?.id;
       // If authenticated, only read the per-user key to avoid leaking previous user's data
       const key = uid ? `userAddress_${uid}` : 'userAddress';
-      const raw = uid ? localStorage.getItem(key) : localStorage.getItem('userAddress');
+      const raw = uid ? safeStorage.getItem(key) : safeStorage.getItem('userAddress');
       if (raw) {
         setSavedAddress(JSON.parse(raw));
       }
@@ -509,7 +510,7 @@ function CheckoutPageContent() {
           try {
             const uid = (user as any)?.id;
             const key = uid ? `userAddress_${uid}` : 'userAddress';
-            localStorage.setItem(key, JSON.stringify(newSavedAddress));
+            safeStorage.setItem(key, JSON.stringify(newSavedAddress));
           } catch {}
         }
       }
@@ -578,7 +579,7 @@ function CheckoutPageContent() {
     const uid = (user as any)?.id;
     if (!uid) return;
     try {
-      const cached = localStorage.getItem(`addresses_${uid}`);
+      const cached = safeStorage.getItem(`addresses_${uid}`);
       if (cached) {
         const list = JSON.parse(cached);
         if (Array.isArray(list) && list.length > 0) {
@@ -590,7 +591,7 @@ function CheckoutPageContent() {
               details: def.receiver_name || ''
             };
             setSavedAddress(persisted as any);
-            try { localStorage.setItem(`userAddress_${uid}`, JSON.stringify(persisted)); } catch {}
+            try { safeStorage.setItem(`userAddress_${uid}`, JSON.stringify(persisted)); } catch {}
           }
         }
       }
@@ -766,7 +767,7 @@ function CheckoutPageContent() {
     try {
       const uid = (user as any)?.id;
       if (uid) {
-        const cached = localStorage.getItem(`addresses_${uid}`);
+        const cached = safeStorage.getItem(`addresses_${uid}`);
         if (cached) {
           const list = JSON.parse(cached);
           if (Array.isArray(list) && list.length > 0) {
@@ -845,7 +846,7 @@ function CheckoutPageContent() {
         try {
           const uid = (user as any)?.id;
           const key = uid ? `userAddress_${uid}` : 'userAddress';
-          localStorage.setItem(key, JSON.stringify(persisted));
+          safeStorage.setItem(key, JSON.stringify(persisted));
         } catch {}
       } else {
         alert('خطا در به‌روزرسانی آدرس');
@@ -920,7 +921,7 @@ function CheckoutPageContent() {
       try {
         const uid = (user as any)?.id;
         const key = uid ? `userAddress_${uid}` : 'userAddress';
-        localStorage.setItem(key, JSON.stringify({
+        safeStorage.setItem(key, JSON.stringify({
           fullAddress: addressData.fullAddress,
           details: addressData.details,
           phone: addressData.phone,
@@ -957,8 +958,8 @@ function CheckoutPageContent() {
           
           // Clear invalid token and redirect to home
           try {
-            localStorage.removeItem('auth_token');
-            localStorage.removeItem('user');
+            safeStorage.removeItem('auth_token');
+            safeStorage.removeItem('user');
           } catch {}
           
           router.push('/');
@@ -1181,7 +1182,7 @@ function CheckoutPageContent() {
             
             // Persist ship-to-leader intent for invitees when toggle is ON
             if (isJoiningGroup && greenToggle && !forceDisableConsolidation) {
-              try { localStorage.setItem('ship_to_leader_intent', '1'); } catch {}
+              try { safeStorage.setItem('ship_to_leader_intent', '1'); } catch {}
             }
             
             // ✅ FIX: Store the invite code for invited users so AuthContext can detect 
@@ -1190,7 +1191,7 @@ function CheckoutPageContent() {
               const currentInviteCode = inviteCodeParam || groupOrderInfo?.invite_code;
               if (currentInviteCode) {
                 try {
-                  localStorage.setItem('completed_invite_payment', currentInviteCode);
+                  safeStorage.setItem('completed_invite_payment', currentInviteCode);
                   console.log('💾 Stored completed_invite_payment (hybrid):', currentInviteCode);
                 } catch {}
               }
@@ -1310,7 +1311,7 @@ function CheckoutPageContent() {
           const currentInviteCode = inviteCodeParam || groupOrderInfo?.invite_code;
           if (currentInviteCode) {
             try {
-              localStorage.setItem('completed_invite_payment', currentInviteCode);
+              safeStorage.setItem('completed_invite_payment', currentInviteCode);
               console.log('💾 Stored completed_invite_payment:', currentInviteCode);
             } catch {}
           }

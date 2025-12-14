@@ -1,3 +1,5 @@
+import { safeStorage } from './safeStorage';
+
 /**
  * Adds a search term to the search history and saves it to localStorage
  * @param term The search term to add
@@ -14,7 +16,7 @@ export function addToSearchHistory(term: string, currentHistory: string[] = []):
   let history = currentHistory;
   if (history.length === 0 && typeof window !== 'undefined') {
     try {
-      const savedHistory = localStorage.getItem('searchHistory');
+      const savedHistory = safeStorage.getItem('searchHistory');
       if (savedHistory) {
         const parsedHistory = JSON.parse(savedHistory);
         if (Array.isArray(parsedHistory)) {
@@ -33,7 +35,7 @@ export function addToSearchHistory(term: string, currentHistory: string[] = []):
     
     // Save to localStorage
     if (typeof window !== 'undefined') {
-      localStorage.setItem('searchHistory', JSON.stringify(history));
+      safeStorage.setItem('searchHistory', JSON.stringify(history));
     }
   }
 
@@ -45,7 +47,7 @@ export function addToSearchHistory(term: string, currentHistory: string[] = []):
  */
 export function clearSearchHistory(): void {
   if (typeof window !== 'undefined') {
-    localStorage.removeItem('searchHistory');
+    safeStorage.removeItem('searchHistory');
   }
 }
 
@@ -56,7 +58,7 @@ export function clearSearchHistory(): void {
 export function getSearchHistory(): string[] {
   if (typeof window !== 'undefined') {
     try {
-      const savedHistory = localStorage.getItem('searchHistory');
+      const savedHistory = safeStorage.getItem('searchHistory');
       if (savedHistory) {
         const parsedHistory = JSON.parse(savedHistory);
         if (Array.isArray(parsedHistory)) {

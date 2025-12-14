@@ -195,12 +195,12 @@ export default function TrackPage() {
       setData(j);
       try {
         const gidStr = String(j.id || groupId || '').trim();
-        const infoRaw = localStorage.getItem('groupOrderInfo');
+        const infoRaw = safeStorage.getItem('groupOrderInfo');
         const byInfo = (() => {
           try { const i = infoRaw ? JSON.parse(infoRaw) : null; return i?.invite_code && String(i.invite_code).trim() === gidStr; } catch { return false; }
         })();
         const byPending = (() => {
-          try { const p = localStorage.getItem('gb-pending'); const arr = p ? JSON.parse(p) : []; return Array.isArray(arr) && arr.includes(gidStr); } catch { return false; }
+          try { const p = safeStorage.getItem('gb-pending'); const arr = p ? JSON.parse(p) : []; return Array.isArray(arr) && arr.includes(gidStr); } catch { return false; }
         })();
         const byLeader = (() => {
           try { return Array.isArray((j as any)?.participants) && (j as any).participants.some((p: any) => p?.isLeader === true); } catch { return false; }
@@ -208,10 +208,10 @@ export default function TrackPage() {
         const isMine = byInfo || byPending || byLeader;
         if (isMine) {
           const key = 'gb-my-active-groups';
-          const raw = localStorage.getItem(key);
+          const raw = safeStorage.getItem(key);
           const list = raw ? JSON.parse(raw) : [];
           const next = Array.isArray(list) ? Array.from(new Set([...list, gidStr])) : [gidStr];
-          localStorage.setItem(key, JSON.stringify(next));
+          safeStorage.setItem(key, JSON.stringify(next));
         }
       } catch {}
       // Derive remaining seconds from server and store stably

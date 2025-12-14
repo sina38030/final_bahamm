@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/utils/apiClient';
+import { safeStorage } from '@/utils/safeStorage';
 
 // Dynamically import the map component to avoid SSR issues
 const MapComponent = dynamic(() => import('./MapComponent'), {
@@ -76,7 +77,7 @@ export default function AddressMapModal({ isOpen, onClose, onAddressSave, userTo
       
       // Fallback to localStorage
       if (!phoneNumber) {
-        const savedPhone = localStorage.getItem('userPhone');
+        const savedPhone = safeStorage.getItem('userPhone');
         if (savedPhone) {
           phoneNumber = savedPhone;
           console.log('Phone number loaded from localStorage:', phoneNumber);
@@ -96,7 +97,7 @@ export default function AddressMapModal({ isOpen, onClose, onAddressSave, userTo
     let detailsFromStorage = '';
     try {
       const detailsKey = userId ? `userAddressDetails_${userId}` : 'userAddressDetails';
-      detailsFromStorage = localStorage.getItem(detailsKey) || localStorage.getItem('userAddressDetails') || '';
+      detailsFromStorage = safeStorage.getItem(detailsKey) || safeStorage.getItem('userAddressDetails') || '';
     } catch {}
     setFormData(prev => ({
       fullAddress: initialAddress || prev.fullAddress || '',
@@ -129,7 +130,7 @@ export default function AddressMapModal({ isOpen, onClose, onAddressSave, userTo
     try {
       const detailsKey = userId ? `userAddressDetails_${userId}` : 'userAddressDetails';
       if (formData.details && formData.details.trim() !== '') {
-        localStorage.setItem(detailsKey, formData.details);
+        safeStorage.setItem(detailsKey, formData.details);
       }
     } catch {}
   }, [isOpen, userId, formData.details]);
@@ -465,10 +466,10 @@ export default function AddressMapModal({ isOpen, onClose, onAddressSave, userTo
       
       // Save phone to localStorage
       if (typeof window !== 'undefined') {
-        localStorage.setItem('userPhone', phoneNumber);
+        safeStorage.setItem('userPhone', phoneNumber);
         try {
           const detailsKey = userId ? `userAddressDetails_${userId}` : 'userAddressDetails';
-          localStorage.setItem(detailsKey, formData.details);
+          safeStorage.setItem(detailsKey, formData.details);
         } catch {}
       }
 
@@ -501,7 +502,7 @@ export default function AddressMapModal({ isOpen, onClose, onAddressSave, userTo
           // Fallback: call API directly with token attached by apiClient
           // If userToken is passed but localStorage is missing it, persist it so apiClient attaches it
           if (!token && userToken && typeof window !== 'undefined') {
-            try { localStorage.setItem('auth_token', userToken); } catch {}
+            try { safeStorage.setItem('auth_token', userToken); } catch {}
           }
           const response = await apiClient.post('/users/addresses', addressPayload as any);
           if (response.ok) {

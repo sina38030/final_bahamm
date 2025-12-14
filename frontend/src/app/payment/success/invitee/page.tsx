@@ -7,6 +7,7 @@ import { Order } from "@/types/order";
 import { Group } from "@/types/group";
 // import { SecondaryPricingTiers } from "@/types/pricing";
 import { orderApi, groupApi } from "@/lib/api"; // pricingApi removed - secondary groups disabled
+import { safeStorage } from "@/utils/safeStorage";
 
 // Components
 import PaymentDetails from "./_components/PaymentDetails";
@@ -118,10 +119,10 @@ function InviteeSuccessContent() {
       }
       
       const prefix = 'processed_';
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
+      for (let i = 0; i < safeStorage.length; i++) {
+        const key = safeStorage.key(i);
         if (!key || !key.startsWith(prefix)) continue;
-        const raw = localStorage.getItem(key);
+        const raw = safeStorage.getItem(key);
         if (!raw) continue;
         try {
           const parsed = JSON.parse(raw);

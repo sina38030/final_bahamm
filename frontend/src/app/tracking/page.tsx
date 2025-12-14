@@ -2,6 +2,7 @@
 
 import React, { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { safeStorage } from '@/utils/safeStorage';
 
 function TrackingContent() {
     const router = useRouter();
@@ -16,7 +17,7 @@ function TrackingContent() {
             return;
         }
         try {
-            const last = localStorage.getItem('last_invite_code');
+            const last = safeStorage.getItem('last_invite_code');
             if (last) {
                 router.replace(`/track/${encodeURIComponent(last)}`);
                 return;

@@ -5,6 +5,8 @@
  * Uses URL parameters to pass tokens securely between origins
  */
 
+import { safeStorage } from './safeStorage';
+
 const TOKEN_PARAM = 'auth_token';
 const USER_PARAM = 'auth_user';
 
@@ -22,12 +24,12 @@ export function syncTokenFromURL(): boolean {
 
     if (token) {
       console.log('[CrossDomainAuth] Token found in URL, saving to localStorage');
-      localStorage.setItem('auth_token', token);
+      safeStorage.setItem('auth_token', token);
       
       if (userData) {
         try {
           const decodedUser = decodeURIComponent(userData);
-          localStorage.setItem('user', decodedUser);
+          safeStorage.setItem('user', decodedUser);
           console.log('[CrossDomainAuth] User data saved to localStorage');
         } catch (e) {
           console.warn('[CrossDomainAuth] Failed to parse user data:', e);
@@ -54,7 +56,7 @@ export function syncTokenFromURL(): boolean {
  */
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('auth_token');
+  return safeStorage.getItem('auth_token');
 }
 
 /**
@@ -64,7 +66,7 @@ export function getAuthUser(): any | null {
   if (typeof window === 'undefined') return null;
   
   try {
-    const userData = localStorage.getItem('user');
+    const userData = safeStorage.getItem('user');
     if (userData) {
       return JSON.parse(userData);
     }

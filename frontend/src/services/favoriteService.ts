@@ -1,5 +1,6 @@
 // Favorites API Service
 import { API_BASE_URL } from '../utils/api';
+import { safeStorage } from '../utils/safeStorage';
 
 // Types
 export interface FavoriteProduct {
@@ -15,7 +16,7 @@ export interface FavoriteProduct {
 
 // Helper to get auth token
 const getAuthToken = (): string => {
-  const token = localStorage.getItem('auth_token');
+  const token = safeStorage.getItem('auth_token');
   
   if (!token) {
     console.warn('[AuthToken] No authentication token found in localStorage');
@@ -107,7 +108,7 @@ export const getUserFavorites = async (): Promise<FavoriteProduct[]> => {
       if (response.status === 401) {
         console.error(`[DEBUG-${requestId}] Authentication failed (401): Token may be invalid or expired`);
         // Clear the invalid token
-        localStorage.removeItem('auth_token');
+        safeStorage.removeItem('auth_token');
       } else {
         console.error(`[DEBUG-${requestId}] Failed to fetch favorites: ${response.status}`);
       }
@@ -199,7 +200,7 @@ export const checkAuth = async (): Promise<boolean> => {
     if (!response.ok) {
       if (response.status === 401) {
         console.warn(`[DEBUG-${requestId}] Token is invalid or expired`);
-        localStorage.removeItem('auth_token');
+        safeStorage.removeItem('auth_token');
       }
       return false;
     }

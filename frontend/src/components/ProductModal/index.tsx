@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, MouseEvent, memo, useMemo } from 'react';
 // Global counter to ensure unique keys
 let modalKeyCounter = 10000;
 import { useRouter } from 'next/navigation';
+import { safeStorage } from '@/utils/safeStorage';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faStar,
@@ -123,7 +124,7 @@ const ProductModalInner = memo(function ProductModalInner() {
   /* علاقه‌مندی از localStorage */
   useEffect(() => {
     if (!product) return;
-    setFav(localStorage.getItem(`fav-${product.id}`) === '1');
+    setFav(safeStorage.getItem(`fav-${product.id}`) === '1');
   }, [product?.id]);
 
   /* Toast علاقه‌مندی */

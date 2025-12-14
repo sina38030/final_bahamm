@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/utils/apiClient';
 import { useCart } from '@/contexts/CartContext';
+import { safeStorage } from '@/utils/safeStorage';
 
 export default function BottomNavigation() {
     const pathname = usePathname();
@@ -27,7 +28,7 @@ export default function BottomNavigation() {
     const computeGroupsOrdersCount = useCallback(async () => {
         try {
             if (typeof document !== 'undefined' && document.hidden) { return; }
-            const hasToken = isClient && !!localStorage.getItem('auth_token');
+            const hasToken = isClient && !!safeStorage.getItem('auth_token');
             if (!isAuthenticated && !hasToken) { setGroupsOrdersCount(0); return; }
             if (groupCtrlRef.current) { try { groupCtrlRef.current.abort(); } catch {} }
             const ctrl = new AbortController();
@@ -61,8 +62,8 @@ export default function BottomNavigation() {
                     return [];
                 }
             };
-            const seenGroupIds: string[] = isClient ? safeParseArray<string>(localStorage.getItem('seen_group_ids')) : [];
-            const seenActiveOrderIds: number[] = isClient ? safeParseArray<number>(localStorage.getItem('seen_active_order_ids')) : [];
+            const seenGroupIds: string[] = isClient ? safeParseArray<string>(safeStorage.getItem('seen_group_ids')) : [];
+            const seenActiveOrderIds: number[] = isClient ? safeParseArray<number>(safeStorage.getItem('seen_active_order_ids')) : [];
 
             const newGroups = seenGroupIds.length
                 ? currentGroupIds.filter((id) => !seenGroupIds.includes(id))
@@ -85,7 +86,7 @@ export default function BottomNavigation() {
     // Mark groups/orders as seen (called when user visits groups-orders tab)
     const markGroupsOrdersSeen = useCallback(async () => {
         try {
-            const hasToken = isClient && !!localStorage.getItem('auth_token');
+            const hasToken = isClient && !!safeStorage.getItem('auth_token');
             if (!isAuthenticated && !hasToken) { return; }
             const res = await apiClient.get('/group-orders/my-groups-and-orders');
             if (!res.ok) { return; }
@@ -107,8 +108,8 @@ export default function BottomNavigation() {
             const currentActiveOrderIds: number[] = activeOrders.map((o: any) => Number(o.id));
 
             if (isClient) {
-                localStorage.setItem('seen_group_ids', JSON.stringify(currentGroupIds));
-                localStorage.setItem('seen_active_order_ids', JSON.stringify(currentActiveOrderIds));
+                safeStorage.setItem('seen_group_ids', JSON.stringify(currentGroupIds));
+                safeStorage.setItem('seen_active_order_ids', JSON.stringify(currentActiveOrderIds));
             }
             setGroupsOrdersCount(0);
         } catch {
@@ -120,7 +121,7 @@ export default function BottomNavigation() {
     const computeChatUnread = useCallback(async () => {
         try {
             if (typeof document !== 'undefined' && document.hidden) { return; }
-            const hasToken = isClient && !!localStorage.getItem('auth_token');
+            const hasToken = isClient && !!safeStorage.getItem('auth_token');
             if (!isAuthenticated && !hasToken) { setChatUnreadCount(0); return; }
             if (chatCtrlRef.current) { try { chatCtrlRef.current.abort(); } catch {} }
             const ctrl = new AbortController();
@@ -135,11 +136,11 @@ export default function BottomNavigation() {
                 return idNum > max ? idNum : max;
             }, 0);
 
-            const lastSeenId = Number((isClient && localStorage.getItem('chat_last_seen_admin_id')) || 0);
+            const lastSeenId = Number((isClient && safeStorage.getItem('chat_last_seen_admin_id')) || 0);
 
             if (!lastSeenId) {
                 // First-time: initialize snapshot to current latest so no legacy badge shows
-                if (isClient) localStorage.setItem('chat_last_seen_admin_id', String(latestAdminId || 0));
+                if (isClient) safeStorage.setItem('chat_last_seen_admin_id', String(latestAdminId || 0));
                 setChatUnreadCount(0);
                 return;
             }
@@ -159,7 +160,7 @@ export default function BottomNavigation() {
     // Mark chat messages as seen by updating last-seen snapshot
     const markChatSeen = useCallback(async () => {
         try {
-            const hasToken = isClient && !!localStorage.getItem('auth_token');
+            const hasToken = isClient && !!safeStorage.getItem('auth_token');
             if (!isAuthenticated && !hasToken) { return; }
             const res = await apiClient.get('/chat/admin/messages');
             if (!res.ok) { return; }
@@ -170,7 +171,7 @@ export default function BottomNavigation() {
                 return idNum > max ? idNum : max;
             }, 0);
             if (isClient) {
-                localStorage.setItem('chat_last_seen_admin_id', String(latestAdminId || 0));
+                safeStorage.setItem('chat_last_seen_admin_id', String(latestAdminId || 0));
             }
             setChatUnreadCount(0);
         } catch {

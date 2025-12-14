@@ -1,5 +1,6 @@
 'use client';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { safeStorage } from '@/utils/safeStorage';
 
 /* ---------- انواع داده ---------- */
 export interface CartItem {
@@ -49,7 +50,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   /* ---------- Persist & Hydrate (localStorage) ---------- */
   useEffect(() => {
     try {
-      const rawItems = localStorage.getItem('cart_items');
+      const rawItems = safeStorage.getItem('cart_items');
       if (rawItems) {
         const parsed: CartItem[] = JSON.parse(rawItems);
         if (Array.isArray(parsed)) {
@@ -61,7 +62,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           })));
         }
       }
-      const rawGroup = localStorage.getItem('cart_group_option');
+      const rawGroup = safeStorage.getItem('cart_group_option');
       if (rawGroup !== null) {
         const opt = parseInt(rawGroup, 10);
         if (opt === 0 || opt === 1 || opt === 2 || opt === 3) setGroupBuyOption(opt);
@@ -71,13 +72,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem('cart_items', JSON.stringify(items));
+      safeStorage.setItem('cart_items', JSON.stringify(items));
     } catch {}
   }, [items]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('cart_group_option', String(groupBuyOption));
+      safeStorage.setItem('cart_group_option', String(groupBuyOption));
     } catch {}
   }, [groupBuyOption]);
 
