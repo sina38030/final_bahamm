@@ -1,8 +1,5 @@
 "use client";
 
-// Import polyfills FIRST for Android WebView compatibility
-import "@/polyfills";
-
 import React from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { GroupBuyResultProvider } from "@/components/providers/GroupBuyResultProvider";
