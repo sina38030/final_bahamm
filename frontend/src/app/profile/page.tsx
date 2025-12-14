@@ -1,9 +1,10 @@
 'use client'
 import ProfileMenu from '@/components/profile/ProfileMenu'
 import UserHeader from '@/components/profile/UserHeader'
+import { PageErrorBoundary } from '@/components/common/PageErrorBoundary'
 import React from 'react'
 
-export default function ProfilePage() {
+function ProfilePageContent() {
     return (
         <div className="pb-16">
             <div className="">
@@ -12,7 +13,14 @@ export default function ProfilePage() {
                     <ProfileMenu />
                 </div>
             </div>
-            
         </div>
+    )
+}
+
+export default function ProfilePage() {
+    return (
+        <PageErrorBoundary fallbackTitle="خطا در بارگذاری پروفایل">
+            <ProfilePageContent />
+        </PageErrorBoundary>
     )
 }

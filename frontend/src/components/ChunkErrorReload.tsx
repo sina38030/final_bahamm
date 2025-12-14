@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { safeSessionStorage } from "@/utils/safeStorage";
 
 /**
  * Globally listens for chunk loading failures (e.g. after a new deployment)
@@ -11,12 +12,10 @@ export default function ChunkErrorReload() {
 
   useEffect(() => {
     const storageKey = "once-reload-on-chunk-error";
-    try {
-      reloadedRef.current = sessionStorage.getItem(storageKey) === "1";
-    } catch {}
+    reloadedRef.current = safeSessionStorage.getItem(storageKey) === "1";
 
     const markReloaded = () => {
-      try { sessionStorage.setItem(storageKey, "1"); } catch {}
+      safeSessionStorage.setItem(storageKey, "1");
     };
 
     const isChunkErrorLike = (value: unknown): boolean => {

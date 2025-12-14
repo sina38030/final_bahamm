@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { useAuth } from '@/contexts/AuthContext';
 import GroupBuyResultModal from '@/components/modals/GroupBuyResultModal';
 import { useGroupBuyResultModal, fetchGroupBuyData } from '@/hooks/useGroupBuyResultModal';
+import { safeStorage, safeSessionStorage } from '@/utils/safeStorage';
 
 interface GroupBuyResultContextType {
   checkForPendingGroupBuys: () => Promise<void>;
@@ -71,11 +72,10 @@ export const GroupBuyResultProvider: React.FC<GroupBuyResultProviderProps> = ({ 
         })
         .map((r: any) => String(r.id));
       for (const gid of successIds) {
-        let suppressedSession: string | null = null;
-        try { suppressedSession = sessionStorage.getItem(`gb-modal-${gid}`); } catch {}
+        const suppressedSession = safeSessionStorage.getItem(`gb-modal-${gid}`);
         let suppressedPersistent = false;
         try {
-          const rawSeen = localStorage.getItem('gb-seen');
+          const rawSeen = safeStorage.getItem('gb-seen');
           const seenArr = rawSeen ? JSON.parse(rawSeen) : [];
           suppressedPersistent = Array.isArray(seenArr) && seenArr.includes(String(gid));
         } catch {}
@@ -95,11 +95,10 @@ export const GroupBuyResultProvider: React.FC<GroupBuyResultProviderProps> = ({ 
           .slice(0, 30); // limit to avoid heavy scans
         for (const r of candidates) {
           const gid = String(r.id);
-          let suppressedSession: string | null = null;
-          try { suppressedSession = sessionStorage.getItem(`gb-modal-${gid}`); } catch {}
+          const suppressedSession = safeSessionStorage.getItem(`gb-modal-${gid}`);
           let suppressedPersistent = false;
           try {
-            const rawSeen = localStorage.getItem('gb-seen');
+            const rawSeen = safeStorage.getItem('gb-seen');
             const seenArr = rawSeen ? JSON.parse(rawSeen) : [];
             suppressedPersistent = Array.isArray(seenArr) && seenArr.includes(String(gid));
           } catch {}
@@ -158,30 +157,29 @@ export const GroupBuyResultProvider: React.FC<GroupBuyResultProviderProps> = ({ 
   // One-time trigger set after finalize on track page
   useEffect(() => {
     try {
-      let pending: string | null = null;
-      try { pending = sessionStorage.getItem('gb-show-on-home'); } catch {}
+      const pending = safeSessionStorage.getItem('gb-show-on-home');
       if (pending) {
         // Respect persistent seen
         let seen = false;
         try {
-          const rawSeen = localStorage.getItem('gb-seen');
+          const rawSeen = safeStorage.getItem('gb-seen');
           const seenArr = rawSeen ? JSON.parse(rawSeen) : [];
           seen = Array.isArray(seenArr) && seenArr.includes(String(pending));
         } catch {}
-        try { sessionStorage.removeItem('gb-show-on-home'); } catch {}
+        safeSessionStorage.removeItem('gb-show-on-home');
         if (!seen) {
           void showModalForGroup(pending, { force: true });
         }
       }
       // Also check persistent pending list across sessions
-      const raw = localStorage.getItem('gb-pending');
+      const raw = safeStorage.getItem('gb-pending');
       const ids: string[] = raw ? JSON.parse(raw) : [];
       if (Array.isArray(ids) && ids.length > 0) {
         // Show the first one and keep it pending until user interacts with modal
         const first = String(ids[0]);
         let seen = false;
         try {
-          const rawSeen = localStorage.getItem('gb-seen');
+          const rawSeen = safeStorage.getItem('gb-seen');
           const seenArr = rawSeen ? JSON.parse(rawSeen) : [];
           seen = Array.isArray(seenArr) && seenArr.includes(first);
         } catch {}
@@ -202,7 +200,7 @@ export const GroupBuyResultProvider: React.FC<GroupBuyResultProviderProps> = ({ 
               const gid = String(row.id);
               let seen = false;
               try {
-                const rawSeen = localStorage.getItem('gb-seen');
+                const rawSeen = safeStorage.getItem('gb-seen');
                 const seenArr = rawSeen ? JSON.parse(rawSeen) : [];
                 seen = Array.isArray(seenArr) && seenArr.includes(gid);
               } catch {}

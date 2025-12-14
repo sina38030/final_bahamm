@@ -12,7 +12,8 @@ import DeliveryTimeModal from "@/components/modals/DeliveryTimeModal";
 import GroupTrackContent from "@/components/GroupTrackContent";
 import { generateInviteLink, extractInviteCode } from "@/utils/linkGenerator";
 import { isReviewEligibleStatus } from "@/utils/orderStatus";
-import { safeStorage } from "@/utils/safeStorage";
+import { safeStorage, safeSessionStorage } from "@/utils/safeStorage";
+import { PageErrorBoundary } from "@/components/common/PageErrorBoundary";
 // import { requestSlot, releaseSlot } from "@/utils/queue";
 
 // Debounce utility to prevent excessive updates
@@ -380,7 +381,7 @@ function isCancelledStatus(statusRaw?: string | null): boolean {
   return /cancel|canceled|cancelled|void/.test(s);
 }
 
-export default function GroupsOrdersPage() {
+function GroupsOrdersPageContent() {
   const router = useRouter();
   const [tab, setTab] = useState<TabKey>("orders");
   // Allow deep-linking to Orders tab via query param
@@ -2722,4 +2723,10 @@ function LazyTrackEmbed({
   );
 }
 
-
+export default function GroupsOrdersPage() {
+  return (
+    <PageErrorBoundary fallbackTitle="خطا در بارگذاری سفارش‌ها">
+      <GroupsOrdersPageContent />
+    </PageErrorBoundary>
+  );
+}

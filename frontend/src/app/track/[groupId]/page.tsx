@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useGroupBuyResult } from "@/components/providers/GroupBuyResultProvider";
 import { generateInviteLink, generateShareUrl, extractInviteCode } from "@/utils/linkGenerator";
 import { API_BASE_URL } from "@/utils/api";
+import { safeStorage, safeSessionStorage } from "@/utils/safeStorage";
 // Removed auth requirement for public access
 
 type GroupStatus = "ongoing" | "success" | "failed";
@@ -497,16 +498,16 @@ export default function TrackPage() {
       setToast("گروه با موفقیت تکمیل شد.");
       // Signal home page to show result modal on next visits (persist across sessions)
       try {
-        try { sessionStorage.setItem('gb-show-on-home', String(groupId)); } catch {}
+        safeSessionStorage.setItem('gb-show-on-home', String(groupId));
         const key = 'gb-pending';
-        const raw = localStorage.getItem(key);
+        const raw = safeStorage.getItem(key);
         const list = raw ? JSON.parse(raw) : [];
         if (!Array.isArray(list) || !list.includes(String(groupId))) {
           const next = Array.isArray(list) ? [...list, String(groupId)] : [String(groupId)];
-          localStorage.setItem(key, JSON.stringify(next));
+          safeStorage.setItem(key, JSON.stringify(next));
         }
         // Mark finalized for listeners in other tabs
-        try { localStorage.setItem('gb-finalized', String(groupId)); } catch {}
+        safeStorage.setItem('gb-finalized', String(groupId));
         // Notify same-tab listeners
         try { window.dispatchEvent(new CustomEvent('gb-finalized', { detail: { groupId: String(groupId) } })); } catch {}
         // Notify parent page if inside iframe (Groups tab embeds Track)

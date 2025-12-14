@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import GroupBuyResultContent from '@/components/groupbuy/GroupBuyResultContent';
 import { useAuth } from '@/contexts/AuthContext';
+import { safeStorage, safeSessionStorage } from '@/utils/safeStorage';
 
 interface OrderSummary {
   originalPrice: number;
@@ -82,11 +83,9 @@ const GroupBuyResultModal: React.FC<GroupBuyResultModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     // Initialize refundSubmitted from localStorage for this group
-    try {
-      const key = `gb-refund-submitted-${groupId}`;
-      const val = localStorage.getItem(key);
-      setRefundSubmitted(!!val);
-    } catch {}
+    const key = `gb-refund-submitted-${groupId}`;
+    const val = safeStorage.getItem(key);
+    setRefundSubmitted(!!val);
     const BACKEND_URL = (typeof window !== 'undefined' ? window.location.origin : '').replace(/\/$/, "");
     (async () => {
       try {
@@ -149,19 +148,19 @@ const GroupBuyResultModal: React.FC<GroupBuyResultModalProps> = ({
       onClose();
       // Mark as seen; also remove from persistent pending list
       try {
-        try { sessionStorage.setItem(`gb-modal-${groupId}`, '1'); } catch {}
+        safeSessionStorage.setItem(`gb-modal-${groupId}`, '1');
         // Persist seen across sessions so it never re-appears unless cleared
         const seenKey = 'gb-seen';
-        const rawSeen = localStorage.getItem(seenKey);
+        const rawSeen = safeStorage.getItem(seenKey);
         const seenArr = rawSeen ? JSON.parse(rawSeen) : [];
         const nextSeen = Array.isArray(seenArr) ? Array.from(new Set([...seenArr, String(groupId)])) : [String(groupId)];
-        localStorage.setItem(seenKey, JSON.stringify(nextSeen));
+        safeStorage.setItem(seenKey, JSON.stringify(nextSeen));
         const key = 'gb-pending';
-        const raw = localStorage.getItem(key);
+        const raw = safeStorage.getItem(key);
         const list = raw ? JSON.parse(raw) : [];
         if (Array.isArray(list) && list.includes(groupId)) {
           const next = list.filter((x: string) => x !== groupId);
-          localStorage.setItem(key, JSON.stringify(next));
+          safeStorage.setItem(key, JSON.stringify(next));
         }
       } catch {}
     }, 300);
@@ -221,10 +220,8 @@ const GroupBuyResultModal: React.FC<GroupBuyResultModalProps> = ({
           return;
         }
         // Mark settlement flow so callback can show confirmation and redirect properly
-        try {
-          localStorage.setItem('settlement_payment', '1');
-          localStorage.setItem('settlement_group_id', String(groupId));
-        } catch {}
+        safeStorage.setItem('settlement_payment', '1');
+        safeStorage.setItem('settlement_group_id', String(groupId));
         // Navigate to bank
         window.location.assign(paymentUrl);
       } catch (e) {
@@ -261,17 +258,15 @@ const GroupBuyResultModal: React.FC<GroupBuyResultModalProps> = ({
         return;
       }
       alert('اطلاعات کارت ثبت شد. پس از بررسی، مبلغ به کارت شما واریز می‌شود.');
+      const key = `gb-refund-submitted-${groupId}`;
+      safeStorage.setItem(key, String(Date.now()));
+      setRefundSubmitted(true);
       try {
-        const key = `gb-refund-submitted-${groupId}`;
-        localStorage.setItem(key, String(Date.now()));
-        setRefundSubmitted(true);
-        try {
-          window.dispatchEvent(new CustomEvent('gb-refund-submitted', { detail: { groupId: String(groupId) } }));
-        } catch {}
-        // Close modal and navigate to groups/orders to reflect updated state
-        try { handleClose(); } catch {}
-        try { router.push('/groups-orders'); } catch {}
+        window.dispatchEvent(new CustomEvent('gb-refund-submitted', { detail: { groupId: String(groupId) } }));
       } catch {}
+      // Close modal and navigate to groups/orders to reflect updated state
+      try { handleClose(); } catch {}
+      try { router.push('/groups-orders'); } catch {}
     } catch {
       alert('خطا در اتصال به سرور');
     } finally {

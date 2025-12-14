@@ -6,6 +6,8 @@ import PhoneAuthModal from '@/components/auth/PhoneAuthModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/utils/apiClient';
 import { toTehranTime } from '@/utils/dateUtils';
+import { PageErrorBoundary } from '@/components/common/PageErrorBoundary';
+import { safeStorage } from '@/utils/safeStorage';
 
 type ChatMessage = {
   id: number;
@@ -16,7 +18,7 @@ type ChatMessage = {
   seen?: boolean;
 };
 
-export default function ChatPage() {
+function ChatPageContent() {
   const { isAuthenticated } = useAuth();
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -46,9 +48,7 @@ export default function ChatPage() {
           const latestAdminId = (data || [])
             .filter((m: ChatMessage) => m.sender === 'admin')
             .reduce((max: number, m: ChatMessage) => (m.id > max ? m.id : max), 0);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('chat_last_seen_admin_id', String(latestAdminId || 0));
-          }
+          safeStorage.setItem('chat_last_seen_admin_id', String(latestAdminId || 0));
         }
       } catch (e) {
         // ignore
@@ -180,4 +180,10 @@ export default function ChatPage() {
   );
 }
 
-
+export default function ChatPage() {
+  return (
+    <PageErrorBoundary fallbackTitle="خطا در بارگذاری چت">
+      <ChatPageContent />
+    </PageErrorBoundary>
+  );
+}

@@ -9,6 +9,7 @@ import { useProductModal } from '@/hooks/useProductModal';
 import { useCart } from '@/contexts/CartContext';
 import { generateInviteLink, generateShareUrl, extractInviteCode } from '@/utils/linkGenerator';
 import { API_BASE_URL } from '@/utils/api';
+import { safeSessionStorage } from '@/utils/safeStorage';
 
 // Resilient dynamic import to auto-recover once from transient ChunkLoadError after HMR/build changes
 async function safeImport<T>(importer: () => Promise<T>, key: string): Promise<T> {
@@ -20,10 +21,9 @@ async function safeImport<T>(importer: () => Promise<T>, key: string): Promise<T
       const isChunkError = err?.name === 'ChunkLoadError' || /ChunkLoadError/.test(String(err));
       if (isClient && isChunkError) {
         const onceKey = `once-reload-${key}`;
-        let alreadyReloaded = false;
-        try { alreadyReloaded = !!sessionStorage.getItem(onceKey); } catch {}
+        const alreadyReloaded = !!safeSessionStorage.getItem(onceKey);
         if (!alreadyReloaded) {
-          try { sessionStorage.setItem(onceKey, '1'); } catch {}
+          safeSessionStorage.setItem(onceKey, '1');
           window.location.reload();
         }
       }
