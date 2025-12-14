@@ -692,20 +692,29 @@ function GroupsOrdersPageContent() {
       setOrders([]);
     }
 
-    const onStorage = (e: StorageEvent) => {
-      if (!e.key) return;
-      if (e.key === 'auth_token') {
-        requestRefresh();
-      }
-      if (e.key === 'gb-finalized' || e.key === 'gb-settled' || e.key === 'gb-my-active-groups') {
-        requestRefresh();
-      }
-      if (e.key && e.key.startsWith('gb-refund-submitted-')) {
-        requestRefresh();
-      }
-      if (e.key && e.key.startsWith('settlement-completed-')) {
-        requestRefresh();
-      }
+    // Handle both StorageEvent and CustomEvent (Android WebView polyfill)
+    const onStorage = (e: Event) => {
+      try {
+        let key: string | null = null;
+        if ('key' in e) {
+          key = (e as StorageEvent).key;
+        } else if ('detail' in e && (e as CustomEvent).detail) {
+          key = (e as CustomEvent).detail?.key ?? null;
+        }
+        if (!key) return;
+        if (key === 'auth_token') {
+          requestRefresh();
+        }
+        if (key === 'gb-finalized' || key === 'gb-settled' || key === 'gb-my-active-groups') {
+          requestRefresh();
+        }
+        if (key.startsWith('gb-refund-submitted-')) {
+          requestRefresh();
+        }
+        if (key.startsWith('settlement-completed-')) {
+          requestRefresh();
+        }
+      } catch {}
     };
 
     const onFinalizeCustom = () => { requestRefresh(); };
@@ -1601,11 +1610,23 @@ function RefundButtonWithTimer({ authority }: { authority: string }) {
 
   // Sync expiry across tabs and keep timer accurate on visibility changes
   useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
+    // Handle both StorageEvent and CustomEvent (Android WebView polyfill)
+    const onStorage = (e: Event) => {
       try {
-        if (!e.key) return;
-        if (e.key === authExpiryKey && typeof e.newValue === 'string') {
-          const t = Number(e.newValue);
+        let key: string | null = null;
+        let newValue: string | null = null;
+        if ('key' in e) {
+          const se = e as StorageEvent;
+          key = se.key;
+          newValue = se.newValue;
+        } else if ('detail' in e && (e as CustomEvent).detail) {
+          const detail = (e as CustomEvent).detail;
+          key = detail?.key ?? null;
+          newValue = detail?.newValue ?? null;
+        }
+        if (!key) return;
+        if (key === authExpiryKey && typeof newValue === 'string') {
+          const t = Number(newValue);
           if (Number.isFinite(t)) {
             setExpiryMs(prev => {
               // Only extend or overwrite when it differs; prefer the latest value
@@ -1968,18 +1989,27 @@ function LazyTrackEmbed({
   // Listen to storage changes for refund submission to update UI
   useEffect(() => {
     let onCustomRef: ((e: Event) => void) | null = null;
-    const onStorage = (e: StorageEvent) => {
-      if (!e.key) return;
-      if (e.key === `gb-refund-submitted-${gid}`) {
-        try {
-          const val = safeStorage.getItem(e.key);
-          setRefundSubmitted(!!val);
+    // Handle both StorageEvent and CustomEvent (Android WebView polyfill)
+    const onStorage = (e: Event) => {
+      try {
+        let key: string | null = null;
+        if ('key' in e) {
+          key = (e as StorageEvent).key;
+        } else if ('detail' in e && (e as CustomEvent).detail) {
+          key = (e as CustomEvent).detail?.key ?? null;
+        }
+        if (!key) return;
+        if (key === `gb-refund-submitted-${gid}`) {
           try {
-            const m = safeStorage.getItem(`gb-refund-method-${gid}`);
-            if (m === 'wallet' || m === 'bank') setRefundMethod(m as any);
+            const val = safeStorage.getItem(key);
+            setRefundSubmitted(!!val);
+            try {
+              const m = safeStorage.getItem(`gb-refund-method-${gid}`);
+              if (m === 'wallet' || m === 'bank') setRefundMethod(m as any);
+            } catch {}
           } catch {}
-        } catch {}
-      }
+        }
+      } catch {}
     };
     if (typeof window !== 'undefined') {
       window.addEventListener('storage', onStorage);

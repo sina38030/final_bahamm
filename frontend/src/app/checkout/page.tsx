@@ -522,22 +522,33 @@ function CheckoutPageContent() {
     if (!isAuthenticated || !user) return;
 
     const uid = (user as any)?.id;
-    const onStorage = async (e: StorageEvent) => {
-      if (!e) return;
-      const keysToWatch = new Set([
-        'address_sync',
-        uid ? `addresses_${uid}` : '',
-        uid ? `userAddress_${uid}` : 'userAddress',
-      ].filter(Boolean));
-      if (!keysToWatch.has(e.key || '')) return;
+    // Handle both StorageEvent and CustomEvent (Android WebView polyfill)
+    const onStorage = async (e: Event) => {
+      try {
+        if (!e) return;
+        // Extract key from StorageEvent or CustomEvent (Android polyfill)
+        let key: string | null = null;
+        if ('key' in e) {
+          key = (e as StorageEvent).key;
+        } else if ('detail' in e && (e as CustomEvent).detail) {
+          key = (e as CustomEvent).detail?.key ?? null;
+        }
+        
+        const keysToWatch = new Set([
+          'address_sync',
+          uid ? `addresses_${uid}` : '',
+          uid ? `userAddress_${uid}` : 'userAddress',
+        ].filter(Boolean));
+        if (!keysToWatch.has(key || '')) return;
 
-      // Use loadUserAddresses instead of direct API call
-      // Only reload if addresses haven't been loaded yet or if we're syncing from another tab
-      if (e.key === 'address_sync' || addressesLoadedRef.current !== uid) {
-        try {
-          await loadUserAddresses();
-        } catch {}
-      }
+        // Use loadUserAddresses instead of direct API call
+        // Only reload if addresses haven't been loaded yet or if we're syncing from another tab
+        if (key === 'address_sync' || addressesLoadedRef.current !== uid) {
+          try {
+            await loadUserAddresses();
+          } catch {}
+        }
+      } catch {}
     };
 
     window.addEventListener('storage', onStorage);

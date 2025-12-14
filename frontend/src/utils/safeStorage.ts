@@ -213,6 +213,61 @@ export const safeSessionStorage: StorageLike = {
   },
 };
 
+/**
+ * Safely dispatch a storage event for cross-tab synchronization.
+ * This handles Android Telegram WebView which doesn't support the 
+ * StorageEvent constructor with options object (requires Chrome 70+).
+ */
+export function dispatchStorageEvent(
+  key: string | null,
+  newValue: string | null,
+  oldValue: string | null
+): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    // Try the modern StorageEvent constructor first
+    const event = new StorageEvent('storage', {
+      key,
+      newValue,
+      oldValue,
+      url: window.location.href,
+      storageArea: window.localStorage,
+    });
+    window.dispatchEvent(event);
+  } catch (e) {
+    // Fallback for older browsers (Android WebView < Chrome 70)
+    // Use a CustomEvent which is more widely supported
+    try {
+      const customEvent = new CustomEvent('storage', {
+        detail: { key, newValue, oldValue },
+      });
+      window.dispatchEvent(customEvent);
+    } catch (e2) {
+      // If even CustomEvent fails, try document.createEvent (very old browsers)
+      try {
+        const evt = document.createEvent('StorageEvent');
+        // initStorageEvent is deprecated but works on old browsers
+        (evt as any).initStorageEvent(
+          'storage',
+          false,
+          false,
+          key,
+          oldValue,
+          newValue,
+          window.location.href,
+          window.localStorage
+        );
+        window.dispatchEvent(evt);
+      } catch (e3) {
+        // Last resort: just log the issue and continue
+        // Cross-tab sync won't work but at least the app won't crash
+        console.warn('[safeStorage] Could not dispatch storage event:', e3);
+      }
+    }
+  }
+}
+
 
 
 

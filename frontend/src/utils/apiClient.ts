@@ -3,7 +3,7 @@
  */
 
 import * as apiModule from './api';
-import { safeStorage } from './safeStorage';
+import { safeStorage, dispatchStorageEvent } from './safeStorage';
 
 // Defensive wrapper for getApiUrl to handle module loading issues
 const getApiUrl = (): string => {
@@ -57,12 +57,8 @@ export const apiClient = {
         console.warn('[ApiClient] 401 Unauthorized - clearing auth data');
         safeStorage.removeItem('auth_token');
         safeStorage.removeItem('user');
-        // Trigger storage event for cross-tab logout
-        window.dispatchEvent(new StorageEvent('storage', {
-          key: 'auth_token',
-          newValue: null,
-          oldValue: token
-        }));
+        // Trigger storage event for cross-tab logout (safe for Android WebView)
+        dispatchStorageEvent('auth_token', null, token);
         throw new Error('Unauthorized - please login again');
       }
 
@@ -127,11 +123,8 @@ export const apiClient = {
         console.warn('[ApiClient] 401 Unauthorized - clearing auth data');
         safeStorage.removeItem('auth_token');
         safeStorage.removeItem('user');
-        window.dispatchEvent(new StorageEvent('storage', {
-          key: 'auth_token',
-          newValue: null,
-          oldValue: token
-        }));
+        // Trigger storage event for cross-tab logout (safe for Android WebView)
+        dispatchStorageEvent('auth_token', null, token);
         throw new Error('Unauthorized - please login again');
       }
 

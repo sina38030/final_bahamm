@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import * as apiModule from '../utils/api';
 import { apiClient } from '../utils/apiClient';
 import { syncTokenFromURL } from '../utils/crossDomainAuth';
-import { safeStorage, isUsingMemoryStorage } from '../utils/safeStorage';
+import { safeStorage, isUsingMemoryStorage, dispatchStorageEvent } from '../utils/safeStorage';
 
 // Defensive wrapper for getApiUrl to handle module loading issues
 const getApiUrl = (): string => {
@@ -653,60 +653,86 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []); // Only run once on mount
 
   // Listen for storage events to sync logout across tabs
+  // NOTE: On Android WebView, we might receive CustomEvent instead of StorageEvent
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'auth_token' && e.newValue === null) {
-        console.log('[AuthContext] Logout detected in another tab');
-        setUser(null);
-        setToken(null);
-        setAddresses([]); // Clear addresses on logout
-      } else if (e.key === 'auth_token' && e.newValue) {
-        console.log('[AuthContext] Login detected in another tab');
-        const storedUser = safeStorage.getItem('user');
-        if (storedUser) {
-          setToken(e.newValue);
-          setUser(JSON.parse(storedUser));
+    const handleStorageChange = (e: Event) => {
+      try {
+        // Extract key and values - handle both StorageEvent and CustomEvent (Android polyfill)
+        let key: string | null = null;
+        let newValue: string | null = null;
+        
+        if ('key' in e) {
+          // Standard StorageEvent
+          const se = e as StorageEvent;
+          key = se.key;
+          newValue = se.newValue;
+        } else if ('detail' in e && (e as CustomEvent).detail) {
+          // CustomEvent fallback (Android WebView)
+          const detail = (e as CustomEvent).detail;
+          key = detail?.key ?? null;
+          newValue = detail?.newValue ?? null;
         }
-      } else if (e.key === 'address_sync' && e.newValue && user?.id) {
-        // Handle cross-tab address synchronization
-        try {
-          const syncData = JSON.parse(e.newValue);
-          if (syncData.userId === user.id) {
-            console.log('[AuthContext] Address sync event detected:', syncData);
-            
-            // Debounce multiple rapid events
-            if (addressSyncTimeoutRef.current) {
-              clearTimeout(addressSyncTimeoutRef.current);
-              addressSyncTimeoutRef.current = null;
+        
+        if (key === 'auth_token' && newValue === null) {
+          console.log('[AuthContext] Logout detected in another tab');
+          setUser(null);
+          setToken(null);
+          setAddresses([]); // Clear addresses on logout
+        } else if (key === 'auth_token' && newValue) {
+          console.log('[AuthContext] Login detected in another tab');
+          const storedUser = safeStorage.getItem('user');
+          if (storedUser) {
+            try {
+              setToken(newValue);
+              setUser(JSON.parse(storedUser));
+            } catch (parseErr) {
+              console.error('[AuthContext] Error parsing stored user:', parseErr);
             }
-            
-            addressSyncTimeoutRef.current = setTimeout(() => {
-              switch (syncData.action) {
-                case 'add':
-                  setAddresses(prev => {
-                    const exists = prev.some(addr => addr.id === syncData.address.id);
-                    return exists ? prev : [...prev, syncData.address];
-                  });
-                  break;
-                case 'update':
-                  setAddresses(prev => prev.map(addr => 
-                    addr.id === syncData.addressId ? syncData.address : addr
-                  ));
-                  break;
-                case 'delete':
-                  setAddresses(prev => prev.filter(addr => addr.id !== syncData.addressId));
-                  break;
-                case 'refresh':
-                  // Reload addresses from server
-                  loadUserAddresses();
-                  break;
-              }
-              addressSyncTimeoutRef.current = null;
-            }, 100); // 100ms debounce
           }
-        } catch (error) {
-          console.error('[AuthContext] Error parsing address sync data:', error);
+        } else if (key === 'address_sync' && newValue && user?.id) {
+          // Handle cross-tab address synchronization
+          try {
+            const syncData = JSON.parse(newValue);
+            if (syncData.userId === user.id) {
+              console.log('[AuthContext] Address sync event detected:', syncData);
+              
+              // Debounce multiple rapid events
+              if (addressSyncTimeoutRef.current) {
+                clearTimeout(addressSyncTimeoutRef.current);
+                addressSyncTimeoutRef.current = null;
+              }
+              
+              addressSyncTimeoutRef.current = setTimeout(() => {
+                switch (syncData.action) {
+                  case 'add':
+                    setAddresses(prev => {
+                      const exists = prev.some(addr => addr.id === syncData.address.id);
+                      return exists ? prev : [...prev, syncData.address];
+                    });
+                    break;
+                  case 'update':
+                    setAddresses(prev => prev.map(addr => 
+                      addr.id === syncData.addressId ? syncData.address : addr
+                    ));
+                    break;
+                  case 'delete':
+                    setAddresses(prev => prev.filter(addr => addr.id !== syncData.addressId));
+                    break;
+                  case 'refresh':
+                    // Reload addresses from server
+                    loadUserAddresses();
+                    break;
+                }
+                addressSyncTimeoutRef.current = null;
+              }, 100); // 100ms debounce
+            }
+          } catch (error) {
+            console.error('[AuthContext] Error parsing address sync data:', error);
+          }
         }
+      } catch (err) {
+        // Silently ignore storage event handling errors to prevent crashes
+        console.warn('[AuthContext] Error handling storage event:', err);
       }
     };
 
@@ -990,14 +1016,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Clear in-memory caches
       setAddresses([]);
 
-      // Notify other tabs
+      // Notify other tabs (safe for Android WebView)
       if (typeof window !== 'undefined') {
         try {
-          window.dispatchEvent(new StorageEvent('storage', {
-            key: 'auth_token',
-            newValue: null,
-            oldValue: oldToken || null,
-          }));
+          dispatchStorageEvent('auth_token', null, oldToken || null);
         } catch {}
       }
     } catch {}
@@ -1084,13 +1106,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Cache addresses in localStorage
         safeStorage.setItem(`addresses_${user.id}`, JSON.stringify(updatedAddresses));
         
-        // Trigger storage event for cross-tab sync
+        // Trigger storage event for cross-tab sync (safe for Android WebView)
         if (typeof window !== 'undefined') {
-          window.dispatchEvent(new StorageEvent('storage', {
-            key: 'address_sync',
-            newValue: JSON.stringify({ action: 'add', userId: user.id, address: newAddress }),
-            oldValue: null
-          }));
+          dispatchStorageEvent(
+            'address_sync',
+            JSON.stringify({ action: 'add', userId: user.id, address: newAddress }),
+            null
+          );
         }
         
         console.log('[AuthContext] Address added and synced:', newAddress);
@@ -1129,13 +1151,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Cache addresses in localStorage
         safeStorage.setItem(`addresses_${user.id}`, JSON.stringify(updatedAddresses));
         
-        // Trigger storage event for cross-tab sync
+        // Trigger storage event for cross-tab sync (safe for Android WebView)
         if (typeof window !== 'undefined') {
-          window.dispatchEvent(new StorageEvent('storage', {
-            key: 'address_sync',
-            newValue: JSON.stringify({ action: 'update', userId: user.id, addressId, address: updatedAddress }),
-            oldValue: null
-          }));
+          dispatchStorageEvent(
+            'address_sync',
+            JSON.stringify({ action: 'update', userId: user.id, addressId, address: updatedAddress }),
+            null
+          );
         }
         
         console.log('[AuthContext] Address updated and synced:', updatedAddress);
@@ -1162,13 +1184,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Cache addresses in localStorage
         safeStorage.setItem(`addresses_${user.id}`, JSON.stringify(updatedAddresses));
         
-        // Trigger storage event for cross-tab sync
+        // Trigger storage event for cross-tab sync (safe for Android WebView)
         if (typeof window !== 'undefined') {
-          window.dispatchEvent(new StorageEvent('storage', {
-            key: 'address_sync',
-            newValue: JSON.stringify({ action: 'delete', userId: user.id, addressId }),
-            oldValue: null
-          }));
+          dispatchStorageEvent(
+            'address_sync',
+            JSON.stringify({ action: 'delete', userId: user.id, addressId }),
+            null
+          );
         }
         
         console.log('[AuthContext] Address deleted and synced:', addressId);
