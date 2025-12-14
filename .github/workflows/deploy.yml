@@ -9,7 +9,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 10 # Fast deployment without build
+    timeout-minutes: 30 # Increased timeout for production build
     
     steps:
       - name: Deploy to Server
@@ -18,8 +18,8 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          timeout: 10m # SSH action timeout
-          command_timeout: 10m # Command timeout
+          timeout: 30m # SSH action timeout
+          command_timeout: 30m # Command timeout
           script: |
             set -e
             
@@ -62,11 +62,16 @@ jobs:
             cd /home/ubuntu/bahamm-git/backend
             pm2 start venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0 --port 8001
             
-            # Fix .next permissions and start frontend in dev mode (fast, no build needed)
-            echo "🚀 Starting frontend..."
+            # Build and start frontend in production mode
+            echo "🔨 Building frontend for production..."
             cd /home/ubuntu/bahamm-git/frontend
+            export NODE_OPTIONS="--max-old-space-size=4096"
+            export NEXT_TELEMETRY_DISABLED=1
+            npm run build
+            
+            echo "🚀 Starting frontend in production mode..."
             sudo chown -R ubuntu:ubuntu .next 2>/dev/null || true
-            PORT=3000 pm2 start npm --name frontend -- run dev
+            PORT=3000 pm2 start npm --name frontend -- start
             
             # Save PM2 configuration
             pm2 save
