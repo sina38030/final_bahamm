@@ -45,7 +45,13 @@ jobs:
             cd /home/ubuntu/bahamm-git/frontend
             npm install --prefer-offline --no-audit --loglevel=error || echo "⚠️ Frontend deps skipped"
             
-            echo "♻️ Restarting services..."
+            # BUILD FIRST while old services are still running (minimizes downtime)
+            echo "🔨 Building frontend for production..."
+            export NODE_OPTIONS="--max-old-space-size=4096"
+            export NEXT_TELEMETRY_DISABLED=1
+            npm run build
+            
+            echo "♻️ Restarting services (quick swap)..."
             # Clean up root PM2 processes first
             sudo pm2 stop all 2>/dev/null || true
             sudo pm2 delete all 2>/dev/null || true
@@ -64,14 +70,9 @@ jobs:
             cd /home/ubuntu/bahamm-git/backend
             pm2 start venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0 --port 8001
             
-            # Build and start frontend in production mode
-            echo "🔨 Building frontend for production..."
-            cd /home/ubuntu/bahamm-git/frontend
-            export NODE_OPTIONS="--max-old-space-size=4096"
-            export NEXT_TELEMETRY_DISABLED=1
-            npm run build
-            
+            # Start frontend in production mode (build already complete)
             echo "🚀 Starting frontend in production mode..."
+            cd /home/ubuntu/bahamm-git/frontend
             sudo chown -R ubuntu:ubuntu .next 2>/dev/null || true
             PORT=3000 pm2 start npm --name frontend -- start
             
