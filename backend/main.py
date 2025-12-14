@@ -104,15 +104,9 @@ api_app.add_middleware(
         "https://web.telegram.org",  # Telegram Mini App iframe
         "https://bahamm.ir",  # Production domain (with nginx proxy)
         "http://bahamm.ir",
+        "https://www.bahamm.ir",
+        "http://www.bahamm.ir",
         "https://app.bahamm.ir",  # Subdomain for mini app
-        # Cloudflare Tunnel URLs for local Telegram Mini App testing
-        "https://debian-transactions-ensuring-gpl.trycloudflare.com",  # Current frontend
-        "https://owners-upgrading-bowling-apparently.trycloudflare.com",  # Current backend
-        "https://number-registered-suspension-certainly.trycloudflare.com",
-        "https://cemetery-spy-usually-permits.trycloudflare.com",  # Old frontend
-        "https://vitamins-boutique-authors-acids.trycloudflare.com",  # Current backend
-        "https://airfare-evans-chicago-few.trycloudflare.com",  # Old frontend
-        "https://cloud-helmet-ports-lightbox.trycloudflare.com",  # Old backend
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -149,15 +143,9 @@ app.add_middleware(
         "https://web.telegram.org",  # Telegram Mini App iframe
         "https://bahamm.ir",  # Production domain (with nginx proxy)
         "http://bahamm.ir",
+        "https://www.bahamm.ir",
+        "http://www.bahamm.ir",
         "https://app.bahamm.ir",  # Subdomain for mini app
-        # Cloudflare Tunnel URLs for local Telegram Mini App testing
-        "https://debian-transactions-ensuring-gpl.trycloudflare.com",  # Current frontend
-        "https://owners-upgrading-bowling-apparently.trycloudflare.com",  # Current backend
-        "https://number-registered-suspension-certainly.trycloudflare.com",
-        "https://cemetery-spy-usually-permits.trycloudflare.com",  # Old frontend
-        "https://vitamins-boutique-authors-acids.trycloudflare.com",  # Current backend
-        "https://airfare-evans-chicago-few.trycloudflare.com",  # Old frontend
-        "https://cloud-helmet-ports-lightbox.trycloudflare.com",  # Old backend
     ],
     allow_credentials=True,
     allow_methods=["*"],

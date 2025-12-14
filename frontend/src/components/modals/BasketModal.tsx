@@ -63,7 +63,7 @@ const BasketModal: React.FC<BasketModalProps> = ({
             <CustomModal
                 isOpen={isOpen} // Use the isOpen prop
                 onClose={onClose} // Use the onClose prop
-                title="شروع خرید گروهی"
+                title=" خرید گروهی"
                 hideFooter={true}
             >
                 <div className="p-4 flex flex-col gap-4">
