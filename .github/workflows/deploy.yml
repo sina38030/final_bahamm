@@ -25,7 +25,9 @@ jobs:
             
             echo "📥 Pulling latest changes..."
             cd /home/ubuntu/bahamm-git
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
+            git clean -fd
             
             echo "🔧 Setting up backend virtual environment..."
             cd /home/ubuntu/bahamm-git/backend
