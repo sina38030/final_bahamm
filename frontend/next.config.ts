@@ -20,6 +20,30 @@ const nextConfig: NextConfig = {
 	// Add permissive headers for static assets/fonts to avoid 403 via tunnels/proxies
 	async headers() {
 		return [
+			// Prevent long-lived caching of HTML on critical Telegram tab pages.
+			// Some Android Telegram WebViews + CDNs can serve stale HTML after deploy, causing "Failed to load"
+			// due to missing/changed Next.js chunks.
+			{
+				source: '/chat',
+				headers: [
+					{ key: 'Cache-Control', value: 'no-store, max-age=0' },
+					{ key: 'Pragma', value: 'no-cache' },
+				],
+			},
+			{
+				source: '/groups-orders',
+				headers: [
+					{ key: 'Cache-Control', value: 'no-store, max-age=0' },
+					{ key: 'Pragma', value: 'no-cache' },
+				],
+			},
+			{
+				source: '/profile/:path*',
+				headers: [
+					{ key: 'Cache-Control', value: 'no-store, max-age=0' },
+					{ key: 'Pragma', value: 'no-cache' },
+				],
+			},
 			{
 				source: '/_next/static/:path*',
 				headers: [
