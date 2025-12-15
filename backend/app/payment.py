@@ -200,5 +200,7 @@ class ZarinPalPayment:
 zarinpal = ZarinPalPayment(
     merchant_id=settings.ZARINPAL_MERCHANT_ID,
     sandbox=settings.ZARINPAL_SANDBOX,
-    test_mode=False  # Disable test mode - use real ZarinPal
-) 
+    test_mode=False
+)
+
+logger.info(f"💳 ZarinPal initialized - Sandbox: {settings.ZARINPAL_SANDBOX}, Merchant ID configured: {bool(settings.ZARINPAL_MERCHANT_ID)}") 

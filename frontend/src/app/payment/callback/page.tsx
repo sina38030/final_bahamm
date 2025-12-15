@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/utils/api';
 import { safeStorage } from '@/utils/safeStorage';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Debug: Log API_BASE_URL on module load
 console.log('[Payment Callback] API_BASE_URL:', API_BASE_URL);
@@ -20,8 +21,10 @@ function PaymentCallbackContent() {
   const [secLeft, setSecLeft] = useState<number | null>(null);
   const [preLeft, setPreLeft] = useState<number | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [isCreatingSecondaryGroup, setIsCreatingSecondaryGroup] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { token } = useAuth() as any;
   const authorityParam = searchParams.get('Authority') || searchParams.get('authority');
   const [expiryMs, setExpiryMs] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -559,14 +562,45 @@ function PaymentCallbackContent() {
             {/* CTAs */}
             <div className="grid grid-cols-2 gap-3">
               <Link href="/groups-orders" className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors">مشاهده سفارش‌ها</Link>
-              {authorityParam ? (
+              {order?.id ? (
                 <button
-                  onClick={() => router.push(`/invite?authority=${encodeURIComponent(authorityParam)}`)}
-                  className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors"
+                  onClick={async () => {
+                    if (isCreatingSecondaryGroup) return;
+                    setIsCreatingSecondaryGroup(true);
+                    try {
+                      // Create secondary group and redirect to secondary invite page
+                      const response = await fetch('/api/group-orders/create-secondary', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                        },
+                        body: JSON.stringify({ source_order_id: order.id }),
+                      });
+                      const result = await response.json();
+                      if (result.success && result.group_order_id) {
+                        router.push(`/secondary_invite?group_id=${result.group_order_id}&from=created`);
+                      } else {
+                        // Fallback to original invite page
+                        if (authorityParam) {
+                          router.push(`/invite?authority=${encodeURIComponent(authorityParam)}`);
+                        }
+                      }
+                    } catch (err) {
+                      console.error('Error creating secondary group:', err);
+                      if (authorityParam) {
+                        router.push(`/invite?authority=${encodeURIComponent(authorityParam)}`);
+                      }
+                    } finally {
+                      setIsCreatingSecondaryGroup(false);
+                    }
+                  }}
+                  disabled={isCreatingSecondaryGroup}
+                  className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50"
                 >
                   <div className="flex flex-col items-center leading-tight">
-                    <span>مبلغ پرداختیت رو پس بگیر!</span>
-                    {typeof timeLeft === 'number' && (
+                    <span>{isCreatingSecondaryGroup ? 'در حال ایجاد گروه...' : 'مبلغ پرداختیت رو پس بگیر!'}</span>
+                    {!isCreatingSecondaryGroup && typeof timeLeft === 'number' && (
                       <span className="text-[11px] opacity-90 mt-0.5">⏰ {toFa(formatTimer(timeLeft))}</span>
                     )}
                   </div>

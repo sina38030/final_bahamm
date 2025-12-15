@@ -1666,7 +1666,7 @@ function RefundButtonWithTimer({ authority }: { authority: string }) {
   };
   const toFa = (val: string | number) => String(val).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[parseInt(d)]);
 
-  // Create secondary group and redirect to the user's own group page
+  // Create secondary group and redirect to the secondary invite page
   const handleCreateSecondaryGroup = async () => {
     if (isCreating || !orderId) return;
     
@@ -1685,8 +1685,8 @@ function RefundButtonWithTimer({ authority }: { authority: string }) {
       const result = await response.json();
       
       if (result.success && result.group_order_id) {
-        // Redirect to the track page for their NEW secondary group
-        router.push(`/track/${result.group_order_id}`);
+        // Redirect to the secondary invite page for their NEW secondary group
+        router.push(`/secondary_invite?group_id=${result.group_order_id}&from=created`);
       } else {
         console.error('Failed to create secondary group:', result);
         // Fallback to original invite page
