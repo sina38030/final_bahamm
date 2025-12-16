@@ -2178,9 +2178,7 @@ function LazyTrackEmbed({
           const BACKEND_URL = getBackendUrl();
 
           // NEW: verify with server before creating payment
-          // Call backend directly (not through Next.js API route)
-          const backendHost = 'http://localhost:8001';
-          const chk = await fetch(`${backendHost}/api/group-orders/settlement-status/${gid}`, {
+          const chk = await fetch(`${BACKEND_URL}/api/group-orders/settlement-status/${gid}`, {
             headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
           });
           const chkData = await chk.json().catch(() => ({} as any));
@@ -2207,7 +2205,7 @@ function LazyTrackEmbed({
           console.log('✅ Settlement check passed, proceeding to payment...');
 
           // Proceed to create settlement payment
-          const res = await fetch(`${backendHost}/api/group-orders/create-settlement-payment/${gid}`, {
+          const res = await fetch(`${BACKEND_URL}/api/group-orders/create-settlement-payment/${gid}`, {
             method: 'POST',
             headers: {
               'Accept': 'application/json',
