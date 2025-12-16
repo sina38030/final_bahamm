@@ -151,6 +151,55 @@ def _serialize_group(g: GroupOrder, db: Session) -> Dict[str, Any]:
         expires_at_ms = int(expires_at.timestamp() * 1000)
         server_now_ms = int(current_time.timestamp() * 1000)
     
+    # Build basket items from snapshot or orders
+    basket_items = []
+    original_total = 0
+    
+    # Try to get items from meta (basket_snapshot)
+    if meta.get("items"):
+        for item in meta.get("items", []):
+            unit_price = float(item.get("unit_price", 0) or 0)
+            qty = int(item.get("quantity", 1) or 1)
+            basket_items.append({
+                "productId": str(item.get("product_id", "")),
+                "name": item.get("product_name", f"محصول {item.get('product_id', '')}"),
+                "qty": qty,
+                "unitPrice": unit_price,
+                "discountedUnitPrice": unit_price,
+                "image": item.get("image"),
+            })
+            original_total += unit_price * qty
+    
+    # If no items in snapshot, try to get from orders
+    if not basket_items and orders:
+        for o in orders:
+            if hasattr(o, 'items') and o.items:
+                for item in o.items:
+                    product = getattr(item, "product", None)
+                    unit_price = float(getattr(item, "base_price", 0) or 0)
+                    qty = int(getattr(item, "quantity", 1) or 1)
+                    basket_items.append({
+                        "productId": str(item.product_id),
+                        "name": getattr(product, "name", f"محصول {item.product_id}") if product else f"محصول {item.product_id}",
+                        "qty": qty,
+                        "unitPrice": unit_price,
+                        "discountedUnitPrice": unit_price,
+                        "image": getattr(product, "image_url", None) if product else None,
+                    })
+                    original_total += unit_price * qty
+                break  # Only get items from first order (leader's order)
+    
+    # Calculate pricing for secondary groups
+    non_leader_paid = sum(1 for p in participants if not p.get("isLeader") and p.get("paid", False))
+    current_total = original_total
+    if is_secondary and original_total > 0:
+        # Each friend reduces payment by 1/4
+        capped_friends = min(non_leader_paid, 3)
+        quarter = original_total / 4
+        current_total = max(0, original_total - capped_friends * quarter)
+        if non_leader_paid >= 4:
+            current_total = 0
+    
     return {
         "id": g.id,
         "kind": (meta.get("kind") or "primary"),
@@ -171,6 +220,18 @@ def _serialize_group(g: GroupOrder, db: Session) -> Dict[str, Any]:
         "sourceOrderId": meta.get("source_order_id"),
         "joinCode": g.invite_token,
         "shareUrl": share_url,
+        # Additional fields for secondary_invite page
+        "basket": basket_items,
+        "pricing": {
+            "originalTotal": original_total,
+            "currentTotal": current_total,
+            "expectedTotal": 0 if is_secondary else original_total,
+        },
+        "invite": {
+            "shareUrl": share_url,
+        },
+        "isSecondaryGroup": is_secondary,
+        "groupType": "secondary" if is_secondary else "primary",
     }
 
 
