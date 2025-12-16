@@ -1,4 +1,4 @@
-name: ⚡ Ultra Quick Deploy
+name: ⚡ Deploy
 
 on:
   push:
@@ -7,20 +7,20 @@ on:
 
 jobs:
   deploy:
-    name: Deploy in 20 seconds
+    name: Reload Server
     runs-on: ubuntu-latest
     timeout-minutes: 1
     
     steps:
-      - name: ⚡ Lightning Fast Restart
+      - name: 🔄 Reload Hotload Services
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 30s
+          command_timeout: 20s
           script: |
-            cd ~/bahamm-git && git pull origin main
-            pm2 restart backend
-            pm2 restart frontend
-            echo "✅ Deployed!"
+            cd ~/bahamm-git
+            git pull -q
+            pm2 reload backend
+            pm2 reload frontend
