@@ -1,4 +1,4 @@
-name: 🚀 Quick Deploy
+name: ⚡ Ultra Quick Deploy
 
 on:
   push:
@@ -7,21 +7,20 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to bahamm.ir (15 sec)
+    name: Deploy in 20 seconds
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 1
     
     steps:
-      - name: 📦 Ultra Quick Deploy
+      - name: ⚡ Lightning Fast Restart
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 60s
+          command_timeout: 30s
           script: |
-            cd ~/bahamm-git
-            git pull origin main --quiet
-            pm2 restart backend --update-env
-            pm2 restart frontend --update-env
-            pm2 status | head -5
+            cd ~/bahamm-git && git pull origin main
+            pm2 restart backend
+            pm2 restart frontend
+            echo "✅ Deployed!"
