@@ -7,20 +7,22 @@ on:
 
 jobs:
   deploy:
-    name: Reload Server
+    name: Deploy Server
     runs-on: ubuntu-latest
-    timeout-minutes: 1
+    timeout-minutes: 3
     
     steps:
-      - name: 🔄 Reload Hotload Services
+      - name: 🚀 Quick Restart
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 20s
+          command_timeout: 2m
           script: |
             cd ~/bahamm-git
             git pull -q
-            pm2 reload backend
-            pm2 reload frontend
+            pm2 restart backend --update-env
+            sleep 2
+            pm2 restart frontend --update-env
+            pm2 list
