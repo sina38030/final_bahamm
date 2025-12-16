@@ -69,3 +69,7 @@ Write-Host "chmod +x setup_server.sh" -ForegroundColor White
 Write-Host "./setup_server.sh" -ForegroundColor White
 Write-Host ""
 
+
+
+
+

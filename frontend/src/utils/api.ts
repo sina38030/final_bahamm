@@ -13,20 +13,18 @@ export function getApiUrl(): string {
   // During SSR, return production URL to avoid empty string issues
   if (typeof window === 'undefined') {
     // Check for environment variable during SSR
-    const envUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+    const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
     if (envUrl) {
-      const trimmed = envUrl.replace(/\/+$/, '');
-      return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+      return envUrl.replace(/\/+$/, '');
     }
     // Production fallback for SSR
-    return 'https://bahamm.ir/api';
+    return 'https://bahamm.ir/backend/api';
   }
 
   // Client-side: Check for environment variable first
-  const envUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+  const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
   if (envUrl) {
-    const trimmed = envUrl.replace(/\/+$/, '');
-    return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+    return envUrl.replace(/\/+$/, '');
   }
 
   // Auto-detect based on hostname
@@ -46,7 +44,7 @@ export function getApiUrl(): string {
       hostname === 'staging.bahamm.ir') {
     // Force HTTPS for production (Android WebView may report http incorrectly)
     const safeProtocol = 'https:';
-    const apiUrl = `${safeProtocol}//${hostname}/api`;
+    const apiUrl = `${safeProtocol}//${hostname}/backend/api`;
     if (DEBUG_API_URL) console.log('[API] Using production URL:', apiUrl);
     return apiUrl;
   }
@@ -59,7 +57,7 @@ export function getApiUrl(): string {
   // Production fallback (important for Android WebView compatibility)
   // This catches cases where Android Telegram WebView uses a different hostname
   if (DEBUG_API_URL) console.log('[API] Using fallback production URL');
-  return 'https://bahamm.ir/api';
+  return 'https://bahamm.ir/backend/api';
 }
 
 // Backward compatibility - compute lazily to avoid module initialization issues
@@ -77,4 +75,4 @@ export function getApiBaseUrl(): string {
 // Export a getter-based constant that computes on access
 // Note: Direct usage of API_BASE_URL at module initialization is discouraged
 // Use getApiUrl() or getApiBaseUrl() instead for guaranteed availability
-export const API_BASE_URL = typeof window !== 'undefined' ? getApiUrl() : 'https://bahamm.ir/api';
+export const API_BASE_URL = typeof window !== 'undefined' ? getApiUrl() : 'https://bahamm.ir/backend/api';

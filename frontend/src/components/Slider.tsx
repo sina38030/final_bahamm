@@ -10,7 +10,7 @@ type Banner = {
   description?: string | null;
 };
 
-const ADMIN_API_BASE_URL = '/api';
+const ADMIN_API_BASE_URL = '/backend/api';
 
 const Slider = memo(function Slider({ initialBanners = [] as Banner[] }: { initialBanners?: Banner[] }) {
   const trackRef = useRef<HTMLDivElement>(null);

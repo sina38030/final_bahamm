@@ -8,3 +8,7 @@ Write-Host ""
 
 ssh "${serverUser}@${serverHost}" "pm2 logs backend --lines 100"
 
+
+
+
+

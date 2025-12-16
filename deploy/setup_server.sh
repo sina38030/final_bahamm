@@ -201,3 +201,7 @@ echo "📊 چک سرویس‌ها:"
 echo "   sudo systemctl status bahamm-backend"
 echo "   sudo systemctl status bahamm-frontend"
 
+
+
+
+

@@ -8,3 +8,7 @@ ssh "${serverUser}@${serverHost}" "pm2 stop all; pm2 delete all; sudo kill -9 `$
 
 Write-Host "Done!" -ForegroundColor Green
 
+
+
+
+

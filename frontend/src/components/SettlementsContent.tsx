@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { FaExclamationTriangle } from "react-icons/fa";
 import { toFa } from "@/utils/toFa";
 
-const ADMIN_API_BASE_URL = "/api";
+const ADMIN_API_BASE_URL = "/backend/api";
 
 async function fetchJSON<T>(url: string, options?: RequestInit, signal?: AbortSignal): Promise<T> {
   const response = await fetch(url, {

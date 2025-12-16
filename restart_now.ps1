@@ -9,3 +9,7 @@ ssh "${serverUser}@${serverHost}" "pm2 restart backend && echo '' && echo 'Backe
 Write-Host ""
 Write-Host "Backend restarted with the fix! Now test adding a product on bahamm.ir" -ForegroundColor Green
 
+
+
+
+

@@ -1,87 +1,25 @@
-name: Deploy to Server
+name: 🚀 Deploy to Production
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch: # Allow manual trigger
 
 jobs:
   deploy:
+    name: Deploy to bahamm.ir
     runs-on: ubuntu-latest
-    timeout-minutes: 30 # Increased timeout for production build
     
     steps:
-      - name: Deploy to Server
+      - name: 📦 Deploy to Server
         uses: appleboy/ssh-action@v1.0.0
         with:
-          host: ${{ secrets.SERVER_HOST }}
+          host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          timeout: 30m # SSH action timeout
-          command_timeout: 30m # Command timeout
           script: |
-            set -e
-            
-            echo "📥 Pulling latest changes..."
-            cd /home/ubuntu/bahamm-git
-            git fetch origin main
-            git reset --hard origin/main
-            git clean -fd
-            
-            echo "🔧 Setting up backend virtual environment..."
-            cd /home/ubuntu/bahamm-git/backend
-            if [ ! -d "venv" ]; then
-              echo "Creating virtual environment..."
-              python3 -m venv venv
-            fi
-            
-            echo "🔧 Updating backend dependencies..."
-            if [ -f requirements.txt ]; then
-              venv/bin/pip install -r requirements.txt --quiet --no-warn-script-location || echo "⚠️ Backend deps skipped"
-            fi
-            
-            echo "📦 Installing frontend dependencies..."
-            cd /home/ubuntu/bahamm-git/frontend
-            npm install --prefer-offline --no-audit --loglevel=error || echo "⚠️ Frontend deps skipped"
-            
-            # BUILD FIRST while old services are still running (minimizes downtime)
-            echo "🔨 Building frontend for production..."
-            export NODE_OPTIONS="--max-old-space-size=4096"
-            export NEXT_TELEMETRY_DISABLED=1
-            npm run build
-            
-            echo "♻️ Restarting services (quick swap)..."
-            # Clean up root PM2 processes first
-            sudo pm2 stop all 2>/dev/null || true
-            sudo pm2 delete all 2>/dev/null || true
-            sudo pm2 save --force 2>/dev/null || true
-            
-            # Stop user PM2 processes
-            pm2 stop all || true
-            pm2 delete all || true
-            
-            # Kill any zombie processes on port 3000
-            sudo fuser -k 3000/tcp 2>/dev/null || true
-            sleep 2
-            
-            # Start backend
-            echo "🚀 Starting backend..."
-            cd /home/ubuntu/bahamm-git/backend
-            pm2 start venv/bin/python3 --name backend -- -m uvicorn main:app --host 0.0.0.0 --port 8001
-            
-            # Start frontend in production mode (build already complete)
-            echo "🚀 Starting frontend in production mode..."
-            cd /home/ubuntu/bahamm-git/frontend
-            sudo chown -R ubuntu:ubuntu .next 2>/dev/null || true
-            PORT=3000 pm2 start npm --name frontend -- start
-            
-            # Save PM2 configuration
-            pm2 save
-            
-            echo "⏳ Waiting for services to stabilize..."
-            sleep 15
-            
-            echo "✅ Deployment completed!"
-            pm2 status
-
+            cd ~/bahamm-git
+            git pull origin main
+            pm2 restart backend
+            pm2 restart frontend
+            echo "✅ Deploy completed successfully!"

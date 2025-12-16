@@ -8,3 +8,7 @@ ssh "${serverUser}@${serverHost}" "echo '=== Last 30 lines of error log:'; pm2 l
 
 Write-Host "Done!" -ForegroundColor Green
 
+
+
+
+

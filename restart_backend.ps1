@@ -8,3 +8,7 @@ ssh "${serverUser}@${serverHost}" "cd /home/ubuntu/bahamm-git/backend && pm2 sta
 
 Write-Host "Done!" -ForegroundColor Green
 
+
+
+
+
