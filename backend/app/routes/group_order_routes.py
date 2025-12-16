@@ -4,7 +4,7 @@ Group Order Routes - API endpoints for group buying functionality
 
 from fastapi import APIRouter, Depends, HTTPException, status, Form, Body
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
+from sqlalchemy import and_, or_, func, case
 from datetime import datetime, timedelta, timezone
 
 # Tehran timezone: UTC+3:30
@@ -676,9 +676,11 @@ async def get_user_groups_and_orders(
 ):
     """
     یک API یکپارچه که همه اطلاعات گروه‌ها و سفارش‌های کاربر را برمی‌گرداند
+    OPTIMIZED VERSION - Uses aggregated queries instead of N+1
     """
     try:
         from sqlalchemy.orm import joinedload
+        from sqlalchemy import func
         
         # گرفتن همه سفارشات کاربر با اطلاعات گروه
         # IMPORTANT: Only show orders that have been paid (exclude pending payment orders)
@@ -713,25 +715,34 @@ async def get_user_groups_and_orders(
         for group in leader_groups:
             group_ids.add(group.id)
         
-        # گرفتن اطلاعات کامل گروه‌ها
+        # OPTIMIZATION: Get all counts in ONE query instead of N queries
         groups = {}
         if group_ids:
+            # Single aggregated query for all group counts
+            group_counts = db.query(
+                Order.group_order_id,
+                func.count(Order.id).label('total_count'),
+                func.sum(
+                    case(
+                        (or_(Order.paid_at.isnot(None), Order.payment_ref_id.isnot(None)), 1),
+                        else_=0
+                    )
+                ).label('paid_count')
+            ).filter(
+                Order.group_order_id.in_(list(group_ids)),
+                Order.is_settlement_payment == False
+            ).group_by(Order.group_order_id).all()
+            
+            # Convert to dict for fast lookup
+            counts_dict = {row.group_order_id: (row.total_count, row.paid_count) for row in group_counts}
+            
             group_orders = db.query(GroupOrder).filter(
                 GroupOrder.id.in_(list(group_ids))
             ).all()
             
             for group in group_orders:
-                # شمارش اعضا و پرداخت‌ها با بهینه‌سازی
-                group_orders_count = db.query(Order).filter(
-                    Order.group_order_id == group.id,
-                    Order.is_settlement_payment == False
-                ).count()
-                
-                paid_orders_count = db.query(Order).filter(
-                    Order.group_order_id == group.id,
-                    Order.is_settlement_payment == False,
-                    or_(Order.paid_at.isnot(None), Order.payment_ref_id.isnot(None))
-                ).count()
+                # Get counts from pre-computed dict (O(1) instead of N queries!)
+                group_orders_count, paid_orders_count = counts_dict.get(group.id, (0, 0))
                 
                 # فقط گروه‌هایی که حداقل یک سفارش دارند یا basket_snapshot دارند را نمایش دهیم
                 # این جلوی نمایش گروه‌های خالی/ناقص را می‌گیرد
