@@ -7,17 +7,21 @@ on:
 
 jobs:
   deploy:
-    name: Update Code (Hotload)
+    name: Update Code
     runs-on: ubuntu-latest
-    timeout-minutes: 1
+    timeout-minutes: 5
     
     steps:
-      - name: 📥 Pull Latest Code
+      - name: 📥 Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 30s
+          timeout: 5m
+          command_timeout: 5m
+          debug: false
           script: |
-            cd ~/bahamm-git && git pull -q && echo "✅ Code updated - Hotload will detect changes"
+            cd ~/bahamm-git
+            timeout 60 git pull origin main || echo "Git pull timeout"
+            pm2 restart all || echo "PM2 restart failed"
