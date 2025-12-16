@@ -4,7 +4,7 @@ Group Order Routes - API endpoints for group buying functionality
 
 from fastapi import APIRouter, Depends, HTTPException, status, Form, Body
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, func
 from datetime import datetime, timedelta, timezone
 
 # Tehran timezone: UTC+3:30
@@ -147,7 +147,7 @@ async def create_group_order(
 
 @router.post("/create-secondary")
 async def create_secondary_group(
-    source_order_id: int = Body(...),
+    source_order_id: int = Body(..., embed=True),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
