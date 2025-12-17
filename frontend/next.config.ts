@@ -10,12 +10,13 @@ const nextConfig: NextConfig = {
 	// Allow cross-origin requests from production domain in dev mode
 	allowedDevOrigins: ['https://bahamm.ir', 'https://www.bahamm.ir', 'http://bahamm.ir', 'http://www.bahamm.ir'],
 	
-	// Development mode optimizations
-	modularizeImports: {
-		'@/components': {
-			transform: '@/components/{{member}}'
-		}
-	},
+    // Development mode optimizations - FASTER HOTLOAD
+    swcMinify: true, // Faster minification
+    modularizeImports: {
+        '@/components': {
+            transform: '@/components/{{member}}'
+        }
+    },
 	
 	// Add permissive headers for static assets/fonts to avoid 403 via tunnels/proxies
 	async headers() {
@@ -135,14 +136,20 @@ const nextConfig: NextConfig = {
     // Keep experimental features minimal in dev to avoid chunking issues
     experimental: {},
     
-    // Webpack optimizations
+    // Webpack optimizations - FASTER HOTLOAD
     webpack: (config, { dev, isServer }) => {
-        // Development mode performance optimizations
+        // Development mode performance optimizations - FASTER HOTLOAD
         if (dev) {
-            // Reduce work in development
+            // Reduce work in development for SPEED
             config.optimization.removeAvailableModules = false;
             config.optimization.removeEmptyChunks = false;
             config.optimization.splitChunks = false;
+            config.cache = {
+                type: 'filesystem',
+                buildDependencies: {
+                    config: [__filename],
+                },
+            };
         }
         
         // Fix for "self is not defined" error with browser-only libraries
