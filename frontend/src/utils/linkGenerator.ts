@@ -8,7 +8,24 @@
  */
 export function isTelegramMiniApp(): boolean {
   if (typeof window === 'undefined') return false;
-  return !!(window.Telegram?.WebApp?.initData);
+  
+  // 1. Check for Telegram WebApp object
+  const tg = (window as any).Telegram?.WebApp;
+  if (tg && tg.initData && tg.initData.length > 0) {
+    return true;
+  }
+
+  // 2. Check for Telegram-specific hash parameters (often present in Mini Apps)
+  if (typeof window !== 'undefined' && window.location.hash.includes('tgWebAppData')) {
+    return true;
+  }
+
+  // 3. Check for platform - if it's not unknown, it's likely initialized
+  if (tg && tg.platform && tg.platform !== 'unknown') {
+    return true;
+  }
+
+  return false;
 }
 
 /**
