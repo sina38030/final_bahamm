@@ -13,6 +13,7 @@ import GroupTrackContent from "@/components/GroupTrackContent";
 import { generateInviteLink, extractInviteCode } from "@/utils/linkGenerator";
 import { isReviewEligibleStatus } from "@/utils/orderStatus";
 import { safeStorage, safeSessionStorage } from "@/utils/safeStorage";
+import { getApiUrl } from "@/utils/api";
 import { PageErrorBoundary } from "@/components/common/PageErrorBoundary";
 // import { requestSlot, releaseSlot } from "@/utils/queue";
 
@@ -117,14 +118,20 @@ function fireToast(detail: ToastDetail) {
 }
 
 function getBackendUrl(): string {
+  // Derive backend origin from the same runtime detection used across the app.
+  // This avoids relying on window.location (Telegram WebView / embedded contexts may vary).
   if (typeof window === 'undefined') return '';
-  const hostname = window.location.hostname;
-  // For localhost development, backend runs on port 8001
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:8001';
+  const apiBase = getApiUrl(); // e.g. https://bahamm.ir/backend/api OR http://localhost:8001/api
+  return apiBase.replace(/\/api\/?$/, '');
+}
+
+function getAuthToken(tokenFromContext?: string | null): string | null {
+  if (tokenFromContext) return tokenFromContext;
+  try {
+    return safeStorage.getItem('auth_token');
+  } catch {
+    return null;
   }
-  // For production, backend is proxied through /backend
-  return window.location.origin.replace(/\/$/, '') + '/backend';
 }
 
 // Format delivery slot strings or embedded JSON to a human-friendly Persian string
@@ -1440,9 +1447,10 @@ function FailedLeaderRefundControls({ groupId }: { groupId: number }) {
     try {
       setIsRefundingWallet(true);
       const BACKEND_URL = getBackendUrl();
+      const authToken = getAuthToken(token);
       const res = await fetch(`${BACKEND_URL}/api/group-orders/refund-to-wallet/${groupId}`, {
         method: 'POST',
-        headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+        headers: { 'Accept': 'application/json', ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}) },
       });
       const data = await res.json().catch(() => ({} as any));
       if (!res.ok) {
@@ -1473,9 +1481,10 @@ function FailedLeaderRefundControls({ groupId }: { groupId: number }) {
     try {
       setSubmittingCard(true);
       const BACKEND_URL = getBackendUrl();
+      const authToken = getAuthToken(token);
       const res = await fetch(`${BACKEND_URL}/api/group-orders/submit-refund-card/${groupId}`, {
         method: 'POST',
-        headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+        headers: { 'Accept': 'application/json', ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}) },
         body: new URLSearchParams({ card_number: cleaned })
       });
       const data = await res.json().catch(() => ({} as any));
@@ -1680,11 +1689,12 @@ function RefundButtonWithTimer({ authority }: { authority: string }) {
     setIsCreating(true);
     try {
       // Create secondary group via the backend
+      const authToken = getAuthToken(token);
       const response = await fetch('/api/group-orders/create-secondary', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
         },
         body: JSON.stringify({ source_order_id: orderId }),
       });
@@ -1965,8 +1975,9 @@ function LazyTrackEmbed({
       try {
         if (status !== 'success') { setServerDelta(null); return; }
         const BACKEND_URL = getBackendUrl();
+        const authToken = getAuthToken(token);
         const res = await fetch(`${BACKEND_URL}/api/group-orders/settlement-status/${gid}`, {
-          headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+          headers: { 'Accept': 'application/json', ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}) },
           cache: 'no-store',
         });
         const js = await res.json().catch(() => null as any);
@@ -2183,34 +2194,50 @@ function LazyTrackEmbed({
         try {
           setIsPaying(true);
           const BACKEND_URL = getBackendUrl();
+          const authToken = getAuthToken(token);
 
           // NEW: verify with server before creating payment
           const chk = await fetch(`${BACKEND_URL}/api/group-orders/settlement-status/${gid}`, {
-            headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+            headers: { 'Accept': 'application/json', ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}) }
           });
           const chkData = await chk.json().catch(() => ({} as any));
 
-          // DEBUG: Log the full response
-          console.log('🔍 Settlement status check:', {
-            ok: chk.ok,
-            status: chk.status,
-            data: chkData,
-            settlement_required: chkData?.settlement_required,
-            settlement_amount: chkData?.settlement_amount,
-            condition1: !chk.ok,
-            condition2: chkData?.settlement_required === false,
-            condition3: (chkData?.settlement_amount ?? 0) <= 0,
-          });
+          if (process.env.NODE_ENV === 'development') {
+            console.log('🔍 Settlement status check:', {
+              ok: chk.ok,
+              status: chk.status,
+              data: chkData,
+              settlement_required: chkData?.settlement_required,
+              settlement_amount: chkData?.settlement_amount,
+            });
+          }
 
-          if (!chk.ok || chkData?.settlement_required === false || (chkData?.settlement_amount ?? 0) <= 0) {
-            console.warn('No settlement required (server). Blocking payment.');
-            fireToast({ type: 'info', message: 'گروه شما تسویه/نهایی شده و پرداخت باقی‌مانده نیاز نیست.' });
+          // Auth failures are NOT “no settlement required”
+          if (chk.status === 401 || chk.status === 403) {
+            fireToast({ type: 'error', message: 'برای پرداخت تسویه، ابتدا وارد حساب خود شوید' });
             setIsPaying(false);
             return;
           }
+
+          // If server check succeeded, only block when it explicitly says “no settlement needed”
+          if (chk.ok) {
+            const serverAmount = toSafeNumber(chkData?.settlement_amount, 0);
+            const serverRequired = chkData?.settlement_required === true && serverAmount > 0;
+            if (!serverRequired) {
+              fireToast({ type: 'info', message: 'گروه شما تسویه/نهایی شده و پرداخت باقی‌مانده نیاز نیست.' });
+              setIsPaying(false);
+              return;
+            }
+          } else {
+            // Non-auth errors: don't mislead the user. We'll still attempt to create payment;
+            // backend will validate settlement requirement.
+            fireToast({ type: 'error', message: 'خطا در بررسی وضعیت تسویه. در حال تلاش برای ایجاد پرداخت...' });
+          }
           
-          console.log('✅ Settlement check passed, proceeding to payment...');
-          console.log('🔗 Payment URL:', `${BACKEND_URL}/api/group-orders/create-settlement-payment/${gid}`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('✅ Proceeding to settlement payment creation...');
+            console.log('🔗 Payment URL:', `${BACKEND_URL}/api/group-orders/create-settlement-payment/${gid}`);
+          }
 
           // Proceed to create settlement payment
           const res = await fetch(`${BACKEND_URL}/api/group-orders/create-settlement-payment/${gid}`, {
@@ -2218,7 +2245,7 @@ function LazyTrackEmbed({
             headers: {
               'Accept': 'application/json',
               'Content-Type': 'application/json',
-              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+              ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
             },
           });
           const data = await res.json().catch(() => ({} as any));
@@ -2278,11 +2305,12 @@ function LazyTrackEmbed({
     try {
       setSubmittingCard(true);
       const BACKEND_URL = getBackendUrl();
+      const authToken = getAuthToken(token);
       const res = await fetch(`${BACKEND_URL}/api/group-orders/submit-refund-card/${gid}`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
         },
         body: new URLSearchParams({ card_number: cleaned }),
       });
@@ -2500,10 +2528,11 @@ function LazyTrackEmbed({
                               onClick={async () => {
                                 try {
                                   setIsRefundingWallet(true);
-                                  const BACKEND_URL = typeof window !== 'undefined' ? window.location.origin.replace(/\/$/, '') : '';
+                                  const BACKEND_URL = getBackendUrl();
+                                  const authToken = getAuthToken(token);
                                   const res = await fetch(`${BACKEND_URL}/api/group-orders/secondary/refund-to-wallet/${gid}`, {
                                     method: 'POST',
-                                    headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+                                    headers: { 'Accept': 'application/json', ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}) },
                                   });
                                   const data = await res.json().catch(() => ({} as any));
                                   if (!res.ok) {
@@ -2668,9 +2697,10 @@ function LazyTrackEmbed({
                         try {
                           setIsRefundingWallet(true);
                           const BACKEND_URL = getBackendUrl();
+                          const authToken = getAuthToken(token);
                           const res = await fetch(`${BACKEND_URL}/api/group-orders/refund-to-wallet/${gid}`, {
                             method: 'POST',
-                            headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+                            headers: { 'Accept': 'application/json', ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}) },
                           });
                           const data = await res.json().catch(() => ({} as any));
                           if (!res.ok) {

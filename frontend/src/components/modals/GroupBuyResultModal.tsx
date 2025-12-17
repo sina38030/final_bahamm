@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import GroupBuyResultContent from '@/components/groupbuy/GroupBuyResultContent';
 import { useAuth } from '@/contexts/AuthContext';
 import { safeStorage, safeSessionStorage } from '@/utils/safeStorage';
+import { getApiUrl } from '@/utils/api';
 
 interface OrderSummary {
   originalPrice: number;
@@ -51,6 +52,21 @@ const GroupBuyResultModal: React.FC<GroupBuyResultModalProps> = ({
   // Use Next.js API route as proxy to avoid CORS/auth issues
   const { token, isAuthenticated } = useAuth();
 
+  const getBackendUrl = () => {
+    // Derive from central API detection to avoid hostname edge-cases (Telegram WebView, etc.)
+    const apiBase = getApiUrl(); // e.g. https://bahamm.ir/backend/api OR http://localhost:8001/api
+    return apiBase.replace(/\/api\/?$/, '');
+  };
+
+  const getAuthToken = () => {
+    if (token) return token;
+    try {
+      return safeStorage.getItem('auth_token');
+    } catch {
+      return null;
+    }
+  };
+
   // Determine settlement strictly by payment delta to avoid relying on possibly wrong counts
   const rawDelta = Number(finalLeaderPrice) - Number(initialPaid);
   const delta = rawDelta;
@@ -86,18 +102,14 @@ const GroupBuyResultModal: React.FC<GroupBuyResultModalProps> = ({
     const key = `gb-refund-submitted-${groupId}`;
     const val = safeStorage.getItem(key);
     setRefundSubmitted(!!val);
-    const BACKEND_URL = (() => {
-      if (typeof window === 'undefined') return '';
-      const hostname = window.location.hostname;
-      if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8001';
-      return window.location.origin.replace(/\/$/, '') + '/backend';
-    })();
+    const BACKEND_URL = getBackendUrl();
+    const authToken = getAuthToken();
     (async () => {
       try {
         const res = await fetch(`${BACKEND_URL}/api/group-orders/settlement-status/${groupId}`, {
           headers: {
             'Accept': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
           },
           cache: 'no-store',
         });
@@ -193,19 +205,15 @@ const GroupBuyResultModal: React.FC<GroupBuyResultModalProps> = ({
         // Create settlement payment on backend (leader-only endpoint)
         console.log(`Creating settlement payment for group ID: ${groupId}, delta: ${delta}, isAuthenticated: ${isAuthenticated}, token: ${token ? 'present' : 'missing'}`);
         
-                 // Use direct backend call with simple endpoint
-         const BACKEND_URL = (() => {
-      if (typeof window === 'undefined') return '';
-      const hostname = window.location.hostname;
-      if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8001';
-      return window.location.origin.replace(/\/$/, '') + '/backend';
-    })();
-         const res = await fetch(`${BACKEND_URL}/api/group-orders/create-settlement-payment/${groupId}`, {
+        // Use direct backend call with simple endpoint
+        const BACKEND_URL = getBackendUrl();
+        const authToken = getAuthToken();
+        const res = await fetch(`${BACKEND_URL}/api/group-orders/create-settlement-payment/${groupId}`, {
           method: 'POST',
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
           },
         });
         const data = await res.json().catch(() => ({} as any));
@@ -252,17 +260,13 @@ const GroupBuyResultModal: React.FC<GroupBuyResultModalProps> = ({
     }
     try {
       setSubmittingCard(true);
-      const BACKEND_URL = (() => {
-      if (typeof window === 'undefined') return '';
-      const hostname = window.location.hostname;
-      if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8001';
-      return window.location.origin.replace(/\/$/, '') + '/backend';
-    })();
+      const BACKEND_URL = getBackendUrl();
+      const authToken = getAuthToken();
       const res = await fetch(`${BACKEND_URL}/api/group-orders/submit-refund-card/${groupId}`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
         },
         body: new URLSearchParams({ card_number: cleaned }),
       });
