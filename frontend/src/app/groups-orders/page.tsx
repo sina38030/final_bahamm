@@ -1437,6 +1437,7 @@ function FailedLeaderRefundControls({ groupId }: { groupId: number }) {
   const [submittingCard, setSubmittingCard] = useState(false);
   const [isRefundingWallet, setIsRefundingWallet] = useState(false);
   const [submitted, setSubmitted] = useState<boolean>(false);
+  const [receiveMethod, setReceiveMethod] = useState<"wallet" | "bank" | null>(null);
 
   useEffect(() => {
     try {
@@ -1512,45 +1513,79 @@ function FailedLeaderRefundControls({ groupId }: { groupId: number }) {
   };
 
   if (submitted) {
-    const method = (() => {
-      try { return safeStorage.getItem(`gb-refund-method-${groupId}`) || 'bank'; } catch { return 'bank'; }
-    })();
     return (
-      <div className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg p-3">
-        {method === 'wallet' ? 'واریز به کیف پول با موفقیت انجام شد.' : 'اطلاعات کارت ثبت شد. مبلغ به کارت شما واریز خواهد شد.'}
+      <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+        با موفقیت انجام شد
       </div>
     );
   }
 
   return (
-    <div className="space-y-2" dir="rtl">
-      <div className="flex gap-2">
+    <div className="space-y-3" dir="rtl">
+      <div className="text-sm font-semibold text-gray-900">روش های دریافت وجه:</div>
+
+      <div className="space-y-2">
         <button
-          className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-medium py-2 px-3 rounded"
+          type="button"
+          onClick={() => setReceiveMethod("wallet")}
+          className={`w-full border rounded-lg p-3 text-right text-sm font-medium transition-colors ${
+            receiveMethod === "wallet" ? "border-emerald-500 bg-emerald-50" : "border-gray-200 bg-white hover:bg-gray-50"
+          }`}
+        >
+          شارز حساب باهم
+          {receiveMethod === "wallet" && (
+            <div className="mt-1 text-xs text-gray-500 font-normal">
+              مبلغ به حساب باهم شما اضافه می‌شود.
+            </div>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setReceiveMethod("bank")}
+          className={`w-full border rounded-lg p-3 text-right text-sm font-medium transition-colors ${
+            receiveMethod === "bank" ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white hover:bg-gray-50"
+          }`}
+        >
+          واریز به حساب بانکی
+          {receiveMethod === "bank" && (
+            <div className="mt-1 text-xs text-gray-500 font-normal">
+              پس از ثبت شماره کارت، مبلغ به حساب بانکی شما واریز می‌شود.
+            </div>
+          )}
+        </button>
+      </div>
+
+      {receiveMethod === "wallet" && (
+        <button
+          className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-medium py-2.5 px-4 rounded-lg"
           disabled={isRefundingWallet}
           onClick={handleRefundToWallet}
         >
-          بازگشت به کیف پول
+          {isRefundingWallet ? "در حال انجام..." : "تایید"}
         </button>
-      </div>
-      <div className="border rounded-lg p-3">
-        <label className="block text-sm font-medium text-gray-700 mb-2">شماره کارت برای واریز</label>
-        <input
-          type="text"
-          inputMode="numeric"
-          placeholder="---- ---- ---- ----"
-          className="w-full border rounded-lg p-3 text-right"
-          value={cardNumber}
-          onChange={(e) => setCardNumber(e.target.value)}
-        />
-        <button
-          onClick={handleSubmitCard}
-          disabled={submittingCard}
-          className="mt-3 w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-2.5 px-4 rounded-lg"
-        >
-          {submittingCard ? 'در حال ثبت...' : 'ثبت اطلاعات کارت'}
-        </button>
-      </div>
+      )}
+
+      {receiveMethod === "bank" && (
+        <div className="border rounded-lg p-3">
+          <label className="block text-sm font-medium text-gray-700 mb-2">شماره کارت</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="---- ---- ---- ----"
+            className="w-full border rounded-lg p-3 text-right"
+            value={cardNumber}
+            onChange={(e) => setCardNumber(e.target.value)}
+          />
+          <button
+            onClick={handleSubmitCard}
+            disabled={submittingCard}
+            className="mt-3 w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-2.5 px-4 rounded-lg"
+          >
+            {submittingCard ? "در حال ثبت..." : "تایید"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1782,9 +1817,7 @@ function LazyTrackEmbed({
   const [refundSubmitted, setRefundSubmitted] = useState(false);
   const [isRefundingWallet, setIsRefundingWallet] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
-  const [showBankForm, setShowBankForm] = useState(false);
-  
-  const [bankSuccess, setBankSuccess] = useState(false);
+  const [refundReceiveMethod, setRefundReceiveMethod] = useState<"wallet" | "bank" | null>(null);
   const [refundMethod, setRefundMethod] = useState<"wallet" | "bank" | null>(null);
   const [isSecondary, setIsSecondary] = useState(false);
   const [trackData, setTrackData] = useState<any | null>(null);
@@ -2324,13 +2357,59 @@ function LazyTrackEmbed({
         setSubmittingCard(false);
         return;
       }
-      // Show success inside bottom sheet instead of alert
-      setBankSuccess(true);
-      fireToast({ type: 'success', message: 'اطلاعات کارت با موفقیت ثبت شد', durationMs: 2000 });
+      // Persist submitted state so UI shows success and other tabs refresh.
+      try {
+        safeStorage.setItem(`gb-refund-submitted-${gid}`, String(Date.now()));
+        safeStorage.setItem(`gb-refund-method-${gid}`, 'bank');
+      } catch {}
+      try {
+        setRefundSubmitted(true);
+        setRefundMethod('bank');
+        setRefundReceiveMethod(null);
+        window.dispatchEvent(new CustomEvent('gb-refund-submitted', { detail: { groupId: String(gid) } }));
+      } catch {}
+      fireToast({ type: 'success', message: 'با موفقیت انجام شد', durationMs: 2000 });
     } catch {
       fireToast({ type: 'error', message: 'خطا در اتصال به سرور' });
     } finally {
       setSubmittingCard(false);
+    }
+  };
+
+  const handleRefundToWallet = async () => {
+    if (isRefundingWallet) return;
+    try {
+      setIsRefundingWallet(true);
+      const BACKEND_URL = getBackendUrl();
+      const authToken = getAuthToken(token);
+      const endpoint = isSecondary
+        ? `${BACKEND_URL}/api/group-orders/secondary/refund-to-wallet/${gid}`
+        : `${BACKEND_URL}/api/group-orders/refund-to-wallet/${gid}`;
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}) },
+      });
+      const data = await res.json().catch(() => ({} as any));
+      if (!res.ok) {
+        fireToast({ type: 'error', message: (data?.detail || data?.error || 'خطا در واریز به کیف پول') });
+        return;
+      }
+      try { refreshCoins && (await refreshCoins()); } catch {}
+      try {
+        safeStorage.setItem(`gb-refund-submitted-${gid}`, String(Date.now()));
+        safeStorage.setItem(`gb-refund-method-${gid}`, 'wallet');
+      } catch {}
+      try {
+        setRefundSubmitted(true);
+        setRefundMethod('wallet');
+        setRefundReceiveMethod(null);
+        window.dispatchEvent(new CustomEvent('gb-refund-submitted', { detail: { groupId: String(gid) } }));
+      } catch {}
+      fireToast({ type: 'success', message: 'با موفقیت انجام شد', durationMs: 2000 });
+    } catch {
+      fireToast({ type: 'error', message: 'خطا در اتصال به سرور' });
+    } finally {
+      setIsRefundingWallet(false);
     }
   };
 
@@ -2518,107 +2597,88 @@ function LazyTrackEmbed({
                         </div>
                       </div>
 
-                      {/* Refund actions for secondary groups (refund due) */}
+                      {/* Refund actions (refund due) */}
                       {settlement?.remainder < 0 && (
                         <div className="space-y-3" dir="rtl">
-                      {refundSubmitted ? (
-                        <div className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                          {refundMethod === 'wallet' ? 'واریز به کیف پول با موفقیت انجام شد.' : 'اطلاعات کارت ثبت شد. مبلغ به کارت شما واریز خواهد شد.'}
-                        </div>
-                      ) : (
-                          <div className="flex gap-3">
-                            <button
-                              className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-medium py-2.5 px-4 rounded-lg"
-                              disabled={isRefundingWallet}
-                              onClick={async () => {
-                                try {
-                                  setIsRefundingWallet(true);
-                                  const BACKEND_URL = getBackendUrl();
-                                  const authToken = getAuthToken(token);
-                                  const res = await fetch(`${BACKEND_URL}/api/group-orders/secondary/refund-to-wallet/${gid}`, {
-                                    method: 'POST',
-                                    headers: { 'Accept': 'application/json', ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}) },
-                                  });
-                                  const data = await res.json().catch(() => ({} as any));
-                                  if (!res.ok) {
-                                    alert(data?.detail || data?.error || 'خطا در واریز به کیف پول');
-                                    setIsRefundingWallet(false);
-                                    return;
-                                  }
-                                  try { refreshCoins && (await refreshCoins()); } catch {}
-                                  try {
-                                    safeStorage.setItem(`gb-refund-submitted-${gid}`, String(Date.now()));
-                                    safeStorage.setItem(`gb-refund-method-${gid}`, 'wallet');
-                                    setRefundSubmitted(true);
-                                    setRefundMethod('wallet');
-                                    window.dispatchEvent(new CustomEvent('gb-refund-submitted', { detail: { groupId: String(gid) } }));
-                                  } catch {}
-                                } catch {
-                                  alert('خطا در اتصال به سرور');
-                                } finally {
-                                  setIsRefundingWallet(false);
-                                }
-                              }}
-                            >
-                              واریز به کیف پول
-                            </button>
-                            <button
-                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 px-4 rounded-lg"
-                              onClick={() => setShowBankForm(true)}
-                            >
-                              واریز به حساب بانکی
-                            </button>
-                          </div>
+                          {refundSubmitted ? (
+                            <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                              با موفقیت انجام شد
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <div className="text-sm font-semibold text-gray-900">روش های دریافت وجه:</div>
+
+                              <div className="space-y-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setRefundReceiveMethod("wallet")}
+                                  className={`w-full border rounded-lg p-3 text-right text-sm font-medium transition-colors ${
+                                    refundReceiveMethod === "wallet"
+                                      ? "border-emerald-500 bg-emerald-50"
+                                      : "border-gray-200 bg-white hover:bg-gray-50"
+                                  }`}
+                                >
+                                  شارز حساب باهم
+                                  {refundReceiveMethod === "wallet" && (
+                                    <div className="mt-1 text-xs text-gray-500 font-normal">
+                                      مبلغ به حساب باهم شما اضافه می‌شود.
+                                    </div>
+                                  )}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setRefundReceiveMethod("bank")}
+                                  className={`w-full border rounded-lg p-3 text-right text-sm font-medium transition-colors ${
+                                    refundReceiveMethod === "bank"
+                                      ? "border-blue-500 bg-blue-50"
+                                      : "border-gray-200 bg-white hover:bg-gray-50"
+                                  }`}
+                                >
+                                  واریز به حساب بانکی
+                                  {refundReceiveMethod === "bank" && (
+                                    <div className="mt-1 text-xs text-gray-500 font-normal">
+                                      پس از ثبت شماره کارت، مبلغ به حساب بانکی شما واریز می‌شود.
+                                    </div>
+                                  )}
+                                </button>
+                              </div>
+
+                              {refundReceiveMethod === "wallet" && (
+                                <button
+                                  className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-medium py-2.5 px-4 rounded-lg"
+                                  disabled={isRefundingWallet}
+                                  onClick={handleRefundToWallet}
+                                >
+                                  {isRefundingWallet ? "در حال انجام..." : "تایید"}
+                                </button>
+                              )}
+
+                              {refundReceiveMethod === "bank" && (
+                                <div className="border rounded-lg p-3">
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">شماره کارت</label>
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="---- ---- ---- ----"
+                                    className="w-full border rounded-lg p-3 text-right"
+                                    value={cardNumber}
+                                    onChange={(e) => setCardNumber(e.target.value)}
+                                  />
+                                  <button
+                                    onClick={handleSubmitRefundCard}
+                                    disabled={submittingCard}
+                                    className="mt-3 w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-2.5 px-4 rounded-lg"
+                                  >
+                                    {submittingCard ? "در حال ثبت..." : "تایید"}
+                                  </button>
+                                  <p className="mt-2 text-xs text-gray-500">
+                                    پس از بررسی توسط پشتیبانی، مبلغ {Math.abs(toSafeNumber(settlement?.remainder, 0)).toLocaleString("fa-IR")} تومان به کارت معرفی‌شده واریز می‌شود.
+                                  </p>
+                                </div>
+                              )}
+                            </div>
                           )}
-                        {showBankForm && (
-                          <div>
-                            {/* Bottom sheet overlay */}
-                            <div className="fixed inset-0 bg-black/40 z-[1000]" onClick={() => { if (!submittingCard) { setShowBankForm(false); setBankSuccess(false); } }} />
-                            <div className="fixed inset-x-0 bottom-0 z-[1001] bg-white rounded-t-2xl p-4 shadow-2xl">
-                               <div className="h-1 w-10 bg-gray-300 rounded-full mx-auto mb-3" />
-                               {!bankSuccess ? (
-                                 <div>
-                                   <div className="text-sm font-medium text-gray-900 mb-2 text-center">واریز به حساب بانکی</div>
-                                   <label className="block text-sm font-medium text-gray-700 mb-2">شماره کارت برای واریز</label>
-                                   <input
-                                     type="text"
-                                     inputMode="numeric"
-                                     placeholder="---- ---- ---- ----"
-                                     className="w-full border rounded-lg p-3 text-right"
-                                     value={cardNumber}
-                                     onChange={(e) => setCardNumber(e.target.value)}
-                                   />
-                                   <button
-                                     onClick={async () => { await handleSubmitRefundCard(); }}
-                                     disabled={submittingCard}
-                                     className="mt-3 w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-2.5 px-4 rounded-lg"
-                                   >
-                                     {submittingCard ? 'در حال ثبت...' : 'ثبت اطلاعات کارت'}
-                                   </button>
-                                   <button
-                                     onClick={() => { if (!submittingCard) { setShowBankForm(false); setBankSuccess(false); } }}
-                                     className="mt-2 w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 px-4 rounded-lg"
-                                   >
-                                     انصراف
-                                   </button>
-                          <p className="mt-2 text-xs text-gray-500 text-center">پس از تکمیل گروه و بررسی توسط پشتیبانی، مبلغ {Math.abs(toSafeNumber(settlement?.remainder, 0)).toLocaleString('fa-IR')} تومان به کارت معرفی‌شده واریز می‌شود.</p>
-                                 </div>
-                               ) : (
-                                 <div className="text-center py-6">
-                                   <div className="text-3xl mb-2">✅</div>
-                                   <div className="text-sm font-medium text-gray-900 mb-1">اطلاعات کارت ثبت شد</div>
-                                   <div className="text-xs text-gray-600">مبلغ به کارت شما واریز و نتیجه اطلاع‌رسانی خواهد شد.</div>
-                                   <button
-                                     onClick={() => { setShowBankForm(false); setBankSuccess(false); try { safeStorage.setItem(`gb-refund-submitted-${gid}`, String(Date.now())); safeStorage.setItem(`gb-refund-method-${gid}`, 'bank'); setRefundSubmitted(true); setRefundMethod('bank'); window.dispatchEvent(new CustomEvent('gb-refund-submitted', { detail: { groupId: String(gid) } })); } catch {} }}
-                                     className="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-4 rounded-lg"
-                                   >
-                                     بستن
-                                   </button>
-                                 </div>
-                               )}
-                             </div>
-                           </div>
-                        )}
                         </div>
                       )}
                     </div>
@@ -2649,25 +2709,87 @@ function LazyTrackEmbed({
                     />
                   )}
 
-                {!isSecondary && settlement && settlement.remainder < 0 && !refundSubmitted && (
+                {!isSecondary && settlement && settlement.remainder < 0 && (
                   <div className="p-4 border-t border-gray-200" dir="rtl">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">شماره کارت برای واریز</label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="---- ---- ---- ----"
-                      className="w-full border rounded-lg p-3 text-right"
-                      value={cardNumber}
-                      onChange={(e) => setCardNumber(e.target.value)}
-                    />
-                    <button
-                      onClick={handleSubmitRefundCard}
-                      disabled={submittingCard}
-                      className="mt-3 w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-3 px-4 rounded-lg transition-colors"
-                    >
-                      {submittingCard ? 'در حال ثبت...' : 'ثبت اطلاعات کارت'}
-                    </button>
-                    <p className="mt-2 text-xs text-gray-500">پس از تکمیل گروه و بررسی توسط پشتیبانی، مبلغ {formatPrice(Math.abs(settlement?.remainder || 0))} تومان به کارت معرفی‌شده واریز می‌شود.</p>
+                    {refundSubmitted ? (
+                      <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                        با موفقیت انجام شد
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="text-sm font-semibold text-gray-900">روش های دریافت وجه:</div>
+
+                        <div className="space-y-2">
+                          <button
+                            type="button"
+                            onClick={() => setRefundReceiveMethod("wallet")}
+                            className={`w-full border rounded-lg p-3 text-right text-sm font-medium transition-colors ${
+                              refundReceiveMethod === "wallet"
+                                ? "border-emerald-500 bg-emerald-50"
+                                : "border-gray-200 bg-white hover:bg-gray-50"
+                            }`}
+                          >
+                            شارز حساب باهم
+                            {refundReceiveMethod === "wallet" && (
+                              <div className="mt-1 text-xs text-gray-500 font-normal">
+                                مبلغ به حساب باهم شما اضافه می‌شود.
+                              </div>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setRefundReceiveMethod("bank")}
+                            className={`w-full border rounded-lg p-3 text-right text-sm font-medium transition-colors ${
+                              refundReceiveMethod === "bank"
+                                ? "border-blue-500 bg-blue-50"
+                                : "border-gray-200 bg-white hover:bg-gray-50"
+                            }`}
+                          >
+                            واریز به حساب بانکی
+                            {refundReceiveMethod === "bank" && (
+                              <div className="mt-1 text-xs text-gray-500 font-normal">
+                                پس از ثبت شماره کارت، مبلغ به حساب بانکی شما واریز می‌شود.
+                              </div>
+                            )}
+                          </button>
+                        </div>
+
+                        {refundReceiveMethod === "wallet" && (
+                          <button
+                            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-medium py-2.5 px-4 rounded-lg"
+                            disabled={isRefundingWallet}
+                            onClick={handleRefundToWallet}
+                          >
+                            {isRefundingWallet ? "در حال انجام..." : "تایید"}
+                          </button>
+                        )}
+
+                        {refundReceiveMethod === "bank" && (
+                          <div className="border rounded-lg p-3">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">شماره کارت</label>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              placeholder="---- ---- ---- ----"
+                              className="w-full border rounded-lg p-3 text-right"
+                              value={cardNumber}
+                              onChange={(e) => setCardNumber(e.target.value)}
+                            />
+                            <button
+                              onClick={handleSubmitRefundCard}
+                              disabled={submittingCard}
+                              className="mt-3 w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-2.5 px-4 rounded-lg"
+                            >
+                              {submittingCard ? "در حال ثبت..." : "تایید"}
+                            </button>
+                            <p className="mt-2 text-xs text-gray-500">
+                              پس از تکمیل گروه و بررسی توسط پشتیبانی، مبلغ {formatPrice(Math.abs(settlement?.remainder || 0))} تومان به کارت معرفی‌شده واریز می‌شود.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
                 </div>
@@ -2694,61 +2816,81 @@ function LazyTrackEmbed({
                 } catch { return null; }
                 return (
                   <div className="mt-4 space-y-3" dir="rtl">
-                    <div className="text-xs text-gray-600">بازگشت وجه برای گروه‌های عادی (ثانویه شامل نمی‌شود)</div>
-                    <button
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-medium py-2.5 px-4 rounded-lg"
-                      disabled={isRefundingWallet}
-                      onClick={async () => {
-                        try {
-                          setIsRefundingWallet(true);
-                          const BACKEND_URL = getBackendUrl();
-                          const authToken = getAuthToken(token);
-                          const res = await fetch(`${BACKEND_URL}/api/group-orders/refund-to-wallet/${gid}`, {
-                            method: 'POST',
-                            headers: { 'Accept': 'application/json', ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}) },
-                          });
-                          const data = await res.json().catch(() => ({} as any));
-                          if (!res.ok) {
-                            fireToast({ type: 'error', message: (data?.detail || data?.error || 'خطا در بازگشت به کیف پول') });
-                            setIsRefundingWallet(false);
-                            return;
-                          }
-                          fireToast({ type: 'success', message: 'مبلغ به کیف پول شما واریز شد' });
-                          try { refreshCoins && (await refreshCoins()); } catch {}
-                          // Mark as submitted in localStorage for UI state
-                          try {
-                            safeStorage.setItem(`gb-refund-submitted-${gid}`, String(Date.now()));
-                            safeStorage.setItem(`gb-refund-method-${gid}`, 'wallet');
-                          } catch {}
-                        } catch {
-                          fireToast({ type: 'error', message: 'خطا در اتصال به سرور' });
-                        } finally {
-                          setIsRefundingWallet(false);
-                        }
-                      }}
-                    >
-                      بازگشت به کیف پول
-                    </button>
-                    {/* Bank card submission */}
-                    {!refundSubmitted && (
-                      <div className="border rounded-lg p-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">شماره کارت برای واریز</label>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="---- ---- ---- ----"
-                          className="w-full border rounded-lg p-3 text-right"
-                          value={cardNumber}
-                          onChange={(e) => setCardNumber(e.target.value)}
-                        />
-                        <button
-                          onClick={async () => { await handleSubmitRefundCard(); }}
-                          disabled={submittingCard}
-                          className="mt-3 w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-2.5 px-4 rounded-lg"
-                        >
-                          {submittingCard ? 'در حال ثبت...' : 'ثبت اطلاعات کارت'}
-                        </button>
-                        <p className="mt-2 text-xs text-gray-500">پس از بررسی توسط پشتیبانی، مبلغ به کارت معرفی‌شده واریز می‌شود.</p>
+                    {refundSubmitted ? (
+                      <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                        با موفقیت انجام شد
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="text-sm font-semibold text-gray-900">روش های دریافت وجه:</div>
+
+                        <div className="space-y-2">
+                          <button
+                            type="button"
+                            onClick={() => setRefundReceiveMethod("wallet")}
+                            className={`w-full border rounded-lg p-3 text-right text-sm font-medium transition-colors ${
+                              refundReceiveMethod === "wallet"
+                                ? "border-emerald-500 bg-emerald-50"
+                                : "border-gray-200 bg-white hover:bg-gray-50"
+                            }`}
+                          >
+                            شارز حساب باهم
+                            {refundReceiveMethod === "wallet" && (
+                              <div className="mt-1 text-xs text-gray-500 font-normal">
+                                مبلغ به حساب باهم شما اضافه می‌شود.
+                              </div>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setRefundReceiveMethod("bank")}
+                            className={`w-full border rounded-lg p-3 text-right text-sm font-medium transition-colors ${
+                              refundReceiveMethod === "bank"
+                                ? "border-blue-500 bg-blue-50"
+                                : "border-gray-200 bg-white hover:bg-gray-50"
+                            }`}
+                          >
+                            واریز به حساب بانکی
+                            {refundReceiveMethod === "bank" && (
+                              <div className="mt-1 text-xs text-gray-500 font-normal">
+                                پس از ثبت شماره کارت، مبلغ به حساب بانکی شما واریز می‌شود.
+                              </div>
+                            )}
+                          </button>
+                        </div>
+
+                        {refundReceiveMethod === "wallet" && (
+                          <button
+                            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-medium py-2.5 px-4 rounded-lg"
+                            disabled={isRefundingWallet}
+                            onClick={handleRefundToWallet}
+                          >
+                            {isRefundingWallet ? "در حال انجام..." : "تایید"}
+                          </button>
+                        )}
+
+                        {refundReceiveMethod === "bank" && (
+                          <div className="border rounded-lg p-3">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">شماره کارت</label>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              placeholder="---- ---- ---- ----"
+                              className="w-full border rounded-lg p-3 text-right"
+                              value={cardNumber}
+                              onChange={(e) => setCardNumber(e.target.value)}
+                            />
+                            <button
+                              onClick={handleSubmitRefundCard}
+                              disabled={submittingCard}
+                              className="mt-3 w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-2.5 px-4 rounded-lg"
+                            >
+                              {submittingCard ? "در حال ثبت..." : "تایید"}
+                            </button>
+                            <p className="mt-2 text-xs text-gray-500">پس از بررسی توسط پشتیبانی، مبلغ به کارت معرفی‌شده واریز می‌شود.</p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
