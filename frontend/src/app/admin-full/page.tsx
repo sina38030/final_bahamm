@@ -42,49 +42,46 @@ export const dynamic = 'force-dynamic';
   function getAdminApiBaseUrl(): string {
     if (_cachedAdminApiBaseUrl) return _cachedAdminApiBaseUrl;
     
-    if (typeof window === 'undefined') {
-      // Server-side: use HTTPS for staging
-      const envUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_ADMIN_API_URL;
-      if (envUrl) {
-        const trimmed = envUrl.replace(/\/+$/, "");
-        return /\/api$/i.test(trimmed) ? trimmed : `${trimmed}/api`;
-      }
-      return "http://localhost:8001/api";
-    }
-    
-    // Client-side: use env var or construct from current location
-    const envUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_ADMIN_API_URL;
-    let rawBase: string;
-
+  if (typeof window === 'undefined') {
+    // Server-side: use HTTPS for staging
+    const envUrl = process.env.NEXT_PUBLIC_API_URL;
     if (envUrl) {
-      console.log('[Admin] Using env URL:', envUrl);
-      rawBase = envUrl;
-    } else {
-      // Auto-detect based on environment
-      const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-      const hostname = window.location.hostname;
-
-      // Production: use nginx reverse proxy path
-      if (hostname === 'bahamm.ir' || hostname === 'www.bahamm.ir' || hostname === 'app.bahamm.ir' || hostname === 'staging.bahamm.ir') {
-        rawBase = `${protocol}//${hostname}`;
-        console.log('[Admin] Production URL (nginx proxy):', rawBase);
-      } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        // Development: direct connection to backend port
-        rawBase = `${protocol}//${hostname}:8001`;
-        console.log('[Admin] Development URL (direct):', rawBase);
-      } else {
-        // Unknown environment, try direct port access
-        rawBase = `${protocol}//${hostname}:8001`;
-        console.log('[Admin] Unknown env, trying port 8001:', rawBase);
-      }
+      return envUrl;
     }
-    
-    const trimmed = rawBase.replace(/\/+$/, "");
-    const apiUrl = /\/api$/i.test(trimmed) ? trimmed : `${trimmed}/api`;
-    
-    console.log('[Admin] Final API Base URL:', apiUrl);
-    _cachedAdminApiBaseUrl = apiUrl;
-    return apiUrl;
+    return "http://localhost:8001/api";
+  }
+  
+  // Client-side: use env var or construct from current location
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  
+  if (envUrl) {
+    console.log('[Admin] Using env URL:', envUrl);
+    _cachedAdminApiBaseUrl = envUrl;
+    return envUrl;
+  }
+  
+  // Fallback: auto-detect based on environment
+  const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+  const hostname = window.location.hostname;
+  let apiUrl: string;
+
+  // Production: use nginx reverse proxy path
+  if (hostname === 'bahamm.ir' || hostname === 'www.bahamm.ir') {
+    apiUrl = `${protocol}//${hostname}/backend/api`;
+    console.log('[Admin] Production URL (nginx proxy):', apiUrl);
+  } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    // Development: direct connection to backend port
+    apiUrl = `${protocol}//${hostname}:8001/api`;
+    console.log('[Admin] Development URL (direct):', apiUrl);
+  } else {
+    // Unknown environment, try backend via nginx
+    apiUrl = `${protocol}//${hostname}/backend/api`;
+    console.log('[Admin] Fallback URL:', apiUrl);
+  }
+  
+  console.log('[Admin] Final API Base URL:', apiUrl);
+  _cachedAdminApiBaseUrl = apiUrl;
+  return apiUrl;
   }
   
   // Computed lazily inside the component - DO NOT call at module level
