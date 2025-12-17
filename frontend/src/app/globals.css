@@ -1,9 +1,9 @@
+/* Import Vazir Font from CDN - Must be first for Turbopack */
+@import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import Vazir Font from CDN */
-@import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css');
 
 /* Override HeroUI primary color to #E31C5F */
 :root {
