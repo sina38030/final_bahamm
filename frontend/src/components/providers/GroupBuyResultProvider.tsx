@@ -6,6 +6,11 @@ import GroupBuyResultModal from '@/components/modals/GroupBuyResultModal';
 import { useGroupBuyResultModal, fetchGroupBuyData } from '@/hooks/useGroupBuyResultModal';
 import { safeStorage, safeSessionStorage } from '@/utils/safeStorage';
 
+// Feature flag: temporarily disable the "group result" bottom-sheet popup.
+// To re-enable later, set NEXT_PUBLIC_ENABLE_GROUP_BUY_RESULT_POPUP=1 in the frontend env.
+const ENABLE_GROUP_BUY_RESULT_POPUP =
+  (process.env.NEXT_PUBLIC_ENABLE_GROUP_BUY_RESULT_POPUP || "0") === "1";
+
 interface GroupBuyResultContextType {
   checkForPendingGroupBuys: () => Promise<void>;
   showModalForGroup: (groupId: string, options?: { force?: boolean }) => Promise<void>;
@@ -32,11 +37,12 @@ export const GroupBuyResultProvider: React.FC<GroupBuyResultProviderProps> = ({ 
   
   const { isModalOpen, closeModal } = useGroupBuyResultModal({ 
     groupBuyData: currentGroupBuyData,
-    enabled: true 
+    enabled: ENABLE_GROUP_BUY_RESULT_POPUP
   });
 
   // Check for pending group buys when user logs in or page loads
   const checkForPendingGroupBuys = async () => {
+    if (!ENABLE_GROUP_BUY_RESULT_POPUP) return;
     if (!isAuthenticated || !user) return;
 
     // Limit heavy checks to home page to avoid impacting all routes
@@ -126,6 +132,7 @@ export const GroupBuyResultProvider: React.FC<GroupBuyResultProviderProps> = ({ 
 
   // Show modal for a specific group
   const showModalForGroup = async (groupId: string, options?: { force?: boolean }) => {
+    if (!ENABLE_GROUP_BUY_RESULT_POPUP) return;
     try {
       const groupData = await fetchGroupBuyData(groupId);
       if (!groupData) return;
@@ -141,6 +148,7 @@ export const GroupBuyResultProvider: React.FC<GroupBuyResultProviderProps> = ({ 
 
   // Check for pending group buys on mount and when user changes
   useEffect(() => {
+    if (!ENABLE_GROUP_BUY_RESULT_POPUP) return;
     if (!(isAuthenticated && user)) return;
     // Prevent double-invocation in React StrictMode (development)
     if (didInitRef.current) return;
@@ -156,6 +164,7 @@ export const GroupBuyResultProvider: React.FC<GroupBuyResultProviderProps> = ({ 
 
   // One-time trigger set after finalize on track page
   useEffect(() => {
+    if (!ENABLE_GROUP_BUY_RESULT_POPUP) return;
     try {
       const pending = safeSessionStorage.getItem('gb-show-on-home');
       if (pending) {
@@ -224,7 +233,7 @@ export const GroupBuyResultProvider: React.FC<GroupBuyResultProviderProps> = ({ 
       {children}
       
       {/* Group Buy Result Modal */}
-      {currentGroupBuyData && (
+      {ENABLE_GROUP_BUY_RESULT_POPUP && currentGroupBuyData && (
         <GroupBuyResultModal
           isOpen={isModalOpen}
           onClose={handleModalClose}
