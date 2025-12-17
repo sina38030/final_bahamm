@@ -2210,6 +2210,7 @@ function LazyTrackEmbed({
           }
           
           console.log('✅ Settlement check passed, proceeding to payment...');
+          console.log('🔗 Payment URL:', `${BACKEND_URL}/api/group-orders/create-settlement-payment/${gid}`);
 
           // Proceed to create settlement payment
           const res = await fetch(`${BACKEND_URL}/api/group-orders/create-settlement-payment/${gid}`, {
