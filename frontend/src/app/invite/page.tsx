@@ -741,16 +741,39 @@ function InvitePageContent() {
   const openTelegramNativeShare = (landingUrl: string) => {
     try {
       const shareMessage = 'بیا با هم سبد رو بخریم تا رایگان بگیریم!';
-      const telegramShareUrl = generateShareUrl('telegram', landingUrl, shareMessage);
       const tg = (window as any)?.Telegram?.WebApp;
+      
+      // Build the share text and URL
+      const fullText = `${shareMessage}\n${landingUrl}`;
+      const encodedText = encodeURIComponent(fullText);
+      const encodedUrl = encodeURIComponent(landingUrl);
+      
+      // Try using Telegram's native share dialog via deep link
+      // This opens the native Telegram share picker directly
+      const deepLinkUrl = `tg://msg_url?url=${encodedUrl}&text=${encodeURIComponent(shareMessage)}`;
+      
       if (tg && typeof tg.openTelegramLink === 'function') {
-        tg.openTelegramLink(telegramShareUrl);
-        return;
+        // Try to open via Telegram WebApp API first
+        try {
+          // Generate t.me/share link as fallback
+          const telegramShareUrl = `https://t.me/share/url?url=${encodedUrl}&text=${encodeURIComponent(shareMessage)}`;
+          tg.openTelegramLink(telegramShareUrl);
+          return;
+        } catch (e) {
+          console.warn('openTelegramLink failed:', e);
+        }
       }
-      // Fallback (still Telegram-only link; may open in browser if not in Telegram)
-      window.location.href = telegramShareUrl;
-    } catch {
-      // no-op
+      
+      // Fallback: Try direct deep link
+      try {
+        window.location.href = deepLinkUrl;
+      } catch (e) {
+        // Last resort: use t.me/share link
+        const telegramShareUrl = `https://t.me/share/url?url=${encodedUrl}&text=${encodeURIComponent(shareMessage)}`;
+        window.location.href = telegramShareUrl;
+      }
+    } catch (e) {
+      console.error('openTelegramNativeShare error:', e);
     }
   };
 
