@@ -37,19 +37,15 @@ function MenuItem({ icon, label, path, onClick }: MenuItem) {
 
 export default function ProfileMenu() {
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-    const [isTelegram, setIsTelegram] = useState(() => typeof window !== 'undefined' && isTelegramMiniApp());
+    const [isTelegram, setIsTelegram] = useState(false);
     const { logout } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
-        // Double check on mount in case window.Telegram wasn't ready during initial state calc
         const telegramDetected = isTelegramMiniApp();
-        if (telegramDetected !== isTelegram) {
-            console.log('ProfileMenu: isTelegramMiniApp updated detection:', telegramDetected);
-            setIsTelegram(telegramDetected);
-        }
-        console.log('ProfileMenu: Initial isTelegramMiniApp detected:', telegramDetected, 'window.Telegram:', !!window.Telegram, 'WebApp:', !!window.Telegram?.WebApp, 'initData:', !!window.Telegram?.WebApp?.initData);
-    }, [isTelegram]);
+        console.log('ProfileMenu: isTelegramMiniApp detected:', telegramDetected, 'window.Telegram:', !!window.Telegram, 'WebApp:', !!window.Telegram?.WebApp, 'initData:', !!window.Telegram?.WebApp?.initData);
+        setIsTelegram(telegramDetected);
+    }, []);
 
     const handleLogout = () => {
         console.log('Logging out user...');
@@ -114,4 +110,4 @@ export default function ProfileMenu() {
             </CustomModal>
         </>
     );
-}
+} 
