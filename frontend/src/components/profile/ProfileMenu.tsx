@@ -42,7 +42,9 @@ export default function ProfileMenu() {
     const router = useRouter();
 
     useEffect(() => {
-        setIsTelegram(isTelegramMiniApp());
+        const telegramDetected = isTelegramMiniApp();
+        console.log('ProfileMenu: isTelegramMiniApp detected:', telegramDetected, 'window.Telegram:', !!window.Telegram, 'WebApp:', !!window.Telegram?.WebApp, 'initData:', !!window.Telegram?.WebApp?.initData);
+        setIsTelegram(telegramDetected);
     }, []);
 
     const handleLogout = () => {
