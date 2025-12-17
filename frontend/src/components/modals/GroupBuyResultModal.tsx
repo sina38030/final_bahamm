@@ -86,7 +86,12 @@ const GroupBuyResultModal: React.FC<GroupBuyResultModalProps> = ({
     const key = `gb-refund-submitted-${groupId}`;
     const val = safeStorage.getItem(key);
     setRefundSubmitted(!!val);
-    const BACKEND_URL = (typeof window !== 'undefined' ? window.location.origin : '').replace(/\/$/, "");
+    const BACKEND_URL = (() => {
+      if (typeof window === 'undefined') return '';
+      const hostname = window.location.hostname;
+      if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8001';
+      return window.location.origin.replace(/\/$/, '') + '/backend';
+    })();
     (async () => {
       try {
         const res = await fetch(`${BACKEND_URL}/api/group-orders/settlement-status/${groupId}`, {
@@ -189,7 +194,12 @@ const GroupBuyResultModal: React.FC<GroupBuyResultModalProps> = ({
         console.log(`Creating settlement payment for group ID: ${groupId}, delta: ${delta}, isAuthenticated: ${isAuthenticated}, token: ${token ? 'present' : 'missing'}`);
         
                  // Use direct backend call with simple endpoint
-         const BACKEND_URL = (typeof window !== 'undefined' ? window.location.origin : '').replace(/\/$/, "");
+         const BACKEND_URL = (() => {
+      if (typeof window === 'undefined') return '';
+      const hostname = window.location.hostname;
+      if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8001';
+      return window.location.origin.replace(/\/$/, '') + '/backend';
+    })();
          const res = await fetch(`${BACKEND_URL}/api/group-orders/create-settlement-payment/${groupId}`, {
           method: 'POST',
           headers: {
@@ -242,7 +252,12 @@ const GroupBuyResultModal: React.FC<GroupBuyResultModalProps> = ({
     }
     try {
       setSubmittingCard(true);
-      const BACKEND_URL = (typeof window !== 'undefined' ? window.location.origin : '').replace(/\/$/, "");
+      const BACKEND_URL = (() => {
+      if (typeof window === 'undefined') return '';
+      const hostname = window.location.hostname;
+      if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8001';
+      return window.location.origin.replace(/\/$/, '') + '/backend';
+    })();
       const res = await fetch(`${BACKEND_URL}/api/group-orders/submit-refund-card/${groupId}`, {
         method: 'POST',
         headers: {
