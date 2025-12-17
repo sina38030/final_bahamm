@@ -739,18 +739,18 @@ function InvitePageContent() {
   };
 
   const openTelegramNativeShare = (landingUrl: string) => {
-    try {
-      const shareMessage = 'بیا با هم سبد رو بخریم تا رایگان بگیریم!';
-      const fullMessage = `${shareMessage}\n${landingUrl}`;
-      
-      // Use tg:// deep link - this is the most reliable way to open share in Telegram
-      const deepLink = `tg://msg_url?url=${encodeURIComponent(landingUrl)}&text=${encodeURIComponent(shareMessage)}`;
-      
-      // Try opening the deep link directly
-      window.location.href = deepLink;
-    } catch (e) {
-      console.error('Share failed:', e);
-      // Fallback to showing the bottom sheet
+    const shareMessage = 'بیا با هم سبد رو بخریم تا رایگان بگیریم!';
+    const tg = (window as any)?.Telegram?.WebApp;
+    
+    // DEBUG: Show alert to verify this function is called
+    alert(`DEBUG:\nisTelegramMiniApp: ${isTelegramMiniApp()}\nTelegram WebApp: ${tg ? 'YES' : 'NO'}\nLink: ${landingUrl.substring(0, 50)}...`);
+    
+    if (tg && typeof tg.openTelegramLink === 'function') {
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(landingUrl)}&text=${encodeURIComponent(shareMessage)}`;
+      alert(`Calling openTelegramLink with: ${shareUrl.substring(0, 80)}...`);
+      tg.openTelegramLink(shareUrl);
+    } else {
+      alert('Telegram WebApp not available, opening bottom sheet');
       setShareSheetOpen(true);
     }
   };
