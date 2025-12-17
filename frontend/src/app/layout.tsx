@@ -85,10 +85,37 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{
             __html: `(function(){try{
   var KEY='once-reload-on-chunk-error';
+  var COUNT_KEY='chunk-error-reload-count';
   var reloaded=false;
   try{reloaded=sessionStorage.getItem(KEY)==='1';}catch(e){}
   function mark(){try{sessionStorage.setItem(KEY,'1');}catch(e){}}
-  function reloadOnce(){if(reloaded)return;reloaded=true;mark();try{location.reload();}catch(_){location.href=location.href;}}
+  function bumpCount(){
+    try{
+      var c=parseInt(sessionStorage.getItem(COUNT_KEY)||'0',10);
+      if(isNaN(c)) c=0;
+      if(c>=2) return false;
+      sessionStorage.setItem(COUNT_KEY,String(c+1));
+      return true;
+    }catch(e){ return true; }
+  }
+  function cacheBustUrl(){
+    try{
+      var u=new URL(location.href);
+      u.searchParams.set('__r',String(Date.now()));
+      return u.toString();
+    }catch(e){
+      var sep=location.href.indexOf('?')!==-1?'&':'?';
+      return location.href+sep+'__r='+Date.now();
+    }
+  }
+  function reloadOnce(){
+    if(reloaded) return;
+    reloaded=true;
+    mark();
+    if(!bumpCount()) return;
+    var nextHref=cacheBustUrl();
+    try{location.replace(nextHref);}catch(_){try{location.href=nextHref;}catch(__){location.href=location.href;}}
+  }
   function isRecoverableError(msg){
     if(!msg)return false;
     msg=String(msg);

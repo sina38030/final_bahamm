@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { safeSessionStorage } from '@/utils/safeStorage';
 
 interface Props {
   children: ReactNode;
@@ -50,12 +51,29 @@ export class PageErrorBoundary extends Component<Props, State> {
     if (this.props.onRetry) {
       this.props.onRetry();
     } else {
-      // Force reload the page
+      // Force recovery navigation. Plain reload may keep serving cached stale HTML in Telegram Android WebView.
       try {
-        window.location.reload();
+        const countKey = 'chunk-error-reload-count';
+        const currentCount = Number(safeSessionStorage.getItem(countKey) || '0');
+        if (currentCount < 2) {
+          safeSessionStorage.setItem(countKey, String(currentCount + 1));
+        }
+
+        let nextHref = window.location.href;
+        try {
+          const u = new URL(window.location.href);
+          u.searchParams.set('__r', String(Date.now()));
+          nextHref = u.toString();
+        } catch {
+          const sep = nextHref.includes('?') ? '&' : '?';
+          nextHref = `${nextHref}${sep}__r=${Date.now()}`;
+        }
+        window.location.replace(nextHref);
       } catch (e) {
         // Fallback for restricted environments
-        window.location.href = window.location.href;
+        try {
+          window.location.href = window.location.href;
+        } catch {}
       }
     }
   };

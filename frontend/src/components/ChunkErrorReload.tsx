@@ -12,6 +12,7 @@ export default function ChunkErrorReload() {
 
   useEffect(() => {
     const storageKey = "once-reload-on-chunk-error";
+    const countKey = "chunk-error-reload-count";
     reloadedRef.current = safeSessionStorage.getItem(storageKey) === "1";
 
     const markReloaded = () => {
@@ -29,13 +30,38 @@ export default function ChunkErrorReload() {
       );
     };
 
+    const navigateWithCacheBust = () => {
+      // If Telegram Android (or any aggressive WebView cache) is serving stale HTML,
+      // a plain reload can keep returning the same cached document. Add a cache-buster.
+      let nextHref = window.location.href;
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.set("__r", String(Date.now()));
+        nextHref = u.toString();
+      } catch {
+        // Fallback to best-effort append
+        const sep = nextHref.includes("?") ? "&" : "?";
+        nextHref = `${nextHref}${sep}__r=${Date.now()}`;
+      }
+
+      try {
+        window.location.replace(nextHref);
+      } catch {
+        window.location.href = nextHref;
+      }
+    };
+
     const reloadOnce = () => {
       if (reloadedRef.current) return;
       reloadedRef.current = true;
       markReloaded();
       try {
-        // Prefer hard reload to bypass cached broken chunks
-        window.location.reload();
+        const currentCount = Number(safeSessionStorage.getItem(countKey) || "0");
+        // Extra guard against loops: never attempt recovery more than twice per session.
+        if (currentCount >= 2) return;
+        safeSessionStorage.setItem(countKey, String(currentCount + 1));
+        // Prefer navigation w/ cache-buster over plain reload (Android Telegram cache).
+        navigateWithCacheBust();
       } catch {
         // Fallback
         window.location.href = window.location.href;
