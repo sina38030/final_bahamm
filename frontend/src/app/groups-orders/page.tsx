@@ -117,7 +117,14 @@ function fireToast(detail: ToastDetail) {
 }
 
 function getBackendUrl(): string {
-  return typeof window !== 'undefined' ? window.location.origin.replace(/\/$/, '') : '';
+  if (typeof window === 'undefined') return '';
+  const hostname = window.location.hostname;
+  // For localhost development, backend runs on port 8001
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:8001';
+  }
+  // For production, backend is proxied through /backend
+  return window.location.origin.replace(/\/$/, '') + '/backend';
 }
 
 // Format delivery slot strings or embedded JSON to a human-friendly Persian string
