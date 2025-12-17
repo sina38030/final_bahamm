@@ -107,7 +107,7 @@ interface ResultDataShape {
 }
 
 type ToastKind = 'success' | 'error' | 'info';
-type ToastDetail = { type?: ToastKind; message: string };
+type ToastDetail = { type?: ToastKind; message: string; durationMs?: number };
 
 function fireToast(detail: ToastDetail) {
   try {
@@ -652,11 +652,14 @@ function GroupsOrdersPageContent() {
     let timer: any = null;
     const onToast = (e: Event) => {
       try {
-        const { message, type } = (e as CustomEvent<ToastDetail>).detail || {} as any;
+        const { message, type, durationMs } = (e as CustomEvent<ToastDetail>).detail || {} as any;
         if (!message) return;
         setToast({ type: (type || 'info') as ToastKind, message });
         if (timer) clearTimeout(timer);
-        timer = setTimeout(() => setToast(null), 3000);
+        const ms = (typeof durationMs === 'number' && Number.isFinite(durationMs) && durationMs >= 0)
+          ? durationMs
+          : 3000;
+        timer = setTimeout(() => setToast(null), ms);
       } catch {}
     };
     window.addEventListener('app-toast', onToast as EventListener);
@@ -1499,7 +1502,8 @@ function FailedLeaderRefundControls({ groupId }: { groupId: number }) {
         setSubmitted(true);
         window.dispatchEvent(new CustomEvent('gb-refund-submitted', { detail: { groupId: String(groupId) } }));
       } catch {}
-      fireToast({ type: 'success', message: 'اطلاعات کارت ثبت شد. مبلغ به کارت شما واریز و نتیجه اطلاع‌رسانی خواهد شد.' });
+      // Success toast should be short and visible for ~2s so user knows card saved.
+      fireToast({ type: 'success', message: 'اطلاعات کارت با موفقیت ثبت شد', durationMs: 2000 });
     } catch {
       fireToast({ type: 'error', message: 'خطا در اتصال به سرور' });
     } finally {
@@ -2322,6 +2326,7 @@ function LazyTrackEmbed({
       }
       // Show success inside bottom sheet instead of alert
       setBankSuccess(true);
+      fireToast({ type: 'success', message: 'اطلاعات کارت با موفقیت ثبت شد', durationMs: 2000 });
     } catch {
       fireToast({ type: 'error', message: 'خطا در اتصال به سرور' });
     } finally {
