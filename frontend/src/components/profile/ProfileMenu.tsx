@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FaChevronLeft, FaComment, FaEnvelope, FaHeart, FaList, FaMapMarkerAlt, FaQuestionCircle, FaSignOutAlt, FaUsers } from 'react-icons/fa';
 import { MdReceiptLong } from 'react-icons/md';
 import CustomModal from '@/components/common/CustomModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { isTelegramMiniApp } from '@/utils/linkGenerator';
 
 type MenuItem = {
     icon: React.ReactElement;
@@ -36,8 +37,13 @@ function MenuItem({ icon, label, path, onClick }: MenuItem) {
 
 export default function ProfileMenu() {
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+    const [isTelegram, setIsTelegram] = useState(false);
     const { logout } = useAuth();
     const router = useRouter();
+
+    useEffect(() => {
+        setIsTelegram(isTelegramMiniApp());
+    }, []);
 
     const handleLogout = () => {
         console.log('Logging out user...');
@@ -52,7 +58,7 @@ export default function ProfileMenu() {
         { icon: <MdReceiptLong size={20} />, label: "تراکنش‌ها", path: "/profile/transactions" },
         // { icon: <FaMapMarkerAlt size={20} />, label: "آدرس های من", path: "/profile/addresses" },
         { icon: <FaComment size={20} />, label: "نظرات من", path: "/profile/comments" },
-        { icon: <FaSignOutAlt size={20} />, label: "خروج", path: "/profile/logout", onClick: () => setIsLogoutModalOpen(true) },
+        ...(isTelegram ? [] : [{ icon: <FaSignOutAlt size={20} />, label: "خروج", path: "/profile/logout", onClick: () => setIsLogoutModalOpen(true) }]),
     ];
 
     return (
