@@ -601,7 +601,7 @@ function InvitePageContent() {
 
   const resolvedInviteLink = useMemo(() => {
     if (!order) return '';
-    
+
     // Prefer newly created secondary group link when present
     if (createdGroup && createdGroup.shareUrl) {
       // If we have a share URL, we might want to regenerate it for current environment
@@ -609,6 +609,8 @@ function InvitePageContent() {
       if (code) return generateInviteLink(code);
       return createdGroup.shareUrl;
     }
+
+    alert(`DEBUG: Computing resolvedInviteLink - order exists: ${!!order}`);
     
     // Get invite code from various sources
     let inviteCode = '';
@@ -639,7 +641,9 @@ function InvitePageContent() {
     if (!inviteCode) return '';
     
     // Generate environment-aware link (Telegram mini app vs website)
-    return generateInviteLink(inviteCode);
+    const finalLink = generateInviteLink(inviteCode);
+    alert(`DEBUG: Final resolvedInviteLink: ${finalLink ? finalLink.substring(0, 50) + '...' : 'EMPTY'}`);
+    return finalLink;
   }, [order, createdGroup]);
 
   // Include the link inside the text too for clients that ignore the url param
@@ -712,8 +716,11 @@ function InvitePageContent() {
       
       // ALWAYS try Telegram share first if we have a resolved invite link
       if (resolvedInviteLink) {
+        alert(`DEBUG: resolvedInviteLink exists: ${resolvedInviteLink.substring(0, 50)}...`);
         openTelegramShare(resolvedInviteLink);
         return;
+      } else {
+        alert('DEBUG: No resolvedInviteLink found');
       }
 
       // If we already created a group, use its share URL
