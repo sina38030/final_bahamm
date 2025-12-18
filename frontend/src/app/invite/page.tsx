@@ -710,10 +710,18 @@ function InvitePageContent() {
     try {
       setCreateError(null);
       
-      // If we already created a group, just open share
+      // ALWAYS try Telegram share first if we have a resolved invite link
+      if (resolvedInviteLink) {
+        openTelegramShare(resolvedInviteLink);
+        return;
+      }
+
+      // If we already created a group, use its share URL
       if (createdGroup && createdGroup.shareUrl) {
-        if (resolvedInviteLink) {
-          openTelegramShare(resolvedInviteLink);
+        const code = extractInviteCode(createdGroup.shareUrl);
+        const linkForShare = code ? generateInviteLink(code) : createdGroup.shareUrl;
+        if (linkForShare) {
+          openTelegramShare(linkForShare);
           return;
         }
         // Fallback
