@@ -756,13 +756,18 @@ function InvitePageContent() {
   };
 
   const ensureSecondaryGroupThenShare = async () => {
+    // DEBUG: Show what isTelegramMiniApp returns
+    const tg = (window as any)?.Telegram?.WebApp;
+    const isTgApp = isTelegramMiniApp();
+    alert(`DEBUG ensureSecondaryGroupThenShare:\nisTelegramMiniApp: ${isTgApp}\nTelegram obj: ${tg ? 'EXISTS' : 'NULL'}\ninitData: ${tg?.initData ? 'YES' : 'NO'}\nplatform: ${tg?.platform || 'unknown'}`);
+    
     try {
       setCreateError(null);
       
       // If we already created a group, just open share
       if (createdGroup && createdGroup.shareUrl) {
         // In Telegram Mini App, open Telegram-native share (no bottom sheet).
-        if (isTelegramMiniApp() && resolvedInviteLink) {
+        if (isTgApp && resolvedInviteLink) {
           openTelegramNativeShare(resolvedInviteLink);
           return;
         }
