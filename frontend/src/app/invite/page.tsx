@@ -747,16 +747,49 @@ function InvitePageContent() {
 
   const openTelegramNativeShare = (landingUrl: string) => {
     try {
+      console.log('[Telegram Share] Starting with URL:', landingUrl);
       const shareMessage = 'بیا با هم سبد رو بخریم تا رایگان بگیریم!';
       const fullMessage = `${shareMessage}\n${landingUrl}`;
       
-      // Use tg:// deep link - this is the most reliable way to open share in Telegram
-      const deepLink = `tg://msg_url?url=${encodeURIComponent(landingUrl)}&text=${encodeURIComponent(shareMessage)}`;
+      // Check if we're in Telegram Mini App and use Web App API
+      if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
+        const tg = (window as any).Telegram.WebApp;
+        console.log('[Telegram Share] WebApp available:', {
+          hasShareMessage: !!tg.shareMessage,
+          hasOpenTelegramLink: !!tg.openTelegramLink,
+          hasOpenLink: !!tg.openLink
+        });
+        
+        // Use Telegram Web App shareMessage method (newer API, iOS 7.0+)
+        if (tg.shareMessage) {
+          console.log('[Telegram Share] Using shareMessage');
+          tg.shareMessage(fullMessage);
+          return;
+        }
+        
+        // Fallback: Use openTelegramLink
+        if (tg.openTelegramLink) {
+          const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(landingUrl)}&text=${encodeURIComponent(shareMessage)}`;
+          console.log('[Telegram Share] Using openTelegramLink:', telegramShareUrl);
+          tg.openTelegramLink(telegramShareUrl);
+          return;
+        }
+        
+        // Last fallback: Use openLink
+        if (tg.openLink) {
+          const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(landingUrl)}&text=${encodeURIComponent(shareMessage)}`;
+          console.log('[Telegram Share] Using openLink:', telegramShareUrl);
+          tg.openLink(telegramShareUrl);
+          return;
+        }
+      }
       
-      // Try opening the deep link directly
+      // Fallback for non-Mini App: Use tg:// deep link
+      console.log('[Telegram Share] Using fallback deep link');
+      const deepLink = `tg://msg_url?url=${encodeURIComponent(landingUrl)}&text=${encodeURIComponent(shareMessage)}`;
       window.location.href = deepLink;
     } catch (e) {
-      console.error('Share failed:', e);
+      console.error('[Telegram Share] Error:', e);
       // Fallback to showing the bottom sheet
       setShareSheetOpen(true);
     }
@@ -767,7 +800,10 @@ function InvitePageContent() {
       setCreateError(null);
 
       // FIRST: Check if user is in Telegram Mini App - if so, always use native share directly
-      if (isTelegramMiniApp()) {
+      const isInTelegram = isTelegramMiniApp();
+      console.log('[Invite] isTelegramMiniApp:', isInTelegram);
+      
+      if (isInTelegram) {
         let linkToShare = resolvedInviteLink;
 
         // If we don't have a link yet or need to create secondary group, do it first
