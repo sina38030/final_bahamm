@@ -8,6 +8,9 @@ import './invite.css';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateInviteLink, generateShareUrl, extractInviteCode, isTelegramMiniApp } from '@/utils/linkGenerator';
 import { API_BASE_URL } from '@/utils/api';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTelegram, faWhatsapp, faInstagram } from '@fortawesome/free-brands-svg-icons';
+import { faCommentSms, faLink, faCheck, faShareNodes } from '@fortawesome/free-solid-svg-icons';
 
 interface Product {
   id: number;
@@ -54,6 +57,7 @@ function InvitePageContent() {
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showCopyToast, setShowCopyToast] = useState(false);
   const [expiresAtISO, setExpiresAtISO] = useState<string | null>(null);
   const [expiryMs, setExpiryMs] = useState<number | null>(null);
   const [inviteDisabled, setInviteDisabled] = useState(false);
@@ -726,9 +730,12 @@ function InvitePageContent() {
         document.body.removeChild(ta);
       }
       setCopied(true);
+      setShowCopyToast(true);
       setTimeout(() => setCopied(false), 1500);
+      setTimeout(() => setShowCopyToast(false), 2000);
     } catch (_) {
       setCopied(false);
+      setShowCopyToast(false);
     }
   };
 
@@ -759,46 +766,66 @@ function InvitePageContent() {
     try {
       setCreateError(null);
 
-      // FIRST: Check if user is in Telegram Mini App - if so, always use native share
+      // FIRST: Check if user is in Telegram Mini App - if so, always use native share directly
       if (isTelegramMiniApp()) {
         let linkToShare = resolvedInviteLink;
 
         // If we don't have a link yet or need to create secondary group, do it first
         if (!linkToShare || (!createdGroup?.shareUrl && order)) {
           // Create secondary group if needed
-          if (!order) { setShareSheetOpen(true); return; }
+          if (!order) { 
+            // No order, but we have a link - share it anyway
+            if (resolvedInviteLink) {
+              openTelegramNativeShare(resolvedInviteLink);
+              return;
+            }
+            // No link at all - fallback to sheet
+            setShareSheetOpen(true); 
+            return; 
+          }
           if (creating) return;
           setCreating(true);
-          const paidAtStr = (order as any)?.paidAt || (order as any)?.payment_ref_id ? (order as any)?.paidAt : '';
-          const createdAtStr = (order as any)?.created_at || (order as any)?.createdAt || '';
-          const base = paidAtStr ? new Date(paidAtStr) : (createdAtStr ? new Date(createdAtStr) : new Date());
-          const expiryTime = new Date(base.getTime() + 24 * 60 * 60 * 1000);
-          const payload = {
-            kind: 'secondary' as const,
-            source_group_id: undefined,
-            source_order_id: order.id,
-            expires_at: expiryTime.toISOString(),
-          };
-          // Include auth header if available (idempotent on backend)
-          const headers = withIdempotency(token ? { 'Authorization': `Bearer ${token}` } as HeadersInit : {});
-          const g = await groupApi.createSecondaryGroup(payload, headers);
-          setCreatedGroup(g);
-          // Get the link for sharing
-          linkToShare = (() => {
-            try {
-              const code = extractInviteCode(g.shareUrl || '');
-              if (code) return generateInviteLink(code);
-              return g.shareUrl || resolvedInviteLink || '';
-            } catch {
-              return g.shareUrl || resolvedInviteLink || '';
-            }
-          })();
-          setCreating(false);
+          try {
+            const paidAtStr = (order as any)?.paidAt || (order as any)?.payment_ref_id ? (order as any)?.paidAt : '';
+            const createdAtStr = (order as any)?.created_at || (order as any)?.createdAt || '';
+            const base = paidAtStr ? new Date(paidAtStr) : (createdAtStr ? new Date(createdAtStr) : new Date());
+            const expiryTime = new Date(base.getTime() + 24 * 60 * 60 * 1000);
+            const payload = {
+              kind: 'secondary' as const,
+              source_group_id: undefined,
+              source_order_id: order.id,
+              expires_at: expiryTime.toISOString(),
+            };
+            // Include auth header if available (idempotent on backend)
+            const headers = withIdempotency(token ? { 'Authorization': `Bearer ${token}` } as HeadersInit : {});
+            const g = await groupApi.createSecondaryGroup(payload, headers);
+            setCreatedGroup(g);
+            // Get the link for sharing
+            linkToShare = (() => {
+              try {
+                const code = extractInviteCode(g.shareUrl || '');
+                if (code) return generateInviteLink(code);
+                return g.shareUrl || resolvedInviteLink || '';
+              } catch {
+                return g.shareUrl || resolvedInviteLink || '';
+              }
+            })();
+          } catch (createErr) {
+            // If group creation fails, use existing link if available
+            console.warn('Failed to create secondary group:', createErr);
+            linkToShare = resolvedInviteLink;
+          } finally {
+            setCreating(false);
+          }
         }
 
-        // Open Telegram native share dialog
+        // Open Telegram native share dialog directly
         if (linkToShare) {
           openTelegramNativeShare(linkToShare);
+          return;
+        } else {
+          // No link available - fallback to sheet
+          setShareSheetOpen(true);
           return;
         }
       }
@@ -909,6 +936,15 @@ function InvitePageContent() {
         </div>
       )}
 
+      {/* Copy toast notification */}
+      {showCopyToast && (
+        <div className="copy-toast" role="status" aria-live="polite">
+          <div className="copy-toast-content">
+            ✅ لینک کپی شد
+          </div>
+        </div>
+      )}
+
       <div
         className={`invite-page ${(basketSheetOpen || shareSheetOpen) ? 'sheet-open' : ''}`}
         onClick={(e) => {
@@ -986,24 +1022,41 @@ function InvitePageContent() {
           </div>
           {progressReady && requiredMembers !== null && nonLeaderPaid !== null ? (
             <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#6b7280', marginBottom: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#6b7280', marginTop: '1.25rem', marginBottom: '0.5rem' }}>
                 <span>{toFa(Math.max(0, requiredMembers - nonLeaderPaid).toLocaleString())} دوست دیگر تا تکمیل</span>
               </div>
-              <div style={{ height: '8px', background: '#e5e7eb', borderRadius: '6px', overflow: 'hidden' }}>
+              <div style={{ height: '8px', background: '#e5e7eb', borderRadius: '6px', overflow: 'hidden', marginBottom: '1.25rem' }}>
                 <div style={{ height: '8px', width: `${Math.min(100, (nonLeaderPaid / requiredMembers) * 100)}%`, background: 'var(--pink)', borderRadius: '6px', transition: 'width .3s' }} />
               </div>
             </>
           ) : null}
  
-          <button
-            className={`invite-btn${(creating || inviteDisabled) ? ' disabled' : ''}`}
-            onClick={ensureSecondaryGroupThenShare}
-            disabled={creating || inviteDisabled}
-            aria-disabled={creating || inviteDisabled}
-            title={'اشتراک‌گذاری لینک دعوت'}
-          >
-             {creating ? 'در حال آماده‌سازی...' : 'دعوت دوستان'}
-           </button>
+          <div className="invite-actions">
+            <button
+              className={`invite-btn${(creating || inviteDisabled) ? ' disabled' : ''}`}
+              onClick={ensureSecondaryGroupThenShare}
+              disabled={creating || inviteDisabled}
+              aria-disabled={creating || inviteDisabled}
+              title={'اشتراک‌گذاری لینک دعوت'}
+            >
+              {creating ? (
+                'در حال آماده‌سازی...'
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={faShareNodes} style={{ marginLeft: '8px' }} />
+                  دعوت دوستان
+                </>
+              )}
+            </button>
+            
+            <button
+              className={`copy-icon-btn ${copied ? 'copied' : ''}`}
+              onClick={copyInviteLink}
+              title={copied ? 'کپی شد!' : 'کپی لینک'}
+            >
+              <FontAwesomeIcon icon={copied ? faCheck : faLink} />
+            </button>
+          </div>
          </section>
 
         {/* Description Card */}
@@ -1075,42 +1128,37 @@ function InvitePageContent() {
         onClick={(e) => e.target === e.currentTarget && closeSheets()}
       >
         <header>
+          <div className="sheet-handle" />
+          <button className="close" onClick={closeSheets}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
           <h4>دعوت دوستان</h4>
-          <button className="close" onClick={closeSheets}>&times;</button>
         </header>
 
-        <div className="share-description">
-          <p>لینک دعوت خود را از طریق روش‌های زیر به اشتراک بگذارید</p>
-        </div>
-
         <div className="share-apps">
-          {/* SMS with Lion Icon */}
+          {/* Telegram */}
           <a
-            href={`sms:?body=${encodedMsg}%20${encodedLanding}`}
-            onClick={() => { try { setShareSheetOpen(false); } catch {} }}
-          >
-            <div className="lion-icon">🦁</div>
-            <span>SMS</span>
-          </a>
-
-          {/* Telegram: Use tg://msg_url deep link for native share dialog */}
-          <a
+            className="telegram"
             href="#"
             onClick={(e) => {
               e.preventDefault();
               try { setShareSheetOpen(false); } catch {}
-
-              // Use tg://msg_url which opens Telegram's native share dialog
               const deepLink = `tg://msg_url?url=${encodedLanding}&text=${encodedMsg}`;
               window.location.href = deepLink;
             }}
           >
-            <i className="fa-brands fa-telegram"></i>
+            <div className="icon-wrapper">
+              <FontAwesomeIcon icon={faTelegram} />
+            </div>
             <span>تلگرام</span>
           </a>
 
-          {/* WhatsApp: try app deep link, then fallback to wa.me */}
+          {/* WhatsApp */}
           <a
+            className="whatsapp"
             href={`https://wa.me/?text=${encodedMsg}%20${encodedLanding}`}
             target="_blank"
             rel="noopener noreferrer"
@@ -1126,30 +1174,44 @@ function InvitePageContent() {
               }, 400);
             }}
           >
-            <i className="fa-brands fa-whatsapp"></i>
+            <div className="icon-wrapper">
+              <FontAwesomeIcon icon={faWhatsapp} />
+            </div>
             <span>واتساپ</span>
           </a>
 
-          {/* Instagram: web fallback (app deep links are limited) */}
+          {/* Instagram */}
           <a
+            className="instagram"
             href={`https://www.instagram.com/?url=${encodedLanding}`}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => { try { setShareSheetOpen(false); } catch {} }}
           >
-            <i className="fa-brands fa-instagram"></i>
+            <div className="icon-wrapper">
+              <FontAwesomeIcon icon={faInstagram} />
+            </div>
             <span>اینستاگرام</span>
+          </a>
+
+          {/* SMS */}
+          <a
+            className="sms"
+            href={`sms:?body=${encodedMsg}%20${encodedLanding}`}
+            onClick={() => { try { setShareSheetOpen(false); } catch {} }}
+          >
+            <div className="icon-wrapper">
+              <FontAwesomeIcon icon={faCommentSms} />
+            </div>
+            <span>پیامک</span>
           </a>
         </div>
 
         <div className="share-footer">
-          <button className="copy-link-btn" onClick={copyInviteLink}>
-            {copied ? '✅ کپی شد' : '📋 کپی لینک دعوت'}
-          </button>
         </div>
       </aside>
 
-      {/* Minimal styles for success banner */}
+      {/* Minimal styles for success banner and copy toast */}
       <style jsx>{`
         .success-banner { position: fixed; bottom: 80px; right: 10px; left: 10px; z-index: 1000; }
         .success-content { background: #e6f7ec; border: 1px solid #95d5a0; color: #14532d; border-radius: 12px; padding: 12px 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.06); position: relative; }
@@ -1157,6 +1219,15 @@ function InvitePageContent() {
         .success-details { display: grid; grid-template-columns: 1fr; gap: 2px; font-size: 0.9rem; }
         .success-details span { color: #3f8360; margin-left: 6px; }
         @media (min-width: 480px){ .success-banner { left: auto; width: 420px; } }
+        
+        .copy-toast { position: fixed; top: 20%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; animation: fadeInOutToast 2s ease-in-out; }
+        .copy-toast-content { background: rgba(16, 185, 129, 0.95); color: white; padding: 0.5rem 1.2rem; border-radius: 24px; box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3); font-size: 0.85rem; font-weight: 600; text-align: center; backdrop-filter: blur(10px); }
+        @keyframes fadeInOutToast {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+          10% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          90% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+        }
       `}</style>
     </>
   );
