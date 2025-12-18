@@ -749,48 +749,44 @@ function InvitePageContent() {
     try {
       console.log('[Telegram Share] Starting with URL:', landingUrl);
       const shareMessage = 'بیا با هم سبد رو بخریم تا رایگان بگیریم!';
-      const fullMessage = `${shareMessage}\n${landingUrl}`;
       
-      // Check if we're in Telegram Mini App and use Web App API
-      if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
-        const tg = (window as any).Telegram.WebApp;
-        console.log('[Telegram Share] WebApp available:', {
-          hasShareMessage: !!tg.shareMessage,
-          hasOpenTelegramLink: !!tg.openTelegramLink,
-          hasOpenLink: !!tg.openLink
+      // Generate Telegram share URL
+      const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(landingUrl)}&text=${encodeURIComponent(shareMessage)}`;
+      console.log('[Telegram Share] Share URL:', telegramShareUrl);
+      
+      // Check if we're in Telegram Mini App
+      const tg = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null;
+      
+      if (tg) {
+        console.log('[Telegram Share] WebApp detected, platform:', tg.platform);
+        console.log('[Telegram Share] Methods available:', {
+          openTelegramLink: typeof tg.openTelegramLink,
+          openLink: typeof tg.openLink,
+          close: typeof tg.close
         });
         
-        // Use Telegram Web App shareMessage method (newer API, iOS 7.0+)
-        if (tg.shareMessage) {
-          console.log('[Telegram Share] Using shareMessage');
-          tg.shareMessage(fullMessage);
-          return;
-        }
-        
-        // Fallback: Use openTelegramLink
-        if (tg.openTelegramLink) {
-          const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(landingUrl)}&text=${encodeURIComponent(shareMessage)}`;
-          console.log('[Telegram Share] Using openTelegramLink:', telegramShareUrl);
+        // Method 1: Use openTelegramLink (most reliable for t.me links)
+        if (typeof tg.openTelegramLink === 'function') {
+          console.log('[Telegram Share] Using openTelegramLink');
           tg.openTelegramLink(telegramShareUrl);
           return;
         }
         
-        // Last fallback: Use openLink
-        if (tg.openLink) {
-          const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(landingUrl)}&text=${encodeURIComponent(shareMessage)}`;
-          console.log('[Telegram Share] Using openLink:', telegramShareUrl);
-          tg.openLink(telegramShareUrl);
+        // Method 2: Use openLink with try_instant_view for internal links
+        if (typeof tg.openLink === 'function') {
+          console.log('[Telegram Share] Using openLink');
+          tg.openLink(telegramShareUrl, { try_instant_view: false });
           return;
         }
       }
       
-      // Fallback for non-Mini App: Use tg:// deep link
-      console.log('[Telegram Share] Using fallback deep link');
-      const deepLink = `tg://msg_url?url=${encodeURIComponent(landingUrl)}&text=${encodeURIComponent(shareMessage)}`;
-      window.location.href = deepLink;
+      // Fallback: Direct navigation (works in both Mini App and browser)
+      console.log('[Telegram Share] Using direct navigation');
+      window.location.href = telegramShareUrl;
+      
     } catch (e) {
       console.error('[Telegram Share] Error:', e);
-      // Fallback to showing the bottom sheet
+      // Last resort: show bottom sheet
       setShareSheetOpen(true);
     }
   };
