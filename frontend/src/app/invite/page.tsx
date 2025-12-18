@@ -596,71 +596,6 @@ function InvitePageContent() {
   // (toggle UI removed)
  
 
-  // Share functions
-  const handleShare = (app: string) => {
-    if (!order || inviteDisabled) return;
-
-    const landingUrl = resolvedInviteLink;
-    if (!landingUrl) return;
-
-    // Close sheet before navigating to avoid popup blockers on some browsers
-    try { setShareSheetOpen(false); } catch {}
-
-    // Use Web Share API when available (better on mobile)
-    if (typeof navigator !== 'undefined' && (navigator as any).share) {
-      (navigator as any)
-        .share({
-          title: 'خرید گروهی با هم',
-          text: 'بیا با هم سبد رو بخریم تا رایگان بگیریم!',
-          url: landingUrl,
-        })
-        .catch(() => {});
-      return;
-    }
-
-    const shareMessage = 'بیا با هم سبد رو بخریم تا رایگان بگیریم!';
-    const inviteURL = encodeURIComponent(landingUrl);
-    const inviteMsg = encodeURIComponent(shareMessage);
-
-    let url = '#';
-    switch (app) {
-      case 'telegram':
-        // Generate share URL using utility
-        url = generateShareUrl('telegram', landingUrl, shareMessage);
-        // Try opening Telegram app first, then fallback to web
-        try {
-          const tgApp = `tg://msg_url?url=${inviteURL}&text=${inviteMsg}`;
-          const winApp = window.open(tgApp, '_blank', 'noopener,noreferrer');
-          setTimeout(() => {
-            const winWeb = window.open(url, '_blank', 'noopener,noreferrer');
-            if (!winWeb) window.location.href = url;
-          }, 300);
-          if (!winApp) {
-            const winWeb = window.open(url, '_blank', 'noopener,noreferrer');
-            if (!winWeb) window.location.href = url;
-          }
-        } catch {
-          const winWeb = window.open(url, '_blank', 'noopener,noreferrer');
-          if (!winWeb) window.location.href = url;
-        }
-        return;
-      case 'whatsapp':
-        url = generateShareUrl('whatsapp', landingUrl, shareMessage);
-        break;
-      case 'instagram':
-        url = generateShareUrl('instagram', landingUrl);
-        break;
-    }
-    try {
-      const newWin = window.open(url, '_blank', 'noopener,noreferrer');
-      if (!newWin) {
-        window.location.href = url;
-      }
-    } catch (_) {
-      window.location.href = url;
-    }
-  };
-
   // Precompute share URLs for direct-anchor approach
   const shareMsg = 'بیا با هم سبد رو بخریم تا رایگان بگیریم!';
 
@@ -712,6 +647,39 @@ function InvitePageContent() {
   const shareText = `${shareMsg} ${resolvedInviteLink || ''}`.trim();
   const encodedLanding = encodeURIComponent(resolvedInviteLink || '');
 
+  const openTelegramShare = (landingUrl: string) => {
+    if (!landingUrl) return;
+
+    const tg = (window as any)?.Telegram?.WebApp;
+    const webShareUrl = generateShareUrl('telegram', landingUrl, shareMsg);
+
+    // Telegram Mini App: use WebApp API when available (most Telegram-native behavior)
+    if (isTelegramMiniApp() && tg && typeof tg.openTelegramLink === 'function') {
+      try {
+        tg.openTelegramLink(webShareUrl);
+        return;
+      } catch {}
+    }
+
+    // Website / non-Telegram: use tg:// deep link (native share), then fallback to web share URL
+    const text = `${shareMsg} ${landingUrl}`.trim();
+    const deepLink = `tg://msg_url?url=${encodeURIComponent(landingUrl)}&text=${encodeURIComponent(text)}`;
+    try {
+      (window as any).location.href = deepLink;
+    } catch {}
+
+    // Fallback after a short delay (if Telegram isn't installed, user stays on page)
+    setTimeout(() => {
+      try {
+        if (document.visibilityState === 'visible') {
+          (window as any).location.href = webShareUrl;
+        }
+      } catch {
+        try { (window as any).location.href = webShareUrl; } catch {}
+      }
+    }, 700);
+  };
+
   const copyInviteLink = async () => {
     try {
       if (!resolvedInviteLink) return;
@@ -738,39 +706,17 @@ function InvitePageContent() {
     setShareSheetOpen(false);
   };
 
-  const openTelegramNativeShare = (landingUrl: string) => {
-    const shareMessage = 'بیا با هم سبد رو بخریم تا رایگان بگیریم!';
-    const tg = (window as any)?.Telegram?.WebApp;
-    
-    // DEBUG: Show alert to verify this function is called
-    alert(`DEBUG:\nisTelegramMiniApp: ${isTelegramMiniApp()}\nTelegram WebApp: ${tg ? 'YES' : 'NO'}\nLink: ${landingUrl.substring(0, 50)}...`);
-    
-    if (tg && typeof tg.openTelegramLink === 'function') {
-      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(landingUrl)}&text=${encodeURIComponent(shareMessage)}`;
-      alert(`Calling openTelegramLink with: ${shareUrl.substring(0, 80)}...`);
-      tg.openTelegramLink(shareUrl);
-    } else {
-      alert('Telegram WebApp not available, opening bottom sheet');
-      setShareSheetOpen(true);
-    }
-  };
-
   const ensureSecondaryGroupThenShare = async () => {
-    // DEBUG: Show what isTelegramMiniApp returns
-    const tg = (window as any)?.Telegram?.WebApp;
-    const isTgApp = isTelegramMiniApp();
-    alert(`DEBUG ensureSecondaryGroupThenShare:\nisTelegramMiniApp: ${isTgApp}\nTelegram obj: ${tg ? 'EXISTS' : 'NULL'}\ninitData: ${tg?.initData ? 'YES' : 'NO'}\nplatform: ${tg?.platform || 'unknown'}`);
-    
     try {
       setCreateError(null);
       
       // If we already created a group, just open share
       if (createdGroup && createdGroup.shareUrl) {
-        // In Telegram Mini App, open Telegram-native share (no bottom sheet).
-        if (isTgApp && resolvedInviteLink) {
-          openTelegramNativeShare(resolvedInviteLink);
+        if (resolvedInviteLink) {
+          openTelegramShare(resolvedInviteLink);
           return;
         }
+        // Fallback
         setShareSheetOpen(true);
         return;
       }
@@ -803,13 +749,13 @@ function InvitePageContent() {
         }
       })();
 
-      // In Telegram Mini App, open Telegram-native share (Telegram-only) and skip bottom sheet.
-      if (isTelegramMiniApp() && resolvedLinkForShare) {
-        openTelegramNativeShare(resolvedLinkForShare);
+      if (resolvedLinkForShare) {
+        // Always prefer Telegram share on main CTA (matches requested behavior)
+        openTelegramShare(resolvedLinkForShare);
         return;
       }
 
-      // Website / non-Telegram: open share sheet with options
+      // Fallback: open share sheet with copy/open options
       setShareSheetOpen(true);
       return;
     } catch (e: any) {
@@ -818,8 +764,8 @@ function InvitePageContent() {
       // Do not show raw error to user
       // If unauthenticated, at least open existing share so user can proceed
       try {
-        if (isTelegramMiniApp() && resolvedInviteLink) {
-          openTelegramNativeShare(resolvedInviteLink);
+        if (resolvedInviteLink) {
+          openTelegramShare(resolvedInviteLink);
         } else {
           setShareSheetOpen(true);
         }
