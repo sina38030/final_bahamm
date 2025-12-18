@@ -321,13 +321,14 @@ input[type="range"]:active::-moz-range-thumb::after {
   position: fixed;
   inset-inline: 0;
   bottom: -100%;
-  background: #fff;
-  border-radius: 16px 16px 0 0;
-  box-shadow: 0 -3px 18px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.15), 0 -2px 8px rgba(0, 0, 0, 0.1);
   max-height: 85vh;
   overflow-y: auto;
-  transition: bottom 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: bottom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   z-index: 50;
+  backdrop-filter: blur(20px);
 }
 
 .sheet.open {
@@ -338,19 +339,50 @@ input[type="range"]:active::-moz-range-thumb::after {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 0.9rem;
+  padding: 1.5rem 1.5rem 1rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  background: linear-gradient(135deg, rgba(229, 0, 106, 0.02), rgba(229, 0, 106, 0.01));
+  border-radius: 24px 24px 0 0;
+  position: relative;
+}
+
+.sheet header::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
 }
 
 .sheet header h4 {
-  font-size: 0.97rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
 }
 
 .sheet header button {
-  background: none;
+  background: rgba(0, 0, 0, 0.05);
   border: none;
-  font-size: 1.6rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1.4rem;
   color: var(--text-light);
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.sheet header button:hover {
+  background: rgba(0, 0, 0, 0.1);
+  transform: scale(1.05);
 }
 
 /* Basket Items */
@@ -408,30 +440,99 @@ input[type="range"]:active::-moz-range-thumb::after {
   font-size: 0.9rem;
 }
 
-/* Share Apps */
-.share-apps {
-  display: flex;
-  justify-content: space-around;
-  padding: 1rem 1rem 2rem;
+/* Share Description */
+.share-description {
+  padding: 0 1.5rem 1rem;
+  text-align: center;
 }
 
-.share-apps button {
+.share-description p {
+  color: var(--text-light);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Share Apps */
+.share-apps {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+  padding: 1.5rem;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+.share-apps a {
   background: none;
   border: none;
   display: flex;
   flex-direction: column;
   align-items: center;
   cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s ease;
+  padding: 1rem;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(229, 0, 106, 0.05), rgba(229, 0, 106, 0.02));
+  border: 1px solid rgba(229, 0, 106, 0.1);
+}
+
+.share-apps a:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(229, 0, 106, 0.15);
 }
 
 .share-apps i {
-  font-size: 2.2rem;
+  font-size: 2.4rem;
   color: var(--pink);
+  margin-bottom: 0.5rem;
+}
+
+.lion-icon {
+  font-size: 2.4rem;
+  margin-bottom: 0.5rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
 .share-apps span {
-  margin-top: 0.2rem;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Share Footer */
+.share-footer {
+  padding: 1.5rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  margin-top: 1rem;
+}
+
+.copy-link-btn {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid var(--pink);
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--pink), #d1005a);
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.copy-link-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(229, 0, 106, 0.3);
+}
+
+.copy-link-btn:active {
+  transform: translateY(0);
 }
 
 /* Prevent scrolling behind sheet */

@@ -1046,7 +1046,7 @@ function InvitePageContent() {
       </aside>
 
       {/* Share Sheet */}
-      <aside 
+      <aside
         className={`sheet ${shareSheetOpen ? 'open' : ''}`}
         onClick={(e) => e.target === e.currentTarget && closeSheets()}
       >
@@ -1054,39 +1054,28 @@ function InvitePageContent() {
           <h4>دعوت دوستان</h4>
           <button className="close" onClick={closeSheets}>&times;</button>
         </header>
-        {/* Always show the raw invite link with copy + open options */}
-        <div className="share-direct">
-          <label>لینک دعوت</label>
-          <div className="copy-row">
-            <input
-              type="text"
-              readOnly
-              value={resolvedInviteLink || ''}
-              onFocus={(e) => (e.currentTarget as HTMLInputElement).select()}
-            />
-            <button onClick={copyInviteLink}>کپی</button>
-          </div>
-          {resolvedInviteLink && (
-            <a
-              className="open-link"
-              href={resolvedInviteLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setShareSheetOpen(false)}
-            >
-              باز کردن لینک دعوت
-            </a>
-          )}
-          {copied && <small className="copied-hint">لینک کپی شد ✅</small>}
+
+        <div className="share-description">
+          <p>لینک دعوت خود را از طریق روش‌های زیر به اشتراک بگذارید</p>
         </div>
+
         <div className="share-apps">
+          {/* SMS with Lion Icon */}
+          <a
+            href={`sms:?body=${encodedMsg}%20${encodedLanding}`}
+            onClick={() => { try { setShareSheetOpen(false); } catch {} }}
+          >
+            <div className="lion-icon">🦁</div>
+            <span>SMS</span>
+          </a>
+
           {/* Telegram: Use tg://msg_url deep link for native share dialog */}
           <a
             href="#"
             onClick={(e) => {
               e.preventDefault();
               try { setShareSheetOpen(false); } catch {}
-              
+
               // Use tg://msg_url which opens Telegram's native share dialog
               const deepLink = `tg://msg_url?url=${encodedLanding}&text=${encodedMsg}`;
               window.location.href = deepLink;
@@ -1095,6 +1084,7 @@ function InvitePageContent() {
             <i className="fa-brands fa-telegram"></i>
             <span>تلگرام</span>
           </a>
+
           {/* WhatsApp: try app deep link, then fallback to wa.me */}
           <a
             href={`https://wa.me/?text=${encodedMsg}%20${encodedLanding}`}
@@ -1115,6 +1105,7 @@ function InvitePageContent() {
             <i className="fa-brands fa-whatsapp"></i>
             <span>واتساپ</span>
           </a>
+
           {/* Instagram: web fallback (app deep links are limited) */}
           <a
             href={`https://www.instagram.com/?url=${encodedLanding}`}
@@ -1125,6 +1116,12 @@ function InvitePageContent() {
             <i className="fa-brands fa-instagram"></i>
             <span>اینستاگرام</span>
           </a>
+        </div>
+
+        <div className="share-footer">
+          <button className="copy-link-btn" onClick={copyInviteLink}>
+            {copied ? '✅ کپی شد' : '📋 کپی لینک دعوت'}
+          </button>
         </div>
       </aside>
 
