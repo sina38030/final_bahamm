@@ -758,18 +758,58 @@ function InvitePageContent() {
   const ensureSecondaryGroupThenShare = async () => {
     try {
       setCreateError(null);
-      
-      // If we already created a group, just open share
-      if (createdGroup && createdGroup.shareUrl) {
-        // In Telegram Mini App, open Telegram-native share (no bottom sheet).
-        if (isTelegramMiniApp() && resolvedInviteLink) {
-          openTelegramNativeShare(resolvedInviteLink);
+
+      // FIRST: Check if user is in Telegram Mini App - if so, always use native share
+      if (isTelegramMiniApp()) {
+        let linkToShare = resolvedInviteLink;
+
+        // If we don't have a link yet or need to create secondary group, do it first
+        if (!linkToShare || (!createdGroup?.shareUrl && order)) {
+          // Create secondary group if needed
+          if (!order) { setShareSheetOpen(true); return; }
+          if (creating) return;
+          setCreating(true);
+          const paidAtStr = (order as any)?.paidAt || (order as any)?.payment_ref_id ? (order as any)?.paidAt : '';
+          const createdAtStr = (order as any)?.created_at || (order as any)?.createdAt || '';
+          const base = paidAtStr ? new Date(paidAtStr) : (createdAtStr ? new Date(createdAtStr) : new Date());
+          const expiryTime = new Date(base.getTime() + 24 * 60 * 60 * 1000);
+          const payload = {
+            kind: 'secondary' as const,
+            source_group_id: undefined,
+            source_order_id: order.id,
+            expires_at: expiryTime.toISOString(),
+          };
+          // Include auth header if available (idempotent on backend)
+          const headers = withIdempotency(token ? { 'Authorization': `Bearer ${token}` } as HeadersInit : {});
+          const g = await groupApi.createSecondaryGroup(payload, headers);
+          setCreatedGroup(g);
+          // Get the link for sharing
+          linkToShare = (() => {
+            try {
+              const code = extractInviteCode(g.shareUrl || '');
+              if (code) return generateInviteLink(code);
+              return g.shareUrl || resolvedInviteLink || '';
+            } catch {
+              return g.shareUrl || resolvedInviteLink || '';
+            }
+          })();
+          setCreating(false);
+        }
+
+        // Open Telegram native share dialog
+        if (linkToShare) {
+          openTelegramNativeShare(linkToShare);
           return;
         }
+      }
+
+      // SECOND: For non-Telegram users, check if we already have a created group
+      if (createdGroup && createdGroup.shareUrl) {
         setShareSheetOpen(true);
         return;
       }
-      // Always create (or reuse) a secondary group for invited user's share
+
+      // THIRD: Create secondary group for website users
       if (!order) { setShareSheetOpen(true); return; }
       if (creating) return;
       setCreating(true);
@@ -787,22 +827,6 @@ function InvitePageContent() {
       const headers = withIdempotency(token ? { 'Authorization': `Bearer ${token}` } as HeadersInit : {});
       const g = await groupApi.createSecondaryGroup(payload, headers);
       setCreatedGroup(g);
-      // Resolve environment-aware invite link immediately (avoid waiting for state updates).
-      const resolvedLinkForShare = (() => {
-        try {
-          const code = extractInviteCode(g.shareUrl || '');
-          if (code) return generateInviteLink(code);
-          return g.shareUrl || resolvedInviteLink || '';
-        } catch {
-          return g.shareUrl || resolvedInviteLink || '';
-        }
-      })();
-
-      // In Telegram Mini App, open Telegram-native share (Telegram-only) and skip bottom sheet.
-      if (isTelegramMiniApp() && resolvedLinkForShare) {
-        openTelegramNativeShare(resolvedLinkForShare);
-        return;
-      }
 
       // Website / non-Telegram: open share sheet with options
       setShareSheetOpen(true);
