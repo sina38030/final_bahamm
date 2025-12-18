@@ -19,10 +19,12 @@ export const metadata: Metadata = {
   title: 'فروشگاه باهم',
 };
 
-export const viewport = {
-  width: 'device-width',
-  initialScale: 1,
-};
+export function generateViewport() {
+  return {
+    width: 'device-width',
+    initialScale: 1,
+  };
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
