@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, timedelta
 import logging
 
-# Tehran timezone: UTC+3:30
+# Tehran timezone: UTC+3:30 (Tehran Standard Time - IRST)
 TEHRAN_TZ = timezone(timedelta(hours=3, minutes=30))
 import json
 
@@ -49,16 +49,20 @@ def _serialize_group(g: GroupOrder, db: Session) -> Dict[str, Any]:
         user_info = db.query(User).filter(User.id == o.user_id).first() if o.user_id else None
         telegram_username = getattr(user_info, 'telegram_username', None) if user_info else None
         telegram_id = getattr(user_info, 'telegram_id', None) if user_info else None
+        # Determine if participant has paid (by payment evidence: payment_ref_id or paid_at)
+        has_payment_evidence = bool(o.payment_ref_id is not None or o.paid_at is not None)
         participants.append({
             "userId": o.user_id,
             "isLeader": (o.user_id == g.leader_id),
-            "is_leader": (o.user_id == g.leader_id),  # Alternative field name
+            "is_leader": (o.user_id == g.leader_id),  # Alternative field name for compatibility
             "phone": user_info.phone_number if user_info else None,
             "phone_number": user_info.phone_number if user_info else None,  # Alternative field name
             "telegram_username": telegram_username,
             "telegramUsername": telegram_username,
             "telegram_id": telegram_id,
             "telegramId": telegram_id,
+            "paid": has_payment_evidence,  # True if participant has paid
+            "hasUser": bool(o.user_id),  # True if has user ID
         })
     
     # اطمینان از اینکه رهبر همیشه در لیست participants باشد (حتی اگر سفارش نداشته باشد)
@@ -155,20 +159,54 @@ def _serialize_group(g: GroupOrder, db: Session) -> Dict[str, Any]:
     basket_items = []
     original_total = 0
     
+    # Helper to get price from product with all pricing tiers
+    def get_product_pricing(product, order_item=None):
+        if product:
+            solo = float(getattr(product, "solo_price", 0) or getattr(product, "market_price", 0) or 0)
+            f1 = float(getattr(product, "friend_1_price", 0) or 0)
+            f2 = float(getattr(product, "friend_2_price", 0) or 0)
+            f3 = float(getattr(product, "friend_3_price", 0) or 0)
+            return {
+                "solo_price": solo if solo > 0 else (float(getattr(order_item, "base_price", 0) or 0) if order_item else 0),
+                "friend_1_price": f1,
+                "friend_2_price": f2,
+                "friend_3_price": f3,
+            }
+        elif order_item:
+            base = float(getattr(order_item, "base_price", 0) or 0)
+            return {"solo_price": base, "friend_1_price": 0, "friend_2_price": 0, "friend_3_price": 0}
+        return {"solo_price": 0, "friend_1_price": 0, "friend_2_price": 0, "friend_3_price": 0}
+    
     # Try to get items from meta (basket_snapshot)
     if meta.get("items"):
+        from app.models import Product
         for item in meta.get("items", []):
             unit_price = float(item.get("unit_price", 0) or 0)
             qty = int(item.get("quantity", 1) or 1)
+            product_id = item.get("product_id")
+            
+            # Try to get product pricing
+            product = db.query(Product).filter(Product.id == product_id).first() if product_id else None
+            pricing = get_product_pricing(product)
+            
+            # Use solo_price if unit_price is 0
+            if unit_price == 0 and pricing["solo_price"] > 0:
+                unit_price = pricing["solo_price"]
+            
             basket_items.append({
-                "productId": str(item.get("product_id", "")),
-                "name": item.get("product_name", f"محصول {item.get('product_id', '')}"),
+                "productId": str(product_id or ""),
+                "name": item.get("product_name") or (getattr(product, "name", None) if product else None) or f"محصول {product_id}",
                 "qty": qty,
                 "unitPrice": unit_price,
                 "discountedUnitPrice": unit_price,
                 "image": item.get("image"),
+                # Include pricing tiers for frontend calculation
+                "solo_price": pricing["solo_price"] if pricing["solo_price"] > 0 else unit_price,
+                "friend_1_price": pricing["friend_1_price"],
+                "friend_2_price": pricing["friend_2_price"],
+                "friend_3_price": pricing["friend_3_price"],
             })
-            original_total += unit_price * qty
+            original_total += (pricing["solo_price"] if pricing["solo_price"] > 0 else unit_price) * qty
     
     # If no items in snapshot, try to get from orders
     if not basket_items and orders:
@@ -176,7 +214,8 @@ def _serialize_group(g: GroupOrder, db: Session) -> Dict[str, Any]:
             if hasattr(o, 'items') and o.items:
                 for item in o.items:
                     product = getattr(item, "product", None)
-                    unit_price = float(getattr(item, "base_price", 0) or 0)
+                    pricing = get_product_pricing(product, item)
+                    unit_price = pricing["solo_price"] if pricing["solo_price"] > 0 else float(getattr(item, "base_price", 0) or 0)
                     qty = int(getattr(item, "quantity", 1) or 1)
                     basket_items.append({
                         "productId": str(item.product_id),
@@ -185,20 +224,47 @@ def _serialize_group(g: GroupOrder, db: Session) -> Dict[str, Any]:
                         "unitPrice": unit_price,
                         "discountedUnitPrice": unit_price,
                         "image": getattr(product, "image_url", None) if product else None,
+                        # Include pricing tiers for frontend calculation
+                        "solo_price": pricing["solo_price"] if pricing["solo_price"] > 0 else unit_price,
+                        "friend_1_price": pricing["friend_1_price"],
+                        "friend_2_price": pricing["friend_2_price"],
+                        "friend_3_price": pricing["friend_3_price"],
                     })
                     original_total += unit_price * qty
                 break  # Only get items from first order (leader's order)
     
-    # Calculate pricing for secondary groups
+    # Calculate pricing based on group type and number of paid members
     non_leader_paid = sum(1 for p in participants if not p.get("isLeader") and p.get("paid", False))
     current_total = original_total
+    
     if is_secondary and original_total > 0:
-        # Each friend reduces payment by 1/4
+        # Secondary group: Each friend reduces payment by 1/4
         capped_friends = min(non_leader_paid, 3)
         quarter = original_total / 4
         current_total = max(0, original_total - capped_friends * quarter)
         if non_leader_paid >= 4:
             current_total = 0
+    elif not is_secondary and basket_items:
+        # Regular group: Calculate based on pricing tiers
+        def get_item_price_for_friends(item, friends):
+            if friends == 0:
+                return item.get("solo_price", item.get("unitPrice", 0))
+            elif friends == 1:
+                f1 = item.get("friend_1_price", 0)
+                return f1 if f1 > 0 else item.get("solo_price", item.get("unitPrice", 0)) / 2
+            elif friends == 2:
+                f2 = item.get("friend_2_price", 0)
+                return f2 if f2 > 0 else item.get("solo_price", item.get("unitPrice", 0)) / 3
+            else:  # 3 or more friends = free
+                return item.get("friend_3_price", 0)
+        
+        if non_leader_paid >= 3:
+            current_total = 0
+        else:
+            current_total = sum(
+                get_item_price_for_friends(item, non_leader_paid) * item.get("qty", 1)
+                for item in basket_items
+            )
     
     return {
         "id": g.id,
@@ -393,5 +459,4 @@ async def create_group(
     db.refresh(group)
 
     return _serialize_group(group, db)
-
 

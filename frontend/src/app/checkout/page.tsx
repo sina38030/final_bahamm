@@ -209,6 +209,9 @@ function CheckoutPageContent() {
   const [showMapModal, setShowMapModal] = useState(false);
   // FIX: Initialize leaderAllowsConsolidation from URL parameter immediately
   const [leaderAllowsConsolidation, setLeaderAllowsConsolidation] = useState<boolean>(allowParam === '1');
+  
+  // VPN Detection - show warning if user IP is not from Iran
+  const [isVpnActive, setIsVpnActive] = useState(false);
   const normalizePhone = (p?: string) => {
     if (!p) return '';
     const toEn = (s: string) => s.replace(/[۰-۹]/g, d => '0123456789'["۰۱۲۳۴۵۶۷۸۹".indexOf(d)]);
@@ -617,6 +620,30 @@ function CheckoutPageContent() {
     return () => clearInterval(interval);
   }, []);
 
+  // VPN Detection - Check if user is not in Iran
+  useEffect(() => {
+    const detectVpn = async () => {
+      try {
+        const response = await fetch('https://ipapi.co/json/');
+        if (response.ok) {
+          const data = await response.json();
+          // If country code is not IR (Iran), user is likely using VPN
+          if (data.country_code && data.country_code !== 'IR') {
+            setIsVpnActive(true);
+          } else {
+            setIsVpnActive(false);
+          }
+        }
+      } catch (error) {
+        console.warn('Could not detect IP location:', error);
+        // On error, don't show the warning
+        setIsVpnActive(false);
+      }
+    };
+
+    detectVpn();
+  }, []);
+
   // Simple approach: fetch leader's toggle state for invited users
   // Fetch leader toggle state for invited users (only once per invite code)
   const leaderToggleFetchedRef = useRef<string>('');
@@ -738,7 +765,8 @@ function CheckoutPageContent() {
     // Calculate wallet usage up to current price amount
     // Use wallet balance if payment method is 'wallet' (for hybrid payment)
     const walletUse = paymentMethod === 'wallet' ? Math.min(currentPrice, walletBalance) : 0;
-    const savings = actualMode === 'group' ? (originalPrice - currentPrice) + walletUse : walletUse;
+    // Savings is only the discount from group buy, NOT wallet usage (wallet is user's own money, not profit)
+    const savings = actualMode === 'group' ? (originalPrice - currentPrice) : 0;
     // Consolidation discount for invited users when toggle is ON
     const consolidationDiscount = (isInvitedUser && greenToggle) ? 10000 : 0;
     const total = Math.max(0, currentPrice - walletUse - consolidationDiscount);
@@ -1888,6 +1916,26 @@ function CheckoutPageContent() {
           <strong>{calculations.isFree ? 'رایگان' : formatPrice(calculations.total)}</strong>
         </div>
       </section>
+
+      {/* VPN Warning Banner */}
+      {isVpnActive && (
+        <div style={{
+          position: 'fixed',
+          bottom: 72,
+          left: 0,
+          right: 0,
+          zIndex: 10,
+          backgroundColor: '#E31C5F',
+          color: '#fff',
+          textAlign: 'center',
+          padding: '8px 16px',
+          fontSize: '0.85rem',
+          fontWeight: 500,
+          boxShadow: '0 -2px 8px rgba(0,0,0,0.1)'
+        }}>
+          ⚠️ لطفا برای انتقال به درگاه فیلترشکن خود را خاموش کنید!
+        </div>
+      )}
 
       {/* Bottom Bar */}
       <div style={{

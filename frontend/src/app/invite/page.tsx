@@ -1034,12 +1034,14 @@ function InvitePageContent() {
           <div className="text-right">
             {progressReady && nonLeaderPaid !== null ? (
               <p>
-                {nonLeaderPaid === 1
+                {nonLeaderPaid === 0
+                  ? 'هنوز کسی عضو گروهت نشده.'
+                  : nonLeaderPaid === 1
                   ? 'تا الان ۱ نفر از دوستانت عضو گروه شده است.'
                   : `تا الان ${toFa(nonLeaderPaid.toLocaleString())} نفر از دوستانت عضو گروه شده است.`}
               </p>
             ) : null}
-            {progressReady && originalTotal !== null && currentTotal !== null ? (
+            {progressReady && originalTotal !== null && currentTotal !== null && nonLeaderPaid !== null && nonLeaderPaid > 0 ? (
               <p>
                 {(isSecondaryFlow || isSecondaryGroup)
                   ? `هر دوستی که دعوت می‌کنی یک چهارم هزینه‌ی اولیه (${toFa(Math.round(originalTotal).toLocaleString())} تومان) را برمی‌گرداند؛ الان سهم تو ${currentTotal === 0 ? 'رایگان' : `${toFa(Math.round(currentTotal).toLocaleString())} تومان`} است.`
@@ -1093,12 +1095,12 @@ function InvitePageContent() {
 
         {/* Description Card */}
         <section className="description-card">
-          <h3>توضیحات</h3>
+          <h3>وت</h3>
           <p>
-            • هزینهٔ ارسال به عهدهٔ مشتری است.<br />
-            • لغو سفارش پس از ۷ روز امکان‌پذیر نیست.<br />
-            • در صورت تکمیل نشدن دعوت دوستان، مبلغ اولیه شارژ می‌شود.<br />
-            • برای دریافت سفارش رایگان، حداقل ۳ دوست باید سبد مشابه خریداری کنند.
+            • ری است.<br />
+            • ل نیست.<br />
+            • دیه شارژ می‌شود.<br />
+            • برای دنند.
           </p>
         </section>
       </div>

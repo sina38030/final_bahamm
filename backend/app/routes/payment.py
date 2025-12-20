@@ -568,19 +568,27 @@ async def payment_callback(
 ):
     """
     Callback endpoint که زرین‌پال کاربر را به اینجا هدایت می‌کند
-    بعد از پرداخت، کاربر را به سایت bahamm.ir برمی‌گرداند
+    بعد از پرداخت، کاربر را به frontend redirect می‌کند
     
     - کاربر لیدر گروه ➜ صفحه invite (برای دعوت دوستان)
     - کاربر invited ➜ صفحه success (پیگیری سفارش + مبلغ پرداختیت رو پس بگیر!)
     - خرید solo ➜ صفحه success (موفقیت پرداخت)
+    
+    In localhost/sandbox mode: redirects to localhost:3000
+    In production: redirects to bahamm.ir
     """
     from fastapi.responses import RedirectResponse
+    
+    # Frontend base URL is auto-detected from settings
+    # localhost = http://localhost:3000, production = https://bahamm.ir
+    frontend_base = settings.get_frontend_public_url()
+    logger.info(f"🔀 Frontend base URL: {frontend_base} (localhost: {settings.is_localhost()})")
     
     try:
         # For failed payments, redirect to cart with error
         if Status != "OK" or not Authority:
             logger.warning(f"Payment callback failed: Authority={Authority}, Status={Status}")
-            redirect_url = f"{settings.get_frontend_public_url()}/cart?payment_failed=true"
+            redirect_url = f"{frontend_base}/cart?payment_failed=true"
             return RedirectResponse(url=redirect_url, status_code=303)
         
         # Payment successful - determine redirect based on user type
@@ -611,7 +619,6 @@ async def payment_callback(
         if not order:
             logger.warning(f"No order found for authority: {Authority}")
             # Default to success page if order not found (client can resolve by authority)
-            frontend_base = settings.get_frontend_public_url()
             logger.info(f"🔗 FRONTEND_BASE_URL: {frontend_base}")
             redirect_url = f"{frontend_base}/payment/success/invitee?authority={Authority}"
             logger.info(f"🔗 REDIRECT_URL (no order): {redirect_url}")
@@ -624,7 +631,7 @@ async def payment_callback(
         if is_settlement:
             logger.info(f"✅✅✅ Settlement payment detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /payment/success/settlement")
             group_part = f"&groupId={order.group_order_id}" if order.group_order_id else ""
-            redirect_url = f"{settings.get_frontend_public_url()}/payment/success/settlement?authority={Authority}&orderId={order.id}{group_part}"
+            redirect_url = f"{frontend_base}/payment/success/settlement?authority={Authority}&orderId={order.id}{group_part}"
             logger.info(f"🔗 Settlement redirect URL: {redirect_url}")
             return RedirectResponse(url=redirect_url, status_code=303)
         else:
@@ -649,12 +656,12 @@ async def payment_callback(
         if order.order_type == OrderType.ALONE and not order.group_order_id and not was_invited_checkout:
             # Solo purchase (not invited) ➜ payment callback page
             logger.info(f"✅ Solo order detected (order_id={order.id}, user_id={order.user_id}, group_order_id={order.group_order_id}) ➜ redirecting to /payment/callback")
-            redirect_url = f"{settings.get_frontend_public_url()}/payment/callback?Authority={Authority}&Status=OK"
+            redirect_url = f"{frontend_base}/payment/callback?Authority={Authority}&Status=OK"
             logger.info(f"🔗 Solo redirect URL: {redirect_url}")
         elif was_invited_checkout and not order.group_order_id:
             # Invited at checkout but group linking failed ➜ still redirect to invitee page
             logger.warning(f"⚠️ Order {order.id} was invited but group linking failed - redirecting to invitee page")
-            redirect_url = f"{settings.get_frontend_public_url()}/payment/success/invitee?authority={Authority}&orderId={order.id}"
+            redirect_url = f"{frontend_base}/payment/success/invitee?authority={Authority}&orderId={order.id}"
             logger.info(f"🔗 Invitee redirect URL (no group): {redirect_url}")
         elif order.group_order_id:
             # Group order - check if user is leader or invited
@@ -663,7 +670,7 @@ async def payment_callback(
             if not group_order:
                 # ❌ This is a DATA INTEGRITY ERROR - log it and redirect to error page
                 logger.error(f"❌ CRITICAL: GroupOrder {order.group_order_id} not found for order {order.id}! Redirecting to error page.")
-                redirect_url = f"{settings.get_frontend_public_url()}/cart?payment_error=group_not_found"
+                redirect_url = f"{frontend_base}/cart?payment_error=group_not_found"
             elif (group_order.leader_id is not None and 
                   order.user_id is not None and 
                   group_order.leader_id == order.user_id and
@@ -672,7 +679,7 @@ async def payment_callback(
                 # ✅ User is the leader → invite page (NULL-safe comparison)
                 is_leader = True
                 logger.info(f"Leader order detected (order_id={order.id}, group_id={order.group_order_id}) ➜ redirecting to /invite")
-                redirect_url = f"{settings.get_frontend_public_url()}/invite?authority={Authority}"
+                redirect_url = f"{frontend_base}/invite?authority={Authority}"
             else:
                 # User is invited (follower) ➜ redirect directly to success page
                 is_invited = True
@@ -681,7 +688,6 @@ async def payment_callback(
                 )
                 # Pass authority for frontend to resolve group invite/refund timer; include orderId/groupId for UX
                 group_part = f"&groupId={order.group_order_id}" if getattr(order, 'group_order_id', None) else ""
-                frontend_base = settings.get_frontend_public_url()
                 logger.info(f"🔗 FRONTEND_BASE_URL (invitee): {frontend_base}")
                 redirect_url = (
                     f"{frontend_base}/payment/success/invitee?authority={Authority}&orderId={order.id}{group_part}"
@@ -691,10 +697,10 @@ async def payment_callback(
             # Fallback: no group_order_id but order_type is GROUP or was invited at checkout
             if was_invited_checkout:
                 logger.warning(f"⚠️ Order {order.id} was invited at checkout but has no group - redirecting to invitee success page anyway")
-                redirect_url = f"{settings.get_frontend_public_url()}/payment/success/invitee?authority={Authority}&orderId={order.id}"
+                redirect_url = f"{frontend_base}/payment/success/invitee?authority={Authority}&orderId={order.id}"
             else:
                 logger.warning(f"GROUP order without group_order_id (order_id={order.id}) ➜ redirecting to success page")
-                redirect_url = f"{settings.get_frontend_public_url()}/payment/success/invitee?authority={Authority}&orderId={order.id}"
+                redirect_url = f"{frontend_base}/payment/success/invitee?authority={Authority}&orderId={order.id}"
         
         logger.info(f"🚀 Final redirect: {redirect_url}")
         return RedirectResponse(url=redirect_url, status_code=303)
@@ -703,9 +709,9 @@ async def payment_callback(
         logger.error(f"Payment callback error: {str(e)}")
         # Even on error, try to redirect with authority if available
         if Authority:
-            redirect_url = f"{settings.get_frontend_public_url()}/payment/success/invitee?authority={Authority}"
+            redirect_url = f"{frontend_base}/payment/success/invitee?authority={Authority}"
         else:
-            redirect_url = f"{settings.get_frontend_public_url()}/cart?payment_error=true"
+            redirect_url = f"{frontend_base}/cart?payment_error=true"
         
         return RedirectResponse(url=redirect_url, status_code=303)
 

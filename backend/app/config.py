@@ -22,26 +22,44 @@ class Settings(BaseSettings):
     # Payment Gateway Configuration (ZarinPal)
     # IMPORTANT: Set ZARINPAL_MERCHANT_ID via environment in production (do NOT hardcode).
     ZARINPAL_MERCHANT_ID: str = ""
+    # Sandbox mode - auto-detected based on FRONTEND_URL (localhost = sandbox)
+    # Can be overridden via environment variable
     ZARINPAL_SANDBOX: bool = False
-    # Auto-detect: use production URL by default, can be overridden with env var for local dev
-    FRONTEND_URL: str = "https://bahamm.ir"  # Can use env var for local dev: http://localhost:3000
+    # Auto-detect: use localhost for dev, override with env var for production
+    FRONTEND_URL: str = "http://localhost:3000"  # IMPORTANT: Set to https://bahamm.ir in production via .env
     # Payment callback URL - must route to backend's /api/payment/callback
     # Production: https://bahamm.ir/backend/api (nginx proxies to backend)
     # Local: http://localhost:8001/api (direct to backend)
     # Can be overridden via environment variable
     PAYMENT_CALLBACK_BASE_URL: Optional[str] = None  # Will be auto-detected if None
     
+    def is_localhost(self) -> bool:
+        """Check if running in localhost/development mode"""
+        return "localhost" in self.FRONTEND_URL or "127.0.0.1" in self.FRONTEND_URL
+    
+    def is_sandbox_mode(self) -> bool:
+        """Auto-detect sandbox mode: True for localhost, False for production.
+        Can be overridden via ZARINPAL_SANDBOX env var."""
+        # If explicitly set in env, use that value
+        # Otherwise, auto-detect based on FRONTEND_URL
+        return self.ZARINPAL_SANDBOX or self.is_localhost()
+    
     def get_payment_callback_base_url(self) -> str:
-        """Auto-detect callback URL based on FRONTEND_URL"""
+        """Get the callback URL for ZarinPal payment gateway.
+        
+        For localhost: ALWAYS use localhost:8001/api (sandbox mode)
+        For production: use bahamm.ir/backend/api
+        """
+        # LOCALHOST HAS PRIORITY - always use localhost callback for sandbox
+        if self.is_localhost():
+            return "http://localhost:8001/api"
+        
+        # For production: use explicit override if set
         if self.PAYMENT_CALLBACK_BASE_URL:
             return self.PAYMENT_CALLBACK_BASE_URL
         
-        # Auto-detect: if localhost, use direct backend URL
-        if "localhost" in self.FRONTEND_URL or "127.0.0.1" in self.FRONTEND_URL:
-            return "http://localhost:8001/api"
-        else:
-            # Production: use nginx proxy path
-            return f"{self.FRONTEND_URL}/backend/api"
+        # Default production URL
+        return "https://bahamm.ir/backend/api"
 
     def get_frontend_public_url(self) -> str:
         """Return the public-facing frontend base URL (no backend path).

@@ -12,6 +12,17 @@ import { useAuth } from "@/contexts/AuthContext";
 
 // Components
 import PaymentDetails from "./_components/PaymentDetails";
+
+// Helper functions for countdown timer
+const formatTimer = (totalSeconds: number) => {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
+};
+
+const toFa = (val: string | number) => String(val).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[parseInt(d)]);
 // Secondary groups disabled for now
 
 interface PageData {
@@ -35,6 +46,11 @@ function InviteeSuccessContent() {
   const groupIdParam = searchParams.get("groupId");
   const authorityParam = searchParams.get("authority") || searchParams.get("Authority");
   const [inviteAuthority, setInviteAuthority] = useState<string | null>(authorityParam || null);
+  
+  // Countdown timer state for secondary group creation window (24 hours from payment)
+  const [expiryMs, setExpiryMs] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [timerExpired, setTimerExpired] = useState<boolean>(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -141,6 +157,48 @@ function InviteeSuccessContent() {
     } catch {}
   }, [data?.order?.id, inviteAuthority, authorityParam]);
 
+  // Calculate expiry time (24 hours from payment) when data is loaded
+  useEffect(() => {
+    if (!data?.order) return;
+    
+    // Calculate expiry based on paid_at + 24 hours
+    const paidAtStr = data.order.paidAt;
+    if (paidAtStr) {
+      const paidAtMs = Date.parse(paidAtStr);
+      if (!isNaN(paidAtMs)) {
+        const calculatedExpiry = paidAtMs + 24 * 60 * 60 * 1000; // 24 hours
+        setExpiryMs(calculatedExpiry);
+        
+        // Check if already expired
+        if (calculatedExpiry <= Date.now()) {
+          setTimerExpired(true);
+          setTimeLeft(0);
+        }
+      }
+    }
+  }, [data?.order]);
+
+  // Update countdown timer every second
+  useEffect(() => {
+    if (!expiryMs) return;
+    
+    const updateTimer = () => {
+      const diff = Math.max(0, Math.floor((expiryMs - Date.now()) / 1000));
+      setTimeLeft(diff);
+      if (diff === 0) {
+        setTimerExpired(true);
+      }
+    };
+    
+    // Initial update
+    updateTimer();
+    
+    // Update every second
+    const interval = setInterval(updateTimer, 1000);
+    
+    return () => clearInterval(interval);
+  }, [expiryMs]);
+
   // Show bottom sheet after 1 second
   useEffect(() => {
     if (!data || loading) return;
@@ -246,7 +304,7 @@ function InviteeSuccessContent() {
             <Link href={`/order/${data.order.id}`} className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors">
               جزئیات سفارش
             </Link>
-            {data?.order?.id ? (
+            {data?.order?.id && !timerExpired ? (
               <button
                 onClick={async () => {
                   if (isCreatingSecondaryGroup) return;
@@ -280,9 +338,19 @@ function InviteeSuccessContent() {
                   }
                 }}
                 disabled={isCreatingSecondaryGroup}
-                className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                className="inline-flex flex-col items-center justify-center px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50"
               >
-                {isCreatingSecondaryGroup ? 'در حال ایجاد...' : 'مبلغ پرداختیت رو پس بگیر!'}
+                <span>{isCreatingSecondaryGroup ? 'در حال ایجاد...' : 'مبلغ پرداختیت رو پس بگیر!'}</span>
+                {!isCreatingSecondaryGroup && typeof timeLeft === 'number' && timeLeft > 0 && (
+                  <span className="text-[10px] opacity-90 mt-0.5">⏰ {toFa(formatTimer(timeLeft))}</span>
+                )}
+              </button>
+            ) : data?.order?.id && timerExpired ? (
+              <button
+                disabled
+                className="inline-flex items-center justify-center px-4 py-3 rounded-xl border border-gray-200 text-gray-400 text-sm font-semibold cursor-not-allowed"
+              >
+                زمان منقضی شد
               </button>
             ) : (
               <button
@@ -324,44 +392,53 @@ function InviteeSuccessContent() {
                 </div>
 
                 <div className="space-y-3">
-                  <button
-                    onClick={async () => {
-                      if (isCreatingSecondaryGroup || !data?.order?.id) return;
-                      setIsCreatingSecondaryGroup(true);
-                      try {
-                        setIsSheetOpen(false);
-                        // Create secondary group and redirect to secondary invite page
-                        const response = await fetch('/api/group-orders/create-secondary', {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-                          },
-                          body: JSON.stringify({ source_order_id: data.order.id }),
-                        });
-                        const result = await response.json();
-                        if (result.success && result.group_order_id) {
-                          router.push(`/secondary_invite?group_id=${result.group_order_id}&from=created`);
-                        } else {
-                          // Fallback to original invite page
+                  {!timerExpired ? (
+                    <button
+                      onClick={async () => {
+                        if (isCreatingSecondaryGroup || !data?.order?.id) return;
+                        setIsCreatingSecondaryGroup(true);
+                        try {
+                          setIsSheetOpen(false);
+                          // Create secondary group and redirect to secondary invite page
+                          const response = await fetch('/api/group-orders/create-secondary', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                            },
+                            body: JSON.stringify({ source_order_id: data.order.id }),
+                          });
+                          const result = await response.json();
+                          if (result.success && result.group_order_id) {
+                            router.push(`/secondary_invite?group_id=${result.group_order_id}&from=created`);
+                          } else {
+                            // Fallback to original invite page
+                            if (inviteAuthority) {
+                              router.push(`/invite?authority=${encodeURIComponent(inviteAuthority)}`);
+                            }
+                          }
+                        } catch (err) {
+                          console.error('Error creating secondary group:', err);
                           if (inviteAuthority) {
                             router.push(`/invite?authority=${encodeURIComponent(inviteAuthority)}`);
                           }
+                        } finally {
+                          setIsCreatingSecondaryGroup(false);
                         }
-                      } catch (err) {
-                        console.error('Error creating secondary group:', err);
-                        if (inviteAuthority) {
-                          router.push(`/invite?authority=${encodeURIComponent(inviteAuthority)}`);
-                        }
-                      } finally {
-                        setIsCreatingSecondaryGroup(false);
-                      }
-                    }}
-                    disabled={isCreatingSecondaryGroup}
-                    className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 px-4 rounded-xl font-semibold text-sm hover:from-pink-600 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 disabled:opacity-50"
-                  >
-                    {isCreatingSecondaryGroup ? 'در حال ایجاد گروه...' : 'مبلغ پرداختیت رو پس بگیر!'}
-                  </button>
+                      }}
+                      disabled={isCreatingSecondaryGroup}
+                      className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 px-4 rounded-xl font-semibold text-sm hover:from-pink-600 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 disabled:opacity-50 flex flex-col items-center"
+                    >
+                      <span>{isCreatingSecondaryGroup ? 'در حال ایجاد گروه...' : 'مبلغ پرداختیت رو پس بگیر!'}</span>
+                      {!isCreatingSecondaryGroup && typeof timeLeft === 'number' && timeLeft > 0 && (
+                        <span className="text-xs opacity-90 mt-1">⏰ {toFa(formatTimer(timeLeft))}</span>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="w-full bg-gray-200 text-gray-500 py-3 px-4 rounded-xl font-semibold text-sm text-center">
+                      زمان ایجاد گروه ثانویه به پایان رسید
+                    </div>
+                  )}
 
                   <button
                     onClick={() => setIsSheetOpen(false)}

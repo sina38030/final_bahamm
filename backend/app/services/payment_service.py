@@ -275,6 +275,7 @@ class PaymentService:
                 }
 
             # Otherwise, continue to gateway via zarinpal service
+            # Callback URL is auto-detected: localhost for dev, bahamm.ir for production
             result = await zarinpal.request_payment(
                 amount=total_amount,
                 description=description,

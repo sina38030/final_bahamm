@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست اتصال لوکال هاست</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        pre {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 5px;
+            border: none;
+            background: #007bff;
+            color: white;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 تست اتصال به سرورهای لوکال</h1>
+    
+    <div class="info">
+        <strong>راهنما:</strong> این صفحه برای تست اتصال به سرورهای فرانت‌اند و بک‌اند است.
+    </div>
+
+    <button onclick="testFrontend()">تست فرانت‌اند (3000)</button>
+    <button onclick="testBackend()">تست بک‌اند (8001)</button>
+    <button onclick="testProducts()">تست API محصولات</button>
+    <button onclick="testAll()">تست همه</button>
+
+    <div id="results"></div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            resultsDiv.appendChild(div);
+        }
+
+        function clearResults() {
+            resultsDiv.innerHTML = '';
+        }
+
+        async function testFrontend() {
+            clearResults();
+            addResult('⏳ در حال تست فرانت‌اند...', 'loading');
+            
+            try {
+                const response = await fetch('http://localhost:3000');
+                if (response.ok) {
+                    const text = await response.text();
+                    addResult(`✅ فرانت‌اند در حال اجرا است (پورت 3000)<br>وضعیت: ${response.status}<br>طول محتوا: ${text.length} کاراکتر`, 'success');
+                } else {
+                    addResult(`⚠️ فرانت‌اند پاسخ داد اما با خطا: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ خطا در اتصال به فرانت‌اند:<br>${error.message}`, 'error');
+            }
+        }
+
+        async function testBackend() {
+            clearResults();
+            addResult('⏳ در حال تست بک‌اند...', 'loading');
+            
+            try {
+                const response = await fetch('http://localhost:8001/api');
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ بک‌اند در حال اجرا است (پورت 8001)<br>پیام: ${data.message}`, 'success');
+                } else {
+                    addResult(`⚠️ بک‌اند پاسخ داد اما با خطا: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ خطا در اتصال به بک‌اند:<br>${error.message}`, 'error');
+            }
+        }
+
+        async function testProducts() {
+            clearResults();
+            addResult('⏳ در حال تست API محصولات...', 'loading');
+            
+            try {
+                const response = await fetch('http://localhost:8001/api/admin/products?limit=3');
+                if (response.ok) {
+                    const products = await response.json();
+                    addResult(`✅ API محصولات کار می‌کند<br>تعداد محصولات: ${products.length}`, 'success');
+                    if (products.length > 0) {
+                        const pre = document.createElement('pre');
+                        pre.textContent = JSON.stringify(products[0], null, 2);
+                        resultsDiv.appendChild(pre);
+                    }
+                } else {
+                    addResult(`⚠️ API محصولات پاسخ داد اما با خطا: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ خطا در اتصال به API محصولات:<br>${error.message}`, 'error');
+            }
+        }
+
+        async function testAll() {
+            clearResults();
+            addResult('⏳ شروع تست همه سرویس‌ها...', 'loading');
+            
+            // Test Frontend
+            try {
+                const response = await fetch('http://localhost:3000');
+                if (response.ok) {
+                    addResult('✅ فرانت‌اند: در حال اجرا', 'success');
+                } else {
+                    addResult(`⚠️ فرانت‌اند: خطا ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ فرانت‌اند: ${error.message}`, 'error');
+            }
+
+            // Test Backend
+            try {
+                const response = await fetch('http://localhost:8001/api');
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ بک‌اند: ${data.message}`, 'success');
+                } else {
+                    addResult(`⚠️ بک‌اند: خطا ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ بک‌اند: ${error.message}`, 'error');
+            }
+
+            // Test Products API
+            try {
+                const response = await fetch('http://localhost:8001/api/admin/products?limit=3');
+                if (response.ok) {
+                    const products = await response.json();
+                    addResult(`✅ API محصولات: ${products.length} محصول یافت شد`, 'success');
+                } else {
+                    addResult(`⚠️ API محصولات: خطا ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ API محصولات: ${error.message}`, 'error');
+            }
+
+            addResult('✅ تست‌ها تمام شد!', 'info');
+        }
+
+        // Auto-run test on load
+        window.onload = () => {
+            setTimeout(testAll, 500);
+        };
+    </script>
+</body>
+</html>
+
+

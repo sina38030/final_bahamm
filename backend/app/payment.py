@@ -197,10 +197,11 @@ class ZarinPalPayment:
             }
 
 # Initialize ZarinPal with settings from configuration
+# Auto-detect sandbox mode: localhost = sandbox, production = real gateway
 zarinpal = ZarinPalPayment(
     merchant_id=settings.ZARINPAL_MERCHANT_ID,
-    sandbox=settings.ZARINPAL_SANDBOX,
+    sandbox=settings.is_sandbox_mode(),
     test_mode=False
 )
 
-logger.info(f"💳 ZarinPal initialized - Sandbox: {settings.ZARINPAL_SANDBOX}, Merchant ID configured: {bool(settings.ZARINPAL_MERCHANT_ID)}") 
+logger.info(f"💳 ZarinPal initialized - Sandbox: {settings.is_sandbox_mode()}, Localhost: {settings.is_localhost()}, Merchant ID configured: {bool(settings.ZARINPAL_MERCHANT_ID)}") 

@@ -11,6 +11,7 @@ module.exports = {
       max_memory_restart: '500M',
       env: {
         PYTHONUNBUFFERED: '1',
+        FRONTEND_URL: 'https://bahamm.ir',
       }
     },
     {

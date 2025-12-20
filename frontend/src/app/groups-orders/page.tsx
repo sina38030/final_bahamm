@@ -138,6 +138,7 @@ function getAuthToken(tokenFromContext?: string | null): string | null {
 function formatDeliverySlot(raw?: string | null): string {
   try {
     if (!raw) return "";
+    console.log('[formatDeliverySlot] Input:', raw);
     let slot: any = raw;
     
     // If JSON-encoded, parse and extract nested delivery_slot or window
@@ -147,7 +148,11 @@ function formatDeliverySlot(raw?: string | null): string {
         try {
           const obj = JSON.parse(trimmed);
           if (obj && typeof obj === 'object') {
-            // First check if there's a nested delivery_slot field
+            // Check for 'ds' key (backend compact format: {"ds": "..."})
+            if (typeof obj.ds === 'string' && obj.ds.trim().length > 0) {
+              return formatDeliverySlot(obj.ds);
+            }
+            // Check if there's a nested delivery_slot field
             if (typeof obj.delivery_slot === 'string' && obj.delivery_slot.trim().length > 0) {
               // Recursively call to handle the inner delivery_slot value
               return formatDeliverySlot(obj.delivery_slot);
@@ -168,11 +173,14 @@ function formatDeliverySlot(raw?: string | null): string {
     const s = slot.trim();
     if (!s) return '';
     
+    // Convert Persian/Arabic digits to Latin for regex matching
+    const sLatin = s.replace(/[۰-۹٠-٩]/g, (ch) => DIGIT_NORMALIZATION_MAP[ch] ?? ch);
+    
     // Replace relative terms like 'فردا' with explicit date
     if (/^فردا(\s|$)/.test(s)) {
       const now = new Date();
       const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-      const times = s.replace(/^فردا\s*/, '').trim();
+      const times = sLatin.replace(/^فردا\s*/, '').trim();
       if (times) {
         const m = times.match(/(\d{1,2}(?::\d{2})?)(?:\s*(?:-|تا)\s*(\d{1,2}(?::\d{2})?))?/);
         if (m) {
@@ -185,7 +193,7 @@ function formatDeliverySlot(raw?: string | null): string {
     }
     
     // Try patterns like: YYYY-MM-DD HH:mm-HH:mm or with 'T'
-    const m = s.match(/^(\d{4}-\d{2}-\d{2})(?:[ T](\d{1,2}:\d{2}))?(?:\s*(?:-|تا)\s*(\d{1,2}:\d{2}))?$/);
+    const m = sLatin.match(/^(\d{4}-\d{2}-\d{2})(?:[ T](\d{1,2}:\d{2}))?(?:\s*(?:-|تا)\s*(\d{1,2}:\d{2}))?$/);
     if (m) {
       const d = new Date(`${m[1]}T00:00:00`);
       const formatted = buildSlotDisplay(d, m[2], m[3], m[1]);
@@ -198,13 +206,12 @@ function formatDeliverySlot(raw?: string | null): string {
       if (formatted) return formatted;
     }
     
-    // Fallback to raw string
-    if (process.env.NODE_ENV === 'development') {
-      try { console.warn('formatDeliverySlot: unknown pattern, returning raw', { raw: s }); } catch {}
-    }
-    return s;
-  } catch {
-    return String(raw ?? '');
+    // Fallback to raw string - ensure Persian digits
+    console.log('[formatDeliverySlot] Fallback to raw:', s);
+    return toPersianDigits(s);
+  } catch (err) {
+    console.error('[formatDeliverySlot] Error:', err);
+    return toPersianDigits(String(raw ?? ''));
   }
 }
 
@@ -244,6 +251,15 @@ const DIGIT_NORMALIZATION_MAP: Record<string, string> = {
   '٬': '', ',': '', '　': '', ' ': '', '٫': '.'
 };
 
+const LATIN_TO_PERSIAN_DIGITS: Record<string, string> = {
+  '0': '۰', '1': '۱', '2': '۲', '3': '۳', '4': '۴', '5': '۵', '6': '۶', '7': '۷', '8': '۸', '9': '۹'
+};
+
+// Convert all Latin digits to Persian digits
+function toPersianDigits(str: string): string {
+  return str.replace(/[0-9]/g, (d) => LATIN_TO_PERSIAN_DIGITS[d] ?? d);
+}
+
 const PERSIAN_DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   weekday: 'long',
   day: 'numeric',
@@ -251,13 +267,29 @@ const PERSIAN_DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   year: 'numeric',
 };
 
+// Format options for delivery slot - only day and month (no weekday, no year)
+const DELIVERY_SLOT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
+  day: 'numeric',
+  month: 'long',
+};
+
 let cachedLatinPersianDateFormatter: Intl.DateTimeFormat | null | undefined;
 let cachedPersianDateFormatter: Intl.DateTimeFormat | null | undefined;
+let cachedDeliverySlotDateFormatter: Intl.DateTimeFormat | null | undefined;
 
 function createPersianDateFormatter(locale: string): Intl.DateTimeFormat | null {
   if (typeof Intl === 'undefined') return null;
   try {
     return new Intl.DateTimeFormat(locale, PERSIAN_DATE_FORMAT_OPTIONS);
+  } catch {
+    return null;
+  }
+}
+
+function createDeliverySlotDateFormatter(): Intl.DateTimeFormat | null {
+  if (typeof Intl === 'undefined') return null;
+  try {
+    return new Intl.DateTimeFormat('fa-IR', DELIVERY_SLOT_DATE_OPTIONS);
   } catch {
     return null;
   }
@@ -290,6 +322,33 @@ function formatPersianDateWithWeekday(date: Date): string {
   }
 }
 
+// Format date for delivery slot display: only day and month in Persian (e.g., "۸ دی")
+function formatDeliverySlotDate(date: Date): string {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  if (cachedDeliverySlotDateFormatter === undefined) {
+    cachedDeliverySlotDateFormatter = createDeliverySlotDateFormatter();
+  }
+  if (cachedDeliverySlotDateFormatter) {
+    try {
+      // Remove RTL marks and extra spaces, ensure Persian digits
+      const formatted = cachedDeliverySlotDateFormatter.format(date)
+        .replace(/\u200f/g, '')
+        .replace(/\u200e/g, '')
+        .trim();
+      return toPersianDigits(formatted);
+    } catch {
+      // fall through
+    }
+  }
+  try {
+    const formatted = date.toLocaleDateString('fa-IR', DELIVERY_SLOT_DATE_OPTIONS);
+    return toPersianDigits(formatted);
+  } catch {
+    return '';
+  }
+}
+
+// Normalize time token and return Persian digits (e.g., "۱۸" or "۱۸:۰۰")
 function normalizeTimeToken(value?: string | number | null): string {
   if (value === null || value === undefined) return '';
   const raw = String(value).trim();
@@ -297,34 +356,47 @@ function normalizeTimeToken(value?: string | number | null): string {
   const withLatinDigits = raw.replace(/[۰-۹٠-٩]/g, (ch) => DIGIT_NORMALIZATION_MAP[ch] ?? ch);
   const cleaned = withLatinDigits.replace(/\s+/g, ' ').replace(/ساعت\s*/gi, '').trim();
   const normalized = cleaned.replace(/\s*:\s*/g, ':');
-  const explicitMatch = normalized.match(/(\d{1,2}(?::\d{2})?)/);
-  if (explicitMatch) return explicitMatch[1];
+  const explicitMatch = normalized.match(/(\d{1,2})(?::(\d{2}))?/);
+  if (explicitMatch) {
+    // Return only hour if minutes are 00, otherwise hour:minutes
+    const hour = explicitMatch[1];
+    const minutes = explicitMatch[2];
+    if (minutes && minutes !== '00') {
+      return toPersianDigits(`${hour}:${minutes}`);
+    }
+    return toPersianDigits(hour);
+  }
   const digitsOnly = normalized.replace(/\D/g, '');
   if (!digitsOnly) return '';
   if (digitsOnly.length === 3) {
-    return `${digitsOnly.slice(0, 1)}:${digitsOnly.slice(1)}`;
+    return toPersianDigits(`${digitsOnly.slice(0, 1)}:${digitsOnly.slice(1)}`);
   }
   if (digitsOnly.length >= 4) {
-    return `${digitsOnly.slice(0, digitsOnly.length - 2)}:${digitsOnly.slice(-2)}`;
+    return toPersianDigits(`${digitsOnly.slice(0, digitsOnly.length - 2)}:${digitsOnly.slice(-2)}`);
   }
-  return digitsOnly;
+  return toPersianDigits(digitsOnly);
 }
 
+// Build display string for delivery slot: "۸ دی ساعت ۱۸ تا ۲۰"
 function buildSlotDisplay(
   date: Date | null,
   from?: string | number | null,
   to?: string | number | null,
   rawDateLabel?: string | null
 ): string {
+  // Use the simpler date format (day + month only) for delivery slots
   const datePart = date && !Number.isNaN(date.getTime())
-    ? formatPersianDateWithWeekday(date)
-    : (rawDateLabel ? String(rawDateLabel).trim() : '');
+    ? formatDeliverySlotDate(date)
+    : (rawDateLabel ? toPersianDigits(String(rawDateLabel).trim()) : '');
   const fromPart = normalizeTimeToken(from);
   const toPart = normalizeTimeToken(to);
+  console.log('[buildSlotDisplay]', { datePart, fromPart, toPart, rawDateLabel });
   const hasTime = Boolean(fromPart || toPart);
   if (datePart && hasTime) {
     const range = fromPart && toPart ? `${fromPart} تا ${toPart}` : (fromPart || toPart);
-    return `${datePart},ساعت ${range}`;
+    const result = `${datePart} ساعت ${range}`;
+    console.log('[buildSlotDisplay] Result:', result);
+    return result;
   }
   if (datePart) return datePart;
   if (hasTime) {
