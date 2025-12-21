@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, or_
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, timedelta
 import logging
@@ -266,6 +266,35 @@ def _serialize_group(g: GroupOrder, db: Session) -> Dict[str, Any]:
                 for item in basket_items
             )
     
+    # Calculate consolidation reward (aggregation bonus)
+    # Count paid members who opted to ship to leader address
+    paid_followers_to_leader = db.query(Order).filter(
+        Order.group_order_id == g.id,
+        Order.user_id != g.leader_id,
+        Order.is_settlement_payment == False,
+        Order.ship_to_leader_address == True,
+        or_(
+            Order.payment_ref_id.isnot(None),
+            Order.paid_at.isnot(None),
+        ),
+    ).count()
+    aggregation_bonus = int(paid_followers_to_leader) * 10000  # 10,000 Tomans per member
+    
+    # Get leader's initial payment amount and shipping cost from their order
+    leader_order = db.query(Order).filter(
+        Order.group_order_id == g.id,
+        Order.user_id == g.leader_id,
+        Order.is_settlement_payment == False,
+    ).order_by(Order.created_at.asc()).first()
+    
+    amount_paid = 0
+    shipping_cost = 0
+    if leader_order:
+        amount_paid = float(getattr(leader_order, 'total_amount', 0) or 0)
+        # Shipping cost is typically included in total_amount, calculate as difference
+        # from basket items if possible, otherwise use fixed shipping cost
+        shipping_cost = 0  # Will be calculated on frontend based on current rules
+    
     return {
         "id": g.id,
         "kind": (meta.get("kind") or "primary"),
@@ -298,6 +327,14 @@ def _serialize_group(g: GroupOrder, db: Session) -> Dict[str, Any]:
         },
         "isSecondaryGroup": is_secondary,
         "groupType": "secondary" if is_secondary else "primary",
+        # Consolidation reward
+        "rewardCredit": aggregation_bonus,
+        "aggregationBonus": aggregation_bonus,
+        "followersToLeader": int(paid_followers_to_leader),
+        # Leader payment info
+        "amountPaid": amount_paid,
+        "initialPayment": amount_paid,
+        "shippingCost": shipping_cost,
     }
 
 

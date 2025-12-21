@@ -65,6 +65,9 @@ interface UserOrder {
   group_status?: 'ongoing' | 'success' | 'failed';
   settlement_status?: 'pending' | 'settled';
   settlement_remainder?: number;
+  // Consolidation/ship-to-leader fields
+  ship_to_leader_address?: boolean;
+  allow_consolidation?: boolean;
 }
 
 // Minimal backend group metadata contract used in this page
@@ -1128,13 +1131,14 @@ function GroupsOrdersPageContent() {
     const selfAddr = sanitizeAddress(raw);
     const inGroup = Boolean(o?.group_order_id);
     const isLeader = o?.is_leader_order === true;
-    // Detect ship-to-leader usage (toggle ON) regardless of user's own address
-    const allowConsolidation = (o as any)?.allow_consolidation === true;
+    // Detect ship-to-leader usage: ONLY when invited user explicitly chose to consolidate
+    // ship_to_leader_address is the ORDER-level flag that indicates user's choice
+    const shipToLeaderAddress = o?.ship_to_leader_address === true;
     const shipToLeaderFlag = (o as any)?.ship_to_leader === true;
     const consolidated = (o as any)?.consolidated === true;
     const hasPendingMarker = typeof raw === 'string' && /^PENDING_(GROUP|INVITE)/.test(raw);
-    // Accept multiple authoritative signals from backend or stored markers
-    let isShipToLeader = inGroup && !isLeader && (allowConsolidation || shipToLeaderFlag || consolidated || hasPendingMarker);
+    // ONLY check order-level flags, NOT group-level allow_consolidation (that's just permission, not user's choice)
+    let isShipToLeader = inGroup && !isLeader && (shipToLeaderAddress || shipToLeaderFlag || consolidated || hasPendingMarker);
     // Fallback: read client-side persisted flag by order id when backend flags are missing
     try {
       if (!isShipToLeader && inGroup && !isLeader && (o?.id != null)) {
@@ -2502,9 +2506,13 @@ function LazyTrackEmbed({
       }
       if (!confirm("آیا از تکمیل گروه اطمینان دارید؟")) return;
 
-      const res = await fetch(`/api/groups/${gid}`, {
+      const authToken = getAuthToken(token);
+      const res = await fetch(`/api/group-orders/finalize/${gid}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(authToken ? { "Authorization": `Bearer ${authToken}` } : {})
+        },
         body: JSON.stringify({ confirm: true }),
       });
       
@@ -2593,9 +2601,6 @@ function LazyTrackEmbed({
   return (
     <div ref={containerRef} className="bg-white rounded-2xl shadow overflow-hidden">
       
-      <div className="px-4 pt-4 text-sm font-medium flex items-center">
-        گروه {gid}
-      </div>
       <div className="border-t">
         {finalized ? (
           status === 'success' ? (
@@ -2611,13 +2616,13 @@ function LazyTrackEmbed({
                         settlement?.remainder < 0 ? (
                           <p className="mt-1 text-xs text-gray-600 leading-6">
                             شما قبلا وجه برای گروه {`${(toSafeNumber(resultData.requiredMembers, 0) + 1).toLocaleString('fa-IR')}`} نفره
-                            (<span className="font-medium">{`${toSafeNumber(resultData.initialPaid, 0).toLocaleString('fa-IR')}`} تومان</span>) را پرداخت کرده‌اید
+                            (<span className="font-medium">{`${toSafeNumber(resultData.orderSummary?.amountPaid, toSafeNumber(resultData.initialPaid, 0)).toLocaleString('fa-IR')}`} تومان</span>) را پرداخت کرده‌اید
                             اما گروه {`${(toSafeNumber(resultData.actualMembers, 0) + 1).toLocaleString('fa-IR')}`} نفره تشکیل شد. به خاطر جایزه تجمیع سفارش، مبلغ {`${Math.abs(toSafeNumber(settlement?.remainder, 0)).toLocaleString('fa-IR')}`} تومان به شما برگردانده می‌شود.
                           </p>
                         ) : (
                           <p className="mt-1 text-xs text-gray-600 leading-6">
                             شما قبلا وجه برای گروه {`${(toSafeNumber(resultData.requiredMembers, 0) + 1).toLocaleString('fa-IR')}`} نفره
-                            (<span className="font-medium">{`${toSafeNumber(resultData.initialPaid, 0).toLocaleString('fa-IR')}`} تومان</span>) را پرداخت کرده‌اید
+                            (<span className="font-medium">{`${toSafeNumber(resultData.orderSummary?.amountPaid, toSafeNumber(resultData.initialPaid, 0)).toLocaleString('fa-IR')}`} تومان</span>) را پرداخت کرده‌اید
                             اما گروه {`${(toSafeNumber(resultData.actualMembers, 0) + 1).toLocaleString('fa-IR')}`} نفره تشکیل دادین.{settlement?.remainder > 0 ? ' برای ثبت نهایی سفارش لطفا مبلغ باقیمانده را پرداخت نمایید.' : ''}
                           </p>
                         )

@@ -591,9 +591,9 @@ export async function GET(
     else expectedLeaderPrice = alone;
   }
 
-  const originalTotal = alone; // قیمت تنها خریدن (همان totals.alone در cart)
-  const currentTotal = leaderPrice; // قیمت لیدر با دوستان واقعی (همان totals.your در cart)
-  const expectedTotal = expectedLeaderPrice; // قیمت لیدر با دوستان مورد انتظار
+  let originalTotal = alone; // قیمت تنها خریدن (همان totals.alone در cart)
+  let currentTotal = leaderPrice; // قیمت لیدر با دوستان واقعی (همان totals.your در cart)
+  let expectedTotal = expectedLeaderPrice; // قیمت لیدر با دوستان مورد انتظار
 
   // Prefer backend's authoritative expires_at if available, otherwise try groups endpoint, and avoid fabricating defaults
   const startRaw = (details?.leader_paid_at || details?.created_at || listRow?.created_at || null);
@@ -632,6 +632,18 @@ export async function GET(
       if (grpData?.serverNowMs != null && typeof grpData.serverNowMs === 'number') {
         serverNowMs = grpData.serverNowMs;
       }
+
+      // FALLBACK: Use backend's pricing if our calculated pricing is 0
+      // The backend /groups endpoint has correct pricing from the basket_snapshot
+      if (originalTotal === 0 && grpData?.pricing) {
+        const backendPricing = grpData.pricing;
+        if (backendPricing.originalTotal && backendPricing.originalTotal > 0) {
+          originalTotal = Number(backendPricing.originalTotal) || 0;
+          currentTotal = Number(backendPricing.currentTotal) || 0;
+          expectedTotal = Number(backendPricing.expectedTotal) || 0;
+          console.log(`[API] Group ${groupId}: Using backend pricing fallback - originalTotal=${originalTotal}, currentTotal=${currentTotal}`);
+        }
+      }
     }
   } catch {}
 
@@ -669,23 +681,36 @@ export async function GET(
     } catch {}
   }
 
-  // Derive leader's initial paid amount from admin details participants (order totals)
-  const detailsParticipants: any[] = Array.isArray(details?.participants)
-    ? details?.participants
-    : [];
-  const leaderIdStr = String(details?.leader_id ?? '');
+  // Derive leader's initial paid amount from multiple sources (priority order)
   let leaderInitialPaid = 0;
-  try {
-    // Prefer participant with matching user_id; fallback to earliest created order
-    const leaderCandidate =
-      detailsParticipants.find((p: any) => String(p?.user_id ?? '') === leaderIdStr) ||
-      [...detailsParticipants].sort((a: any, b: any) => {
-        const ta = a?.created_at ? Date.parse(a.created_at) : Number.POSITIVE_INFINITY;
-        const tb = b?.created_at ? Date.parse(b.created_at) : Number.POSITIVE_INFINITY;
-        return ta - tb;
-      })[0];
-    leaderInitialPaid = parsePrice(leaderCandidate?.total_amount ?? 0) || 0;
-  } catch {}
+  let shippingCost = 0;
+  
+  // First priority: Get from backend /groups endpoint (most accurate, includes shipping)
+  if (grpData?.amountPaid && parsePrice(grpData.amountPaid) > 0) {
+    leaderInitialPaid = parsePrice(grpData.amountPaid);
+    shippingCost = parsePrice(grpData.shippingCost ?? 0);
+  } else {
+    // Second priority: Get from admin details participants
+    try {
+      const detailsParticipants: any[] = Array.isArray(details?.participants)
+        ? details?.participants
+        : [];
+      const leaderIdStr = String(details?.leader_id ?? '');
+      const leaderCandidate =
+        detailsParticipants.find((p: any) => String(p?.user_id ?? '') === leaderIdStr) ||
+        [...detailsParticipants].sort((a: any, b: any) => {
+          const ta = a?.created_at ? Date.parse(a.created_at) : Number.POSITIVE_INFINITY;
+          const tb = b?.created_at ? Date.parse(b.created_at) : Number.POSITIVE_INFINITY;
+          return ta - tb;
+        })[0];
+      leaderInitialPaid = parsePrice(leaderCandidate?.total_amount ?? 0) || 0;
+    } catch {}
+    
+    // Third priority fallback: If still 0, use expectedTotal (price only, no shipping)
+    if (leaderInitialPaid === 0) {
+      leaderInitialPaid = expectedTotal;
+    }
+  }
 
   const payload = {
     id: String(groupId),
@@ -740,6 +765,7 @@ export async function GET(
     finalLeaderPrice: currentTotal,
     expectedLeaderPrice: expectedTotal,
     amountPaid: leaderInitialPaid,
+    shippingCost: shippingCost,
     // Pass aggregation bonus from admin details to frontend as rewardCredit
     rewardCredit: Number((details as any)?.aggregation_bonus || 0),
     // NEW: Secondary group information

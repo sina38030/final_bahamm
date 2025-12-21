@@ -836,6 +836,12 @@ async def get_user_groups_and_orders(
                         # es (non-leader members) are always settled from their perspective
                         or (order.group_order and order.group_order.leader_id != order.user_id)
                     ) else "pending"
+                ),
+                # فیلدهای تجمیع سفارشات برای نمایش آدرس صحیح
+                "ship_to_leader_address": getattr(order, 'ship_to_leader_address', False),
+                "allow_consolidation": (
+                    order.group_order.allow_consolidation
+                    if order.group_order else False
                 )
             }
             orders_data.append(order_data)
@@ -891,7 +897,10 @@ async def get_user_groups_and_orders(
                                 (group and getattr(group, 'settlement_paid_at', None))
                                 or (group and getattr(group, 'settlement_required', False) is False)
                             ) else "pending"
-                        )
+                        ),
+                        # فیلدهای تجمیع سفارشات
+                        "ship_to_leader_address": getattr(leader_order, 'ship_to_leader_address', False),
+                        "allow_consolidation": group.allow_consolidation if group else False
                     }
                     orders_data.append(order_data)
         

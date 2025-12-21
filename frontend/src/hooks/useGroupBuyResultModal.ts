@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { safeSessionStorage } from '@/utils/safeStorage';
+import { API_BASE_URL } from '@/utils/api';
 
 interface GroupBuyData {
   groupId: string;
@@ -153,7 +154,9 @@ export const calculateSettlementState = (
 // Function to fetch group buy data from API
 export const fetchGroupBuyData = async (groupId: string): Promise<GroupBuyData | null> => {
   try {
-    const response = await fetch(`/api/groups/${groupId}`, {
+    // NOTE: In production nginx routes `/api/*` to the backend, not Next.js API routes.
+    // We use the backend base URL directly so the same code works in dev + prod.
+    const response = await fetch(`${API_BASE_URL}/groups/${encodeURIComponent(groupId)}`, {
       cache: 'no-store',
       headers: {
         'Content-Type': 'application/json',
@@ -181,6 +184,11 @@ export const fetchGroupBuyData = async (groupId: string): Promise<GroupBuyData |
       const correctOriginal = originalTotal;
       const correctCurrent = currentTotal;
       const correctDiscount = Math.max(0, originalTotal - currentTotal);
+      
+      // محاسبه grandTotal با در نظر گرفتن هزینه ارسال و جایزه تجمیع
+      const shippingCost = safeNumber(data.shippingCost, safeNumber(data.orderSummary?.shippingCost, 0));
+      const rewardCredit = safeNumber(data.rewardCredit, safeNumber(data.orderSummary?.rewardCredit, 0));
+      const grandTotal = safeNumber(data.orderSummary?.grandTotal, correctCurrent + shippingCost - rewardCredit);
 
       return {
         groupId: data.id,
@@ -193,10 +201,10 @@ export const fetchGroupBuyData = async (groupId: string): Promise<GroupBuyData |
           originalPrice: correctOriginal,
           groupDiscount: correctDiscount,
           finalItemsPrice: correctCurrent,
-          shippingCost: safeNumber(data.shippingCost, safeNumber(data.orderSummary?.shippingCost, 0)),
-          rewardCredit: safeNumber(data.rewardCredit, safeNumber(data.orderSummary?.rewardCredit, 0)),
-          grandTotal: safeNumber(data.orderSummary?.grandTotal, correctCurrent + safeNumber(data.shippingCost, 0) - safeNumber(data.rewardCredit, 0)),
-          amountPaid: safeNumber(data.amountPaid, safeNumber(data.initialPayment, correctCurrent)),
+          shippingCost: shippingCost,
+          rewardCredit: rewardCredit,
+          grandTotal: grandTotal,
+          amountPaid: safeNumber(data.amountPaid, safeNumber(data.initialPayment, grandTotal)),
         },
         shareUrl: data.invite?.shareUrl || '',
         isLeader: data.participants?.some((p: any) => p.isLeader && p.id === data.currentUserId) || false,

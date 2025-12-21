@@ -161,37 +161,6 @@ function SettlementSuccessContent() {
 
         {/* Content */}
         <div className="px-4 space-y-6">
-          {/* Payment Details */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="space-y-3">
-              <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                <span className="text-sm text-gray-600">مبلغ پرداختی</span>
-                <span className="font-bold text-gray-900">
-                  {((order as any).total_amount)?.toLocaleString('fa-IR') || '۰'} تومان
-                </span>
-              </div>
-              
-              <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                <span className="text-sm text-gray-600">شماره سفارش</span>
-                <span className="font-medium text-gray-700">#{order.id}</span>
-              </div>
-              
-              {groupIdParam && (
-                <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                  <span className="text-sm text-gray-600">شماره گروه</span>
-                  <span className="font-medium text-gray-700">#{groupIdParam}</span>
-                </div>
-              )}
-              
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">وضعیت</span>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  پرداخت شده
-                </span>
-              </div>
-            </div>
-          </div>
-
           {/* Info Card */}
           <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
             <div className="flex gap-3">

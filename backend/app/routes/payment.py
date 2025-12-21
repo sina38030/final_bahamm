@@ -871,7 +871,9 @@ async def get_user_payment_orders(
                         order.group_order.finalized_at is not None
                         if getattr(order, 'group_order_id', None) and hasattr(order, 'group_order') and order.group_order
                         else None
-                    )
+                    ),
+                    "ship_to_leader_address": getattr(order, 'ship_to_leader_address', False),
+                    "allow_consolidation": getattr(order, 'allow_consolidation', False)
                 }
                 for order in orders
             ]

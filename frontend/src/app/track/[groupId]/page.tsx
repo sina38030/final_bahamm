@@ -7,6 +7,7 @@ import { useGroupBuyResult } from "@/components/providers/GroupBuyResultProvider
 import { generateInviteLink, generateShareUrl, extractInviteCode } from "@/utils/linkGenerator";
 import { API_BASE_URL } from "@/utils/api";
 import { safeStorage, safeSessionStorage } from "@/utils/safeStorage";
+import { finalizeGroupBuy } from "@/utils/groupFinalize";
 // Removed auth requirement for public access
 
 type GroupStatus = "ongoing" | "success" | "failed";
@@ -372,8 +373,9 @@ export default function TrackPage() {
   }, [data]);
 
   // button enablement for "اعلام تکمیل گروه"
+  // Allow button to be enabled if countdown hasn't been initialized yet OR if there's time remaining
   const canComplete =
-    !!data && data.status === "ongoing" && remaining > 0 && nonLeaderPaid >= 1;
+    !!data && data.status === "ongoing" && (!countdownReady || remaining > 0) && nonLeaderPaid >= 1;
 
   // share disabled when expired or not ongoing
   const inviteDisabled =
@@ -466,12 +468,11 @@ export default function TrackPage() {
       if (!confirm("آیا از تکمیل گروه اطمینان دارید؟")) return;
 
       console.log(`[TRACK] Calling finalize API for group ${groupId}`);
-      // Finalize via API proxy
-      const res = await fetch(`/api/groups/${groupId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirm: true }),
-      });
+      // IMPORTANT:
+      // In production, nginx routes `/api/*` to the backend (not Next.js route handlers).
+      // Backend `/api/groups/{id}` is GET-only, so POST returns 405.
+      // We call backend finalize endpoint directly via API_BASE_URL to avoid 405.
+      const res = await finalizeGroupBuy(groupId);
       console.log(`[TRACK] API response status: ${res.status}`);
       
       if (!res.ok) {
