@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { FaPlus, FaMinus } from 'react-icons/fa';
+import { HiOutlineChevronDown, HiOutlineQuestionMarkCircle } from 'react-icons/hi2';
 import PrevPage from '@/components/common/PrevPage';
 
 type FAQItem = {
@@ -27,21 +27,29 @@ const faqData: FAQItem[] = [
 
 function AccordionItem({ question, answer, isOpen, onClick }: FAQItem & { isOpen: boolean; onClick: () => void }) {
     return (
-        <div className="border-b border-gray-200 last:border-b-0">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-3 transition-all duration-200 hover:shadow-md">
             <button
-                className="w-full px-4 py-4 text-right flex items-center justify-between"
+                className="w-full px-5 py-4 text-right flex items-center justify-between gap-4"
                 onClick={onClick}
             >
-                <span className="font-medium">{question}</span>
-                <span className="text-primary">
-                    {isOpen ? <FaMinus size={16} /> : <FaPlus size={16} />}
+                <div className="flex items-center gap-3">
+                     <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${isOpen ? 'bg-[#E31C5F] text-white' : 'bg-[#E31C5F]/10 text-[#E31C5F]'}`}>
+                        <HiOutlineQuestionMarkCircle size={20} />
+                    </div>
+                    <span className={`font-bold text-sm sm:text-base ${isOpen ? 'text-[#E31C5F]' : 'text-gray-800'}`}>{question}</span>
+                </div>
+                <span className={`text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180 text-[#E31C5F]' : ''}`}>
+                    <HiOutlineChevronDown size={20} />
                 </span>
             </button>
             <div
-                className={`px-4 overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-96 pb-4' : 'max-h-0'
-                    }`}
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}
             >
-                <p className="text-gray-600">{answer}</p>
+                <div className="px-5 pb-5 pt-0 text-gray-600 text-sm leading-relaxed border-t border-gray-50 mt-2">
+                    <div className="pt-3">
+                        {answer}
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -59,9 +67,12 @@ export default function FAQPage() {
     };
 
     return (
-        <div className="min-h-screen mx-auto pb-16">
+        <div className="min-h-screen bg-gray-50 pb-20">
             <PrevPage title="سوالات متداول" />
-            <div className="bg-white rounded-lg shadow-sm">
+            <div className="px-4 mt-2">
+                <div className="mb-6 text-center">
+                    <p className="text-gray-500 text-sm">پاسخ پرتکرارترین سوالات شما</p>
+                </div>
                 {faqData.map((item, index) => (
                     <AccordionItem
                         key={index}
@@ -73,4 +84,4 @@ export default function FAQPage() {
             </div>
         </div>
     );
-} 
+}

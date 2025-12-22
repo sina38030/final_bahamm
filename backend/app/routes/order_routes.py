@@ -278,12 +278,28 @@ async def update_order_delivery_slot(
     try:
         import json
         # Store delivery slot as JSON to maintain consistency with existing format
-        order.delivery_slot = json.dumps({
+        delivery_slot_json = json.dumps({
             "date": request.get("date"),
             "from": request.get("from"),
             "to": request.get("to"),
             "delivery_slot": delivery_slot
         })
+        
+        # Update the current order
+        order.delivery_slot = delivery_slot_json
+        
+        # If this order is part of a group, update all orders in the same group
+        if order.group_order_id:
+            # Get all orders in the same group
+            group_orders = db.query(Order).filter(
+                Order.group_order_id == order.group_order_id,
+                Order.is_settlement_payment == False
+            ).all()
+            
+            # Update delivery_slot for all orders in the group
+            for group_order in group_orders:
+                group_order.delivery_slot = delivery_slot_json
+        
         db.commit()
         return {"message": "Delivery slot updated successfully"}
     except Exception as e:

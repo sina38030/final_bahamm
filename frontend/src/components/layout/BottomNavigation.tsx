@@ -1,6 +1,7 @@
 'use client';
 
-import { FaHome, FaComments, FaUser, FaUsers } from 'react-icons/fa';
+import { HiOutlineHome, HiOutlineChatBubbleLeftRight, HiOutlineUser, HiOutlineShoppingBag } from 'react-icons/hi2';
+import { HiHome, HiChatBubbleLeftRight, HiUser, HiShoppingBag } from 'react-icons/hi2';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
@@ -279,27 +280,46 @@ export default function BottomNavigation() {
 
     return (
         <div className={`fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around items-center h-16 z-40 transition-transform transform duration-200 will-change-transform ${hidden ? 'translate-y-full' : 'translate-y-0'}`}>
-            <Link href="/" className="flex flex-col items-center gap-2 relative" onClick={onNavInteract}>
-                <FaHome size={20} className={pathname === '/' ? 'text-[#E31C5F]' : 'text-gray-500'} />
-                <span className={pathname === '/' ? 'text-xs text-[#E31C5F]' : 'text-xs text-gray-500'}>خانه</span>
+            <Link href="/" className="flex flex-col items-center gap-1 relative w-16" onClick={onNavInteract}>
+                {pathname === '/' ? (
+                    <HiHome size={26} className="text-[#E31C5F]" />
+                ) : (
+                    <HiOutlineHome size={26} className="text-gray-500" />
+                )}
+                <span className={`text-[10px] font-medium ${pathname === '/' ? 'text-[#E31C5F]' : 'text-gray-500'}`}>خانه</span>
             </Link>
-            <Link href="/groups-orders" className="flex flex-col items-center gap-2 relative" onClick={onNavInteract}>
+            
+            <Link href="/groups-orders" className="flex flex-col items-center gap-1 relative w-16" onClick={onNavInteract}>
                 <div className="relative">
-                    <FaUsers size={20} className={pathname.startsWith('/groups-orders') ? 'text-[#E31C5F]' : 'text-gray-500'} />
+                    {pathname.startsWith('/groups-orders') ? (
+                        <HiShoppingBag size={26} className="text-[#E31C5F]" />
+                    ) : (
+                        <HiOutlineShoppingBag size={26} className="text-gray-500" />
+                    )}
                     {renderBadge(groupsOrdersCount)}
                 </div>
-                <span className={pathname.startsWith('/groups-orders') ? 'text-xs text-[#E31C5F]' : 'text-xs text-gray-500'}>گروه و سفارش‌ها</span>
+                <span className={`text-[10px] font-medium ${pathname.startsWith('/groups-orders') ? 'text-[#E31C5F]' : 'text-gray-500'} whitespace-nowrap`}>گروه و سفارش‌ها</span>
             </Link>
-            <Link href="/chat" className="flex flex-col items-center gap-2 relative" onClick={onNavInteract}>
+            
+            <Link href="/chat" className="flex flex-col items-center gap-1 relative w-16" onClick={onNavInteract}>
                 <div className="relative">
-                    <FaComments size={20} className={pathname === '/chat' ? 'text-[#E31C5F]' : 'text-gray-500'} />
+                     {pathname === '/chat' ? (
+                        <HiChatBubbleLeftRight size={26} className="text-[#E31C5F]" />
+                    ) : (
+                        <HiOutlineChatBubbleLeftRight size={26} className="text-gray-500" />
+                    )}
                     {renderBadge(chatUnreadCount)}
                 </div>
-                <span className={pathname === '/chat' ? 'text-xs text-[#E31C5F]' : 'text-xs text-gray-500'}>گفتگو</span>
+                <span className={`text-[10px] font-medium ${pathname === '/chat' ? 'text-[#E31C5F]' : 'text-gray-500'}`}>گفتگو</span>
             </Link>
-            <Link href="/profile" className="flex flex-col items-center gap-2 relative" onClick={onNavInteract}>
-                <FaUser size={20} className={pathname.startsWith('/profile') ? 'text-[#E31C5F]' : 'text-gray-500'} />
-                <span className={pathname.startsWith('/profile') ? 'text-xs text-[#E31C5F]' : 'text-xs text-gray-500'}>حساب کاربری</span>
+            
+            <Link href="/profile" className="flex flex-col items-center gap-1 relative w-16" onClick={onNavInteract}>
+                 {pathname.startsWith('/profile') ? (
+                    <HiUser size={26} className="text-[#E31C5F]" />
+                ) : (
+                    <HiOutlineUser size={26} className="text-gray-500" />
+                )}
+                <span className={`text-[10px] font-medium ${pathname.startsWith('/profile') ? 'text-[#E31C5F]' : 'text-gray-500'} whitespace-nowrap`}>حساب کاربری</span>
             </Link>
         </div>
     );

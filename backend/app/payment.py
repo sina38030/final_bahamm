@@ -204,4 +204,6 @@ zarinpal = ZarinPalPayment(
     test_mode=False
 )
 
+logger.info(f"💳 ZarinPal initialized - Sandbox: {settings.is_sandbox_mode()}, Localhost: {settings.is_localhost()}, Merchant ID configured: {bool(settings.ZARINPAL_MERCHANT_ID)}")
+
 logger.info(f"💳 ZarinPal initialized - Sandbox: {settings.is_sandbox_mode()}, Localhost: {settings.is_localhost()}, Merchant ID configured: {bool(settings.ZARINPAL_MERCHANT_ID)}") 

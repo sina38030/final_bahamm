@@ -15,6 +15,7 @@ import { isReviewEligibleStatus } from "@/utils/orderStatus";
 import { safeStorage, safeSessionStorage } from "@/utils/safeStorage";
 import { getApiUrl } from "@/utils/api";
 import { PageErrorBoundary } from "@/components/common/PageErrorBoundary";
+import PhoneAuthModal from "@/components/auth/PhoneAuthModal";
 // import { requestSlot, releaseSlot } from "@/utils/queue";
 
 // Debounce utility to prevent excessive updates
@@ -509,6 +510,7 @@ function GroupsOrdersPageContent() {
   const fetchLockRef = useRef(false);
   const lastFetchAtRef = useRef<number>(0);
   const [orderIdsWithReviews, setOrderIdsWithReviews] = useState<Set<number>>(new Set());
+  const [showPhoneAuthModal, setShowPhoneAuthModal] = useState(false);
 
   // Avoid SSR hydration mismatch: compute session state on client only
   const [noSession, setNoSession] = useState(false);
@@ -691,35 +693,6 @@ function GroupsOrdersPageContent() {
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // Gate: If user is not authenticated and no token is stored, show login prompt (client-only)
-  if (noSession) {
-    return (
-      <div dir="rtl" className="min-h-screen bg-gray-50 pb-20">
-        <div className="sticky top-0 bg-white z-10">
-          <div className="px-4 py-3 border-b">
-            <div className="relative flex items-center justify-between">
-              <h1 className="absolute left-1/2 -translate-x-1/2 text-sm font-bold">گروه و سفارش‌ها</h1>
-              <button onClick={() => router.back()} className="ml-auto p-2 hover:bg-gray-100 rounded-full" aria-label="بازگشت">
-                <span className="inline-block">❮</span>
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className="p-4">
-          <div className="bg-white border rounded-xl p-6 text-center shadow-sm max-w-md mx-auto">
-            <div className="text-sm text-gray-700 mb-4">برای دیدن گروه و سفارش‌ها وارد شوید</div>
-            <button
-              onClick={() => router.push('/auth/login')}
-              className="w-full bg-rose-600 hover:bg-rose-700 text-white font-medium py-2.5 px-4 rounded-lg"
-            >
-              ورود
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // Local toast listener (unified toast surface for this page)
   useEffect(() => {
@@ -1216,6 +1189,81 @@ function GroupsOrdersPageContent() {
     setTab(hasLeaderGroup ? 'groups' : 'orders');
   }, [initialLoading, hasLeaderGroup]);
 
+  // Gate: If user is not authenticated and no token is stored, show login prompt (client-only)
+  if (noSession) {
+    return (
+      <div dir="rtl" className="min-h-screen bg-gray-50 pb-20">
+        <div className="sticky top-0 bg-white z-10">
+          <div className="px-4 py-3 border-b">
+            <div className="relative flex items-center justify-between">
+              <h1 className="absolute left-1/2 -translate-x-1/2 text-sm font-bold">گروه و سفارش‌ها</h1>
+              <button 
+                onClick={() => {
+                  try {
+                    router.back();
+                  } catch (e) {
+                    router.push('/');
+                  }
+                }} 
+                className="ml-auto p-2 hover:bg-gray-100 rounded-full" 
+                aria-label="بازگشت"
+              >
+                <span className="inline-block">❮</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="p-6 flex flex-col items-center justify-center min-h-[calc(100vh-120px)] text-center">
+          {/* Image Container with Animation */}
+          <div className="mb-8 relative animate-fade-in-up">
+            <div className="w-40 h-40 bg-rose-50 rounded-full flex items-center justify-center shadow-sm relative z-10">
+              <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-inner">
+                <svg className="w-16 h-16 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+            </div>
+            {/* Decorative circles */}
+            <div className="absolute top-0 right-0 w-8 h-8 bg-rose-200 rounded-full opacity-50 animate-pulse delay-75"></div>
+            <div className="absolute bottom-2 left-2 w-6 h-6 bg-rose-300 rounded-full opacity-50 animate-pulse delay-150"></div>
+          </div>
+
+          {/* Text Content */}
+          <div className="space-y-3 mb-10 max-w-xs mx-auto animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+            <h2 className="text-2xl font-bold text-gray-800">
+              وارد حساب شوید!
+            </h2>
+            <p className="text-base text-gray-500 leading-relaxed">
+              برای مشاهده سفارش‌ها و گروه‌های خود، لطفاً وارد حساب کاربری شوید.
+            </p>
+          </div>
+
+          {/* Login Button */}
+          <div className="w-full max-w-sm animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+            <button
+              onClick={() => setShowPhoneAuthModal(true)}
+              className="w-full bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-rose-200 transform transition-all duration-200 hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-2 group"
+            >
+              <span>ورود به حساب کاربری</span>
+              <span className="group-hover:translate-x-[-4px] transition-transform duration-200">←</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Phone Auth Modal */}
+        <PhoneAuthModal
+          isOpen={showPhoneAuthModal}
+          onClose={() => setShowPhoneAuthModal(false)}
+          onSuccess={() => {
+            setShowPhoneAuthModal(false);
+            // Refresh to show authenticated content
+            window.location.reload();
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
       <div dir="rtl" className="min-h-screen bg-gray-50 pb-20">
       <div className="sticky top-0 bg-white z-10">
@@ -1503,6 +1551,17 @@ function GroupsOrdersPageContent() {
           {toast.message}
         </div>
       )}
+
+      {/* Phone Auth Modal */}
+      <PhoneAuthModal
+        isOpen={showPhoneAuthModal}
+        onClose={() => setShowPhoneAuthModal(false)}
+        onSuccess={() => {
+          setShowPhoneAuthModal(false);
+          // Refresh to show authenticated content
+          router.refresh();
+        }}
+      />
     </div>
   );
 }
@@ -2617,7 +2676,11 @@ function LazyTrackEmbed({
                           <p className="mt-1 text-xs text-gray-600 leading-6">
                             شما قبلا وجه برای گروه {`${(toSafeNumber(resultData.requiredMembers, 0) + 1).toLocaleString('fa-IR')}`} نفره
                             (<span className="font-medium">{`${toSafeNumber(resultData.orderSummary?.amountPaid, toSafeNumber(resultData.initialPaid, 0)).toLocaleString('fa-IR')}`} تومان</span>) را پرداخت کرده‌اید
-                            اما گروه {`${(toSafeNumber(resultData.actualMembers, 0) + 1).toLocaleString('fa-IR')}`} نفره تشکیل شد. به خاطر جایزه تجمیع سفارش، مبلغ {`${Math.abs(toSafeNumber(settlement?.remainder, 0)).toLocaleString('fa-IR')}`} تومان به شما برگردانده می‌شود.
+                            اما گروه {`${(toSafeNumber(resultData.actualMembers, 0) + 1).toLocaleString('fa-IR')}`} نفره تشکیل شد.
+                            {toSafeNumber(resultData.orderSummary?.rewardCredit, 0) > 0
+                              ? ` به خاطر جایزه تجمیع سفارش، مبلغ ${Math.abs(toSafeNumber(settlement?.remainder, 0)).toLocaleString('fa-IR')} تومان به شما برگردانده می‌شود.`
+                              : ` مبلغ ${Math.abs(toSafeNumber(settlement?.remainder, 0)).toLocaleString('fa-IR')} تومان به شما برگردانده می‌شود.`
+                            }
                           </p>
                         ) : (
                           <p className="mt-1 text-xs text-gray-600 leading-6">
@@ -2883,23 +2946,27 @@ function LazyTrackEmbed({
             )
           ) : (
             <div className="p-4">
-              <div className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-3">این گروه ناموفق شد.</div>
-              {isLeader && (() => {
-                // Determine if leader had a real paid order (not FREE)
+              {(() => {
+                // Determine if user (leader or member) had a real paid order (not FREE)
                 try {
-                  const leaderOrder = (propOrders || []).find(o => o.group_order_id === parseInt(gid) && o.is_leader_order === true);
-                  const paid = !!(leaderOrder && leaderOrder.payment_ref_id && Number(leaderOrder.total_amount || 0) > 0);
-                  if (!paid) return null;
-                } catch { return null; }
-                return (
-                  <div className="mt-4 space-y-3" dir="rtl">
-                    {refundSubmitted ? (
-                      <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-                        با موفقیت انجام شد
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="text-sm font-semibold text-gray-900">روش های دریافت وجه:</div>
+                  const userOrder = (propOrders || []).find(o => o.group_order_id === parseInt(gid));
+                  const paid = !!(userOrder && userOrder.payment_ref_id && Number(userOrder.total_amount || 0) > 0);
+                  
+                  if (paid) {
+                    return (
+                      <>
+                        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+                          متاسفانه گروه تشکیل نشد، لطفا از طریق یکی از روش های زیر وجه پرداختی را دریافت نمایید
+                        </div>
+                        {isLeader && (
+                          <div className="mt-4 space-y-3" dir="rtl">
+                            {refundSubmitted ? (
+                              <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                                با موفقیت انجام شد
+                              </div>
+                            ) : (
+                              <div className="space-y-3">
+                                <div className="text-sm font-semibold text-gray-900">روش های دریافت وجه:</div>
 
                         <div className="space-y-2">
                           <button
@@ -2970,8 +3037,24 @@ function LazyTrackEmbed({
                         )}
                       </div>
                     )}
-                  </div>
-                );
+                          </div>
+                        )}
+                      </>
+                    );
+                  } else {
+                    return (
+                      <div className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        این گروه ناموفق شد.
+                      </div>
+                    );
+                  }
+                } catch { 
+                  return (
+                    <div className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                      این گروه ناموفق شد.
+                    </div>
+                  );
+                }
               })()}
             </div>
           )

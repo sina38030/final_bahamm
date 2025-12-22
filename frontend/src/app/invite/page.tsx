@@ -1095,7 +1095,7 @@ function InvitePageContent() {
 
         {/* Description Card */}
         <section className="description-card">
-          <h3>وت</h3>
+          <h3>چگونه سفارش رو رایگان کنیم:</h3>
           <p>
             • ری است.<br />
             • ل نیست.<br />

@@ -66,8 +66,10 @@ export default function CustomModal({
         >
             <ModalContent
                 className={cn(
-                    "fixed  left-0 right-0 bottom-0 mx-auto my-auto w-full h-full max-w-[100vw] max-h-[85vh] ", // مودال کاملاً فیکس و تمام‌صفحه
-                    "flex flex-col overflow-hidden bg-white rounded-t-2xl" // ساختار فلکس و بدون گردی گوشه‌ها
+                    "fixed left-0 right-0 bottom-0 mx-auto w-full",
+                    // If size is full, height is full, otherwise auto height based on content
+                    size === 'full' ? "h-full max-h-[100vh]" : "h-auto max-h-[85vh]",
+                     "flex flex-col overflow-hidden bg-white rounded-t-2xl sm:rounded-2xl sm:relative sm:bottom-auto sm:my-auto sm:w-auto sm:max-w-lg"
                 )}
                 onClick={handleContentClick}
             >
@@ -101,9 +103,8 @@ export default function CustomModal({
                                             {showCancelButton &&
                                                 cancelLabel && (
                                                     <Button
-                                                        color="danger"
-                                                        variant="light"
-                                                        className="w-full"
+                                                        className="w-full text-[#E31C5F] bg-[#E31C5F]/10 hover:bg-[#E31C5F]/20 font-medium"
+                                                        variant="flat"
                                                         onPress={closeModal}
                                                         disabled={
                                                             loading ||
@@ -115,8 +116,7 @@ export default function CustomModal({
                                                 )}
                                             {onSubmit && submitLabel && (
                                                 <Button
-                                                    color="primary"
-                                                    className="w-full bg-[#D62B1A]"
+                                                    className="w-full bg-[#E31C5F] text-white font-medium shadow-md shadow-[#E31C5F]/20"
                                                     onPress={onSubmit}
                                                     disabled={loading || isSubmitDisabled}
                                                 >

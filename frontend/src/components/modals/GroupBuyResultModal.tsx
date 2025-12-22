@@ -387,7 +387,11 @@ const GroupBuyResultModal: React.FC<GroupBuyResultModalProps> = ({
               <p className="mt-1 text-xs text-gray-600 leading-6">
                 شما قبلا وجه برای گروه {`${groupRequired.toLocaleString('fa-IR')}`} نفره
                 (<span className="font-medium">{`${Number(orderSummary?.amountPaid || initialPaid || 0).toLocaleString('fa-IR')}`} تومان</span>) را پرداخت کرده‌اید
-                اما گروه {`${groupActual.toLocaleString('fa-IR')}`} نفره تشکیل شد. به خاطر جایزه تجمیع سفارش، مبلغ {`${Math.abs(Number(effectiveDelta)).toLocaleString('fa-IR')}`} تومان به شما برگردانده می‌شود.
+                اما گروه {`${groupActual.toLocaleString('fa-IR')}`} نفره تشکیل شد.
+                {Number(orderSummary?.rewardCredit || 0) > 0
+                  ? ` به خاطر جایزه تجمیع سفارش، مبلغ ${Math.abs(Number(effectiveDelta)).toLocaleString('fa-IR')} تومان به شما برگردانده می‌شود.`
+                  : ` مبلغ ${Math.abs(Number(effectiveDelta)).toLocaleString('fa-IR')} تومان به شما برگردانده می‌شود.`
+                }
               </p>
             )}
           </div>

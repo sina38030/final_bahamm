@@ -452,6 +452,26 @@ async def finalize_group_order(
             for item in basket_items:
                 total_amount += float(item.get('unit_price', 0)) * int(item.get('quantity', 0))
             
+            # Get delivery_slot and shipping_address from invited users' orders
+            # Find the first paid invited user order to copy delivery_slot and shipping_address
+            sample_invited_order = db.query(Order).filter(
+                Order.group_order_id == group_order.id,
+                Order.user_id != group_order.leader_id,
+                Order.paid_at != None,
+                Order.is_settlement_payment == False
+            ).first()
+            
+            delivery_slot = None
+            shipping_address = None
+            if sample_invited_order:
+                delivery_slot = sample_invited_order.delivery_slot
+                shipping_address = sample_invited_order.shipping_address
+                # Clean up any PENDING markers from shipping address
+                if shipping_address and 'PENDING_' in shipping_address:
+                    # Remove PENDING_INVITE: or PENDING_GROUP: markers
+                    import re
+                    shipping_address = re.sub(r'^PENDING_(INVITE|GROUP):[^|]*\|?', '', shipping_address).strip()
+            
             # Create leader order
             leader_order = Order(
                 user_id=group_order.leader_id,
@@ -461,7 +481,9 @@ async def finalize_group_order(
                 group_order_id=group_order.id,
                 paid_at=datetime.now(TEHRAN_TZ),
                 payment_ref_id=f"GROUP_FINALIZED_{group_order_id}",
-                is_settlement_payment=False
+                is_settlement_payment=False,
+                delivery_slot=delivery_slot,
+                shipping_address=shipping_address
             )
             
             db.add(leader_order)
@@ -1301,11 +1323,12 @@ async def refund_failed_group_to_wallet(
     db: Session = Depends(get_db)
 ):
     """
-    Refund leader's payment to wallet (coins) when a regular group fails with no members.
+    Refund leader's payment to wallet (coins) when:
+    1. A regular group fails with no members (GROUP_FAILED), OR
+    2. A finalized group where leader is owed money (GROUP_FINALIZED with refund_due_amount > 0)
+    
     - Regular groups only (not secondary)
     - Only group leader can request
-    - Only when status == GROUP_FAILED
-    - Only if leader had a real payment (payment_ref_id present)
     - Idempotent using group.refund_paid_at as marker
     """
     group = db.query(GroupOrder).filter(GroupOrder.id == group_order_id).first()
@@ -1315,27 +1338,45 @@ async def refund_failed_group_to_wallet(
         raise HTTPException(status_code=403, detail="Only leader can request refund")
     if _is_secondary_group(group):
         raise HTTPException(status_code=400, detail="Refund flow does not apply to secondary groups")
-    if group.status != GroupOrderStatus.GROUP_FAILED:
-        raise HTTPException(status_code=400, detail="Group is not failed")
-
-    # Find leader's main order
-    leader_order = db.query(Order).filter(
-        Order.group_order_id == group.id,
-        Order.user_id == group.leader_id,
-        Order.is_settlement_payment == False
-    ).order_by(Order.created_at.asc()).first()
-    if not leader_order:
-        raise HTTPException(status_code=400, detail="Leader order not found")
-
-    # Must be real payment via gateway (ref_id present); skip FREE/no-charge orders
-    if not leader_order.payment_ref_id:
-        raise HTTPException(status_code=400, detail="No paid amount to refund (free order)")
+    
+    # Check if this group qualifies for refund:
+    # 1. Failed groups (old behavior)
+    # 2. Finalized groups with refund_due_amount > 0 (new behavior for leader credit)
+    is_failed = group.status == GroupOrderStatus.GROUP_FAILED
+    is_finalized_with_refund = (
+        group.status == GroupOrderStatus.GROUP_FINALIZED and 
+        int(getattr(group, 'refund_due_amount', 0) or 0) > 0
+    )
+    
+    if not (is_failed or is_finalized_with_refund):
+        raise HTTPException(status_code=400, detail="Group does not qualify for refund")
 
     # Idempotency: if refund already paid, return success
     if getattr(group, 'refund_paid_at', None):
         return {"ok": True, "message": "Refund already processed", "coins": current_user.coins}
 
-    amount = int(leader_order.total_amount or 0)
+    # Determine refund amount based on group status
+    amount = 0
+    if is_finalized_with_refund:
+        # For finalized groups, use refund_due_amount
+        amount = int(getattr(group, 'refund_due_amount', 0) or 0)
+    else:
+        # For failed groups, use leader's total_amount
+        # Find leader's main order
+        leader_order = db.query(Order).filter(
+            Order.group_order_id == group.id,
+            Order.user_id == group.leader_id,
+            Order.is_settlement_payment == False
+        ).order_by(Order.created_at.asc()).first()
+        if not leader_order:
+            raise HTTPException(status_code=400, detail="Leader order not found")
+
+        # Must be real payment via gateway (ref_id present); skip FREE/no-charge orders
+        if not leader_order.payment_ref_id:
+            raise HTTPException(status_code=400, detail="No paid amount to refund (free order)")
+        
+        amount = int(leader_order.total_amount or 0)
+    
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Refund amount is zero")
 

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FaChevronLeft, FaComment, FaEnvelope, FaHeart, FaList, FaMapMarkerAlt, FaQuestionCircle, FaSignOutAlt, FaUsers } from 'react-icons/fa';
-import { MdReceiptLong } from 'react-icons/md';
+import { HiOutlineUsers, HiOutlineQuestionMarkCircle, HiOutlineChatBubbleLeft, HiOutlineArrowRightOnRectangle, HiOutlineChevronLeft } from 'react-icons/hi2';
 import CustomModal from '@/components/common/CustomModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { isTelegramMiniApp } from '@/utils/linkGenerator';
@@ -25,13 +24,20 @@ function MenuItem({ icon, label, path, onClick }: MenuItem) {
     };
 
     return (
-        <li className="p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50" onClick={handleClick}>
-            <span className="flex items-center gap-2">
-                <span className="mr-2">{icon}</span>
-                {label}
-            </span>
-            <FaChevronLeft />
-        </li>
+        <div 
+            className="group flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer active:scale-[0.99] border border-gray-50" 
+            onClick={handleClick}
+        >
+            <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-gray-50 text-gray-600 group-hover:bg-[#E31C5F]/10 group-hover:text-[#E31C5F] flex items-center justify-center transition-colors">
+                    {icon}
+                </div>
+                <span className="font-medium text-gray-700 group-hover:text-gray-900">{label}</span>
+            </div>
+            <div className="text-gray-300 group-hover:text-[#E31C5F] group-hover:-translate-x-1 transition-all">
+                <HiOutlineChevronLeft size={16} />
+            </div>
+        </div>
     );
 }
 
@@ -58,23 +64,21 @@ export default function ProfileMenu() {
     };
 
     const menuItems: MenuItem[] = [
-        { icon: <FaUsers size={20} />, label: "گروه و سفارش‌های من", path: "/groups-orders" },
-        { icon: <FaQuestionCircle size={20} />, label: "پشتیبانی و سوالات متداول", path: "/profile/faq" },
-        // { icon: <FaEnvelope size={20} />, label: "پیام های من", path: "/profile/notification" },
-        { icon: <MdReceiptLong size={20} />, label: "تراکنش‌ها", path: "/profile/transactions" },
-        // { icon: <FaMapMarkerAlt size={20} />, label: "آدرس های من", path: "/profile/addresses" },
-        { icon: <FaComment size={20} />, label: "نظرات من", path: "/profile/comments" },
-        ...(isTelegram ? [] : [{ icon: <FaSignOutAlt size={20} />, label: "خروج", path: "/profile/logout", onClick: () => setIsLogoutModalOpen(true) }]),
+        { icon: <HiOutlineUsers size={24} />, label: "گروه و سفارش‌های من", path: "/groups-orders" },
+        { icon: <HiOutlineQuestionMarkCircle size={24} />, label: "پشتیبانی و سوالات متداول", path: "/profile/faq" },
+        // { icon: <HiOutlineEnvelope size={24} />, label: "پیام های من", path: "/profile/notification" },
+        // { icon: <HiOutlineReceiptRefund size={24} />, label: "تراکنش‌ها", path: "/profile/transactions" },
+        // { icon: <HiOutlineMapPin size={24} />, label: "آدرس های من", path: "/profile/addresses" },
+        { icon: <HiOutlineChatBubbleLeft size={24} />, label: "نظرات من", path: "/profile/comments" },
+        ...(isTelegram ? [] : [{ icon: <HiOutlineArrowRightOnRectangle size={24} />, label: "خروج", path: "/profile/logout", onClick: () => setIsLogoutModalOpen(true) }]),
     ];
 
     return (
         <>
-            <div className='shadow-sm rounded-lg bg-white'>
-                <ul className="divide-y divide-gray-200">
-                    {menuItems.map((item, index) => (
-                        <MenuItem key={index} {...item} />
-                    ))}
-                </ul>
+            <div className='px-4 space-y-3 pb-8'>
+                {menuItems.map((item, index) => (
+                    <MenuItem key={index} {...item} />
+                ))}
             </div>
 
             <CustomModal
@@ -86,30 +90,9 @@ export default function ProfileMenu() {
                 onSubmit={handleLogout}
             >
                 <div className="space-y-4">
-                    <div className="bg-red-50 p-4 rounded-lg">
-                        <h3 className="font-semibold text-red-800 mb-2">آیا از خروج از حساب کاربری خود مطمئن هستید؟</h3>
-                        <p className="text-red-700 text-sm">
-                            با خروج از حساب کاربری، دسترسی به تمامی امکانات پنل کاربری شما محدود خواهد شد.
-                        </p>
-                    </div>
-
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                        <h3 className="font-semibold text-gray-800 mb-2">نکات مهم</h3>
-                        <ul className="space-y-2 text-gray-700 text-sm">
-                            <li className="flex items-start gap-2">
-                                <span className="text-gray-600">•</span>
-                                <span>سفارش‌های در حال پردازش شما همچنان قابل پیگیری خواهند بود</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="text-gray-600">•</span>
-                                <span>اطلاعات حساب شما برای ورود مجدد حفظ خواهد شد</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="text-gray-600">•</span>
-                                <span>می‌توانید در هر زمان با اطلاعات قبلی خود مجدداً وارد شوید</span>
-                            </li>
-                        </ul>
-                    </div>
+                    <p className="text-gray-700 text-center text-lg font-medium py-4">
+                        آیا برای خروج مطمئن هستید؟
+                    </p>
                 </div>
             </CustomModal>
         </>

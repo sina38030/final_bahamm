@@ -766,9 +766,13 @@ function CheckoutPageContent() {
     // Use wallet balance if payment method is 'wallet' (for hybrid payment)
     const walletUse = paymentMethod === 'wallet' ? Math.min(currentPrice, walletBalance) : 0;
     // Savings is only the discount from group buy, NOT wallet usage (wallet is user's own money, not profit)
-    const savings = actualMode === 'group' ? (originalPrice - currentPrice) : 0;
+    let savings = actualMode === 'group' ? (originalPrice - currentPrice) : 0;
     // Consolidation discount for invited users when toggle is ON
     const consolidationDiscount = (isInvitedUser && greenToggle) ? 10000 : 0;
+    // Add consolidation reward to savings when invited user enables toggle
+    if (isInvitedUser && greenToggle) {
+      savings += consolidationDiscount;
+    }
     const total = Math.max(0, currentPrice - walletUse - consolidationDiscount);
 
     // Free if final total is zero (legacy behavior)
@@ -1918,7 +1922,7 @@ function CheckoutPageContent() {
       </section>
 
       {/* VPN Warning Banner */}
-      {isVpnActive && (
+      {isVpnActive && !calculations.isFree && (
         <div style={{
           position: 'fixed',
           bottom: 72,
