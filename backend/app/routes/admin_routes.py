@@ -2215,19 +2215,28 @@ async def delete_banner(banner_id: int, db: Session = Depends(get_db)):
 
 @admin_router.get("/settings")
 async def get_admin_settings(db: Session = Depends(get_db)):
-    """Return admin-manageable settings used by the storefront."""
+    """Return admin-manageable settings used by the storefront.
+    
+    Includes dynamic category images (category_<id>_image keys).
+    """
     try:
-        rows = db.execute(text("SELECT key, value FROM app_settings WHERE key IN ('all_category_image', 'all_category_label', 'fruit_category_image', 'fruit_category_label', 'veggie_category_image', 'veggie_category_label', 'ai_chatbot_enabled')"))
+        # Get all settings from app_settings table
+        rows = db.execute(text("SELECT key, value FROM app_settings"))
         data = {row[0]: row[1] for row in rows}
-        return {
+        
+        # Build response with all settings
+        result = {
             "all_category_image": data.get("all_category_image"),
             "all_category_label": data.get("all_category_label", "همه"),
-            "fruit_category_image": data.get("fruit_category_image"),
-            "fruit_category_label": data.get("fruit_category_label", "میوه ها"),
-            "veggie_category_image": data.get("veggie_category_image"),
-            "veggie_category_label": data.get("veggie_category_label", "صیفی جات"),
             "ai_chatbot_enabled": data.get("ai_chatbot_enabled", "false"),
         }
+        
+        # Include all category_<id>_image settings dynamically
+        for key, value in data.items():
+            if key.startswith("category_") and key.endswith("_image"):
+                result[key] = value
+        
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -2239,12 +2248,8 @@ async def update_admin_settings(request: Request, db: Session = Depends(get_db))
       - all_category_label: string
       - all_category_image: string URL
       - all_category_image_file: file (multipart form) -> saved to /static/site/all-<ts>.ext and URL stored
-      - fruit_category_label: string
-      - fruit_category_image: string URL
-      - fruit_category_image_file: file (multipart form) -> saved to /static/site/fruit-<ts>.ext and URL stored
-      - veggie_category_label: string
-      - veggie_category_image: string URL
-      - veggie_category_image_file: file (multipart form) -> saved to /static/site/veggie-<ts>.ext and URL stored
+      - category_<id>_image: string URL (dynamic category images)
+      - category_<id>_image_file: file (multipart form) -> saved to /static/site/cat_<id>_<ts>.ext
       - ai_chatbot_enabled: boolean/string
     """
     form = None
@@ -2263,26 +2268,8 @@ async def update_admin_settings(request: Request, db: Session = Depends(get_db))
             updates["all_category_label"] = str(label)
 
         image_url = data.get("all_category_image")
-        if image_url:
+        if image_url is not None:
             updates["all_category_image"] = str(image_url)
-
-        # Handle Fruit category
-        fruit_label = data.get("fruit_category_label")
-        if fruit_label is not None:
-            updates["fruit_category_label"] = str(fruit_label)
-
-        fruit_image_url = data.get("fruit_category_image")
-        if fruit_image_url:
-            updates["fruit_category_image"] = str(fruit_image_url)
-
-        # Handle Veggie category
-        veggie_label = data.get("veggie_category_label")
-        if veggie_label is not None:
-            updates["veggie_category_label"] = str(veggie_label)
-
-        veggie_image_url = data.get("veggie_category_image")
-        if veggie_image_url:
-            updates["veggie_category_image"] = str(veggie_image_url)
 
         # Handle AI chatbot toggle
         ai_enabled = data.get("ai_chatbot_enabled")
@@ -2292,6 +2279,16 @@ async def update_admin_settings(request: Request, db: Session = Depends(get_db))
                 updates["ai_chatbot_enabled"] = "true" if ai_enabled else "false"
             else:
                 updates["ai_chatbot_enabled"] = str(ai_enabled)
+
+        # Handle dynamic category images (category_<id>_image keys)
+        import re
+        cat_image_pattern = re.compile(r'^category_(\d+)_image$')
+        for key, value in data.items():
+            if isinstance(key, str):
+                match = cat_image_pattern.match(key)
+                if match:
+                    # This is a category image URL
+                    updates[key] = str(value) if value else ""
 
         # Handle uploaded files if present in form
         if form is not None:
@@ -2314,45 +2311,47 @@ async def update_admin_settings(request: Request, db: Session = Depends(get_db))
                     f.write(content)
                 updates["all_category_image"] = f"{static_base}/{dest.relative_to(backend_dir / 'uploads').as_posix()}"
 
-            # Fruit category file
-            fruit_up = form.get("fruit_category_image_file")
-            if fruit_up and (isinstance(fruit_up, UploadFile) or hasattr(fruit_up, "filename")):
-                filename = os.path.basename(getattr(fruit_up, "filename", "fruit.png"))
-                name, ext = os.path.splitext(filename)
-                dest = uploads_dir / f"fruit_{int(time.time())}{ext or '.png'}"
-                content = await fruit_up.read()
-                with open(dest, "wb") as f:
-                    f.write(content)
-                updates["fruit_category_image"] = f"{static_base}/{dest.relative_to(backend_dir / 'uploads').as_posix()}"
-
-            # Veggie category file
-            veggie_up = form.get("veggie_category_image_file")
-            if veggie_up and (isinstance(veggie_up, UploadFile) or hasattr(veggie_up, "filename")):
-                filename = os.path.basename(getattr(veggie_up, "filename", "veggie.png"))
-                name, ext = os.path.splitext(filename)
-                dest = uploads_dir / f"veggie_{int(time.time())}{ext or '.png'}"
-                content = await veggie_up.read()
-                with open(dest, "wb") as f:
-                    f.write(content)
-                updates["veggie_category_image"] = f"{static_base}/{dest.relative_to(backend_dir / 'uploads').as_posix()}"
+            # Handle dynamic category image files (category_<id>_image_file keys)
+            cat_file_pattern = re.compile(r'^category_(\d+)_image_file$')
+            for key in list(form.keys()):
+                match = cat_file_pattern.match(key)
+                if match:
+                    cat_id = match.group(1)
+                    cat_up = form.get(key)
+                    if cat_up and (isinstance(cat_up, UploadFile) or hasattr(cat_up, "filename")):
+                        filename = os.path.basename(getattr(cat_up, "filename", f"cat_{cat_id}.png"))
+                        name, ext = os.path.splitext(filename)
+                        dest = uploads_dir / f"cat_{cat_id}_{int(time.time())}{ext or '.png'}"
+                        content = await cat_up.read()
+                        with open(dest, "wb") as f:
+                            f.write(content)
+                        updates[f"category_{cat_id}_image"] = f"{static_base}/{dest.relative_to(backend_dir / 'uploads').as_posix()}"
 
         # Persist updates
         for k, v in updates.items():
-            db.execute(text("INSERT INTO app_settings(key, value) VALUES (:k, :v) ON CONFLICT(key) DO UPDATE SET value = excluded.value"), {"k": k, "v": v})
+            if v == "":
+                # Delete the setting if value is empty
+                db.execute(text("DELETE FROM app_settings WHERE key = :k"), {"k": k})
+            else:
+                db.execute(text("INSERT INTO app_settings(key, value) VALUES (:k, :v) ON CONFLICT(key) DO UPDATE SET value = excluded.value"), {"k": k, "v": v})
         db.commit()
 
-        # Return merged view
-        rows = db.execute(text("SELECT key, value FROM app_settings WHERE key IN ('all_category_image', 'all_category_label', 'fruit_category_image', 'fruit_category_label', 'veggie_category_image', 'veggie_category_label', 'ai_chatbot_enabled')"))
+        # Return merged view (all settings)
+        rows = db.execute(text("SELECT key, value FROM app_settings"))
         data = {row[0]: row[1] for row in rows}
-        return {
+        
+        result = {
             "all_category_image": data.get("all_category_image"),
             "all_category_label": data.get("all_category_label", "همه"),
-            "fruit_category_image": data.get("fruit_category_image"),
-            "fruit_category_label": data.get("fruit_category_label", "میوه ها"),
-            "veggie_category_image": data.get("veggie_category_image"),
-            "veggie_category_label": data.get("veggie_category_label", "صیفی جات"),
             "ai_chatbot_enabled": data.get("ai_chatbot_enabled", "false"),
         }
+        
+        # Include all category_<id>_image settings
+        for key, value in data.items():
+            if key.startswith("category_") and key.endswith("_image"):
+                result[key] = value
+        
+        return result
     except HTTPException:
         db.rollback()
         raise

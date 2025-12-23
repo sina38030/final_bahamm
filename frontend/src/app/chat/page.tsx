@@ -8,6 +8,8 @@ import { apiClient } from '@/utils/apiClient';
 import { toTehranTime } from '@/utils/dateUtils';
 import { PageErrorBoundary } from '@/components/common/PageErrorBoundary';
 import { safeStorage } from '@/utils/safeStorage';
+import { IoArrowBack, IoSend, IoCheckmark, IoCheckmarkDone } from "react-icons/io5";
+import { FaHeadset } from "react-icons/fa";
 
 type ChatMessage = {
   id: number;
@@ -28,6 +30,7 @@ function ChatPageContent() {
   const [showPhoneAuth, setShowPhoneAuth] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -79,6 +82,9 @@ function ChatPageContent() {
       const res = await apiClient.post('/chat/admin/send', { message: text });
       if (res.ok) {
         setInput('');
+        if (textareaRef.current) {
+          textareaRef.current.style.height = 'auto';
+        }
         const updated = await apiClient.get('/chat/admin/messages');
         if (updated.ok) {
           const data = await updated.json();
@@ -92,34 +98,40 @@ function ChatPageContent() {
     }
   };
 
+  const adjustTextareaHeight = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    e.target.style.height = 'auto';
+    e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+  };
+
   return (
-    <div className="flex flex-col h-[100vh] bg-gray-50">
+    <div className="flex flex-col h-[100dvh] bg-[#f0f2f5] pb-16">
       {!isAuthenticated ? (
         <div className="flex flex-col h-full" dir="rtl">
-          <div className="sticky top-0 bg-white z-10">
-            <div className="px-4 py-3 border-b">
+          <div className="sticky top-0 bg-white z-10 shadow-sm">
+            <div className="px-4 py-3">
               <div className="relative flex items-center justify-between">
-                <h1 className="absolute left-1/2 -translate-x-1/2 text-sm font-bold">گفتگو با پشتیبانی</h1>
-                <button onClick={() => router.back()} className="ml-auto p-2 hover:bg-gray-100 rounded-full" aria-label="بازگشت">
-                  <span className="inline-block">❮</span>
+                <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded-full transition-colors" aria-label="بازگشت">
+                  <IoArrowBack size={24} className="text-gray-600 transform rotate-180" />
                 </button>
+                <div className="flex items-center gap-2">
+                   <h1 className="text-lg font-bold text-gray-800">پشتیبانی</h1>
+                </div>
               </div>
             </div>
           </div>
           
-          <div className="p-6 flex flex-col items-center justify-center flex-1 text-center">
+          <div className="p-6 flex flex-col items-center justify-center flex-1 text-center bg-white">
             {/* Chat Icon with Animation */}
             <div className="mb-8 relative animate-fade-in-up">
-              <div className="w-40 h-40 bg-blue-50 rounded-full flex items-center justify-center shadow-sm relative z-10">
+              <div className="w-40 h-40 bg-[#fff0f5] rounded-full flex items-center justify-center shadow-sm relative z-10">
                 <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-inner">
-                  <svg className="w-16 h-16 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                  </svg>
+                  <FaHeadset className="w-16 h-16 text-[#E31C5F]" />
                 </div>
               </div>
               {/* Decorative circles */}
-              <div className="absolute top-0 right-0 w-8 h-8 bg-blue-200 rounded-full opacity-50 animate-pulse delay-75"></div>
-              <div className="absolute bottom-2 left-2 w-6 h-6 bg-blue-300 rounded-full opacity-50 animate-pulse delay-150"></div>
+              <div className="absolute top-0 right-0 w-8 h-8 bg-[#E31C5F] rounded-full opacity-20 animate-pulse delay-75"></div>
+              <div className="absolute bottom-2 left-2 w-6 h-6 bg-[#E31C5F] rounded-full opacity-30 animate-pulse delay-150"></div>
             </div>
 
             {/* Text Content */}
@@ -136,7 +148,7 @@ function ChatPageContent() {
             <div className="w-full max-w-sm animate-fade-in-up" style={{ animationDelay: '200ms' }}>
               <button
                 onClick={() => setShowPhoneAuth(true)}
-                className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-blue-200 transform transition-all duration-200 hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-2 group"
+                className="w-full bg-[#E31C5F] hover:bg-[#c41650] active:bg-[#a61243] text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-pink-200 transform transition-all duration-200 hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-2 group"
               >
                 <span>ورود به حساب کاربری</span>
                 <span className="group-hover:translate-x-[-4px] transition-transform duration-200">←</span>
@@ -146,30 +158,85 @@ function ChatPageContent() {
         </div>
       ) : (
         <>
-          <div className="sticky top-0 bg-white z-10 -mx-0 px-4 py-3 border-b">
-            <div className="relative flex items-center justify-between">
-              <h1 className="absolute left-1/2 -translate-x-1/2 text-sm font-bold">گفتگو با پشتیبانی</h1>
-              <button onClick={() => router.back()} className="ml-auto p-2 hover:bg-gray-100 rounded-full" aria-label="بازگشت">
-                {/* Left-pointing back arrow */}
-                <span className="inline-block">❮</span>
+          {/* Header */}
+          <div className="sticky top-0 bg-white z-20 px-4 py-3 shadow-sm border-b border-gray-100">
+            <div className="relative flex items-center h-10" dir="rtl">
+              {/* Right: Back Button */}
+              <button 
+                onClick={() => router.back()} 
+                className="absolute right-0 z-10 p-2 hover:bg-gray-100 rounded-full transition-colors" 
+                aria-label="بازگشت"
+              >
+                <IoArrowBack size={24} className="text-gray-600 transform rotate-180" />
               </button>
+
+              {/* Center: Title & Icon */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-end">
+                    <h1 className="text-base font-bold text-gray-800">پشتیبانی آنلاین</h1>
+                    <span className="text-xs text-green-600 font-medium">پاسخگویی سریع</span>
+                  </div>
+                  <div className="relative">
+                    <div className="w-10 h-10 bg-[#fff0f5] rounded-full flex items-center justify-center border border-pink-100">
+                       <FaHeadset className="text-[#E31C5F] text-lg" />
+                    </div>
+                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50">
+          {/* Messages Area */}
+          <div 
+            className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#f0f2f5] no-scrollbar" 
+            dir="rtl"
+            style={{ 
+              backgroundImage: 'radial-gradient(#e5e7eb 1px, transparent 1px)',
+              backgroundSize: '20px 20px',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
+            }}
+          >
+            <style jsx>{`
+              div::-webkit-scrollbar {
+                display: none;
+              }
+            `}</style>
             {loading ? (
-              <div className="text-center text-sm text-gray-500 mt-4">در حال بارگذاری...</div>
+              <div className="flex justify-center items-center h-full">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E31C5F]"></div>
+              </div>
+            ) : messages.length === 0 ? (
+               <div className="flex flex-col items-center justify-center h-full opacity-60">
+                 <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+                    <FaHeadset className="text-gray-400 text-2xl" />
+                 </div>
+                 <p className="text-gray-500 text-sm">پیامی وجود ندارد. گفتگو را آغاز کنید.</p>
+               </div>
             ) : (
               messages.map((m) => {
                 const mine = m.sender === 'user';
-                const checks = mine ? (m.seen ? '✔✔' : m.delivered ? '✔' : '') : '';
                 return (
-                  <div key={m.id} className="flex">
-                    <div className={`${mine ? 'ml-auto bg-red-600 text-white' : 'mr-auto bg-white text-gray-800'} px-3 py-2 rounded-xl max-w-[75%] shadow`}>
-                      <div className="whitespace-pre-wrap break-words text-sm">{m.message}</div>
-                      <div className={`text-[10px] mt-1 opacity-70 ${mine ? 'text-right' : 'text-left'}`}>
+                  <div key={m.id} className={`flex w-full ${mine ? 'justify-end' : 'justify-start'}`}>
+                    <div 
+                      className={`
+                        relative max-w-[75%] px-4 py-3 shadow-sm text-sm leading-6
+                        ${mine 
+                          ? 'bg-[#E31C5F] text-white rounded-2xl rounded-tr-sm' 
+                          : 'bg-white text-gray-800 rounded-2xl rounded-tl-sm border border-gray-100'
+                        }
+                      `}
+                    >
+                      <div className="whitespace-pre-wrap break-words">{m.message}</div>
+                      <div className={`flex items-center gap-1 mt-1 text-[10px] ${mine ? 'text-pink-100 justify-end' : 'text-gray-400 justify-start'}`}>
                         <span>{toTehranTime(m.timestamp)}</span>
-                        {mine ? <span className="ml-2">{checks}</span> : null}
+                        {mine && (
+                          <span className="text-base">
+                            {m.seen ? <IoCheckmarkDone /> : m.delivered ? <IoCheckmark /> : <IoCheckmark className="opacity-50"/>}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -179,34 +246,51 @@ function ChatPageContent() {
             <div ref={endRef} />
           </div>
 
-          <div className="fixed bottom-16 left-0 right-0 z-50 p-2 pb-[env(safe-area-inset-bottom)] border-t bg-white flex items-end gap-2">
-            <textarea
-              className="flex-1 border rounded-md p-2 text-sm outline-none focus:ring-1 focus:ring-red-500 max-h-40 min-h-[42px]"
-              rows={1}
-              placeholder="پیام خود را بنویسید..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-            />
-            <button
-              disabled={sending || !input.trim()}
-              className={`px-4 py-2 rounded-md text-white ${sending || !input.trim() ? 'bg-gray-300' : 'bg-red-600'}`}
-              onClick={handleSend}
-            >
-              ارسال
-            </button>
+          {/* Input Area */}
+          <div className="bg-white p-3 border-t border-gray-100" dir="rtl">
+            <div className="flex items-end gap-2 max-w-4xl mx-auto">
+              <div className="flex-1 bg-gray-100 rounded-3xl px-4 py-2 focus-within:ring-2 focus-within:ring-pink-100 focus-within:bg-white transition-all border border-transparent focus-within:border-pink-200">
+                <textarea
+                  ref={textareaRef}
+                  className="w-full bg-transparent border-none outline-none text-sm text-gray-800 resize-none max-h-32 min-h-[24px] py-1"
+                  rows={1}
+                  placeholder="پیام خود را بنویسید..."
+                  value={input}
+                  onChange={adjustTextareaHeight}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  style={{ height: 'auto' }}
+                />
+              </div>
+              <button
+                disabled={sending || !input.trim()}
+                className={`
+                  w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 flex-shrink-0
+                  ${sending || !input.trim() 
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                    : 'bg-[#E31C5F] text-white hover:bg-[#c41650] active:scale-95 shadow-md shadow-pink-200'
+                  }
+                `}
+                onClick={handleSend}
+              >
+                {sending ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <IoSend className="text-xl translate-x-[-2px] translate-y-[1px]" />
+                )}
+              </button>
+            </div>
+            {/* Safe area padding for mobile */}
+            <div className="h-[env(safe-area-inset-bottom)]" />
           </div>
         </>
       )}
 
       
-
-      {/* Bottom-sheet phone authentication, same as cart */}
       <PhoneAuthModal
         isOpen={showPhoneAuth}
         onClose={() => setShowPhoneAuth(false)}

@@ -17,11 +17,17 @@ export default function BottomNavigation() {
     const [groupsOrdersCount, setGroupsOrdersCount] = useState(0);
     const [chatUnreadCount, setChatUnreadCount] = useState(0);
     const [hidden] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const groupCtrlRef = useRef<AbortController | null>(null);
     const chatCtrlRef = useRef<AbortController | null>(null);
     const isInteractingRef = useRef(false);
     const isClient = typeof window !== 'undefined';
+
+    // Fix hydration mismatch by only rendering after mount
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     // Defer visibility decision until after all hooks are called to avoid hook order mismatches
 
@@ -246,7 +252,7 @@ export default function BottomNavigation() {
         if (!count) return null;
         const cap = count > 99 ? '99+' : String(count);
         return (
-            <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] leading-[18px] text-center">
+            <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-[#E31C5F] text-white text-[10px] leading-[18px] text-center">
                 {cap}
             </span>
         );
@@ -267,7 +273,14 @@ export default function BottomNavigation() {
         pathname === '/cart'
     );
 
+    // Prevent hydration mismatch by rendering placeholder on server
     if (shouldHide) {
+        return null;
+    }
+
+    // With SSR disabled via dynamic import, we no longer need the SSR placeholder
+    // Keep isMounted check for any edge cases where component mounts before client is ready
+    if (!isMounted) {
         return null;
     }
 

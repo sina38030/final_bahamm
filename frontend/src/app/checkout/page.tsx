@@ -9,6 +9,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { API_BASE_URL } from '@/utils/api';
 import apiClient from '@/utils/apiClient';
 import { safeStorage } from '@/utils/safeStorage';
+import { AiOutlineQuestionCircle, AiOutlineTeam } from 'react-icons/ai';
+import CustomModal from '@/components/common/CustomModal';
 
 // Dynamic import of AddressMapModal component to avoid SSR issues
 const AddressMapModal = dynamic(() => import('@/components/map/AddressMapModal'), {
@@ -34,27 +36,108 @@ const formatPrice = (n: number) => `${comma(n)} تومان`;
 function AddressPopup({open,addresses,onClose,onEdit,onAdd,onDelete,onSetMain}:{open:boolean,addresses:any[],onClose:()=>void,onEdit:()=>void,onAdd:()=>void,onDelete:(id:string|number)=>void,onSetMain:(id:string|number)=>void}){
   if(!open) return null;
   return ReactDOM.createPortal(
-    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.45)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:9999}} onClick={onClose}>
-      <div style={{background:'#fff',width:'100%',maxWidth:420,borderRadius:'20px 20px 0 0',padding:'20px 16px 32px',position:'relative',maxHeight:'80vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
-        <button style={{background:'none',border:'none',fontSize:'1.4rem',position:'absolute',top:10,left:16,cursor:'pointer'}} onClick={onClose}>×</button>
-        <h3 style={{margin:'0 0 1rem',fontSize:'1rem',fontWeight:700,color:'#444'}}>آدرس‌ها</h3>
-        {addresses.map(addr=>(
-           <div key={addr.id} style={{border:'1px solid #e0e0e0',borderRadius:14,padding:'12px',marginBottom:'10px',fontSize:'.85rem',display:'flex',flexDirection:'column',gap:6}}>
-             <div style={{fontSize:'.8rem',color:'#555'}}>{addr.phone_number || addr.phone}</div>
-             <div>{addr.full_address || addr.text}</div>
-             <div style={{display:'flex',justifyContent:'space-between',fontSize:'.8rem',color:'#777'}}>
-                <div>
-                  {addresses.length>1 && <button style={{background:'none',border:'none',color:'#E31C5F',cursor:'pointer'}} onClick={()=>onDelete(addr.id)}>حذف</button>}
-                  <button style={{background:'none',border:'none',color:'#E31C5F',cursor:'pointer'}} onClick={onEdit}>ویرایش</button>
-                </div>
-                 <div>
-                  <input type="radio" name="mainAddr" checked={!!(addr?.is_default || addr?.main)} onChange={()=>onSetMain(addr.id)} />
-                  <span style={{fontSize:'.8rem'}}>اصلی</span>
-                </div>
+    <div style={{
+      position:'fixed',
+      inset:0,
+      background:'rgba(0,0,0,0.6)',
+      backdropFilter: 'blur(4px)',
+      display:'flex',
+      alignItems:'flex-end',
+      justifyContent:'center',
+      zIndex:9999
+    }} onClick={onClose}>
+      <div style={{
+        background:'#fff',
+        width:'100%',
+        maxWidth:420,
+        borderRadius:'24px 24px 0 0',
+        padding:'24px 20px 48px',
+        position:'relative',
+        maxHeight:'80vh',
+        overflowY:'auto',
+        boxShadow: '0 -4px 20px rgba(0,0,0,0.1)'
+      }} onClick={e=>e.stopPropagation()}>
+        
+        {/* Handle Bar */}
+        <div style={{
+          width: '40px',
+          height: '4px',
+          backgroundColor: '#e0e0e0',
+          borderRadius: '2px',
+          margin: '0 auto 20px',
+        }}></div>
+
+        <button style={{
+          background:'#f3f4f6',
+          border:'none',
+          borderRadius:'50%',
+          width:'32px',
+          height:'32px',
+          display:'flex',
+          alignItems:'center',
+          justifyContent:'center',
+          position:'absolute',
+          top:20,
+          left:20,
+          cursor:'pointer',
+          color:'#666',
+          fontSize:'1.2rem',
+          lineHeight:1
+        }} onClick={onClose}>×</button>
+        
+        <h3 style={{margin:'0 0 20px', fontSize:'1.1rem', fontWeight:700, color:'#333', textAlign:'center'}}>آدرس‌ها</h3>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {addresses.map(addr=>(
+             <div key={addr.id} style={{
+               border: (addr?.is_default || addr?.main) ? '1px solid #E31C5F' : '1px solid #eee',
+               backgroundColor: (addr?.is_default || addr?.main) ? '#fff0f5' : '#fff',
+               borderRadius:16,
+               padding:'16px',
+               fontSize:'0.9rem',
+               display:'flex',
+               flexDirection:'column',
+               gap:8,
+               transition: 'all 0.2s'
+             }}>
+               <div style={{fontSize:'.85rem', color:'#555', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                 <span style={{fontSize: '1rem'}}>📱</span>
+                 {addr.phone_number || addr.phone}
+               </div>
+               <div style={{ lineHeight: '1.6', color: '#333' }}>{addr.full_address || addr.text}</div>
+               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed rgba(0,0,0,0.05)'}}>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    {addresses.length>1 && <button style={{background:'none', border:'none', color:'#e53935', cursor:'pointer', fontSize: '0.85rem', padding: '4px 0'}} onClick={()=>onDelete(addr.id)}>حذف</button>}
+                    <button style={{background:'none', border:'none', color:'#666', cursor:'pointer', fontSize: '0.85rem', padding: '4px 0'}} onClick={onEdit}>ویرایش</button>
+                  </div>
+                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                    <input 
+                      type="radio" 
+                      name="mainAddr" 
+                      checked={!!(addr?.is_default || addr?.main)} 
+                      onChange={()=>onSetMain(addr.id)} 
+                      style={{ accentColor: '#E31C5F', width: '16px', height: '16px' }}
+                    />
+                    <span style={{fontSize:'.85rem', color: (addr?.is_default || addr?.main) ? '#E31C5F' : '#666', fontWeight: (addr?.is_default || addr?.main) ? 600 : 400}}>آدرس اصلی</span>
+                  </label>
+               </div>
              </div>
-           </div>
-        ))}
-        <button style={{width:'100%',background:'#E31C5F',color:'#fff',border:'none',borderRadius:14,padding:'11px',fontSize:'.9rem',cursor:'pointer'}} onClick={onAdd}>افزودن آدرس جدید</button>
+          ))}
+        </div>
+        
+        <button style={{
+          width:'100%',
+          background:'#E31C5F',
+          color:'#fff',
+          border:'none',
+          borderRadius:16,
+          padding:'14px',
+          fontSize:'1rem',
+          fontWeight: 600,
+          cursor:'pointer',
+          marginTop: '20px',
+          boxShadow: '0 4px 12px rgba(227, 28, 95, 0.2)'
+        }} onClick={onAdd}>افزودن آدرس جدید</button>
       </div>
     </div>,
     document.body
@@ -77,6 +160,9 @@ function CheckoutPageContent() {
   const paymentAmountParam = searchParams.get('paymentAmount');
   const paymentPercentageParam = searchParams.get('paymentPercentage');
   const friendPriceParam = searchParams.get('friendPrice');
+  
+  const [infoModalOpen, setInfoModalOpen] = useState(false);
+
   // Expected friends passed from cart (leaders only)
   
   // Convert 'alone' to 'solo' for consistency
@@ -621,22 +707,42 @@ function CheckoutPageContent() {
   }, []);
 
   // VPN Detection - Check if user is not in Iran
+  // Only show warning banner when IP is CONFIRMED to be outside Iran
   useEffect(() => {
     const detectVpn = async () => {
       try {
-        const response = await fetch('https://ipapi.co/json/');
-        if (response.ok) {
-          const data = await response.json();
-          // If country code is not IR (Iran), user is likely using VPN
-          if (data.country_code && data.country_code !== 'IR') {
-            setIsVpnActive(true);
-          } else {
-            setIsVpnActive(false);
-          }
+        // Use ONLY api.country.is - it's the only service that works correctly from Iran
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch('https://api.country.is/', { 
+          signal: controller.signal 
+        });
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          console.log('IP Check: api.country.is returned non-OK status');
+          setIsVpnActive(false);
+          return;
         }
+        
+        const data = await response.json();
+        const countryCode = data.country;
+        
+        console.log('IP Check: api.country.is returned country:', countryCode);
+        
+        // Check if country is Iran
+        if (countryCode === 'IR') {
+          console.log('IP is from Iran - NOT showing VPN warning');
+          setIsVpnActive(false);
+        } else {
+          console.log('IP is NOT from Iran (', countryCode, ') - SHOWING VPN warning');
+          setIsVpnActive(true);
+        }
+
       } catch (error) {
         console.warn('Could not detect IP location:', error);
-        // On error, don't show the warning
+        // On error, don't show warning (assume Iran)
         setIsVpnActive(false);
       }
     };
@@ -1483,26 +1589,40 @@ function CheckoutPageContent() {
   }, [useAdminTomorrowSlots, isLeaderGroup]);
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#fafafa', direction: 'rtl' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa', direction: 'rtl', fontFamily: 'var(--font-iransans), Vazir, sans-serif' }}>
       {/* Header */}
       <header style={{
         position: 'sticky',
         top: 0,
-        zIndex: 10,
-        backgroundColor: '#fff',
-        borderBottom: '1px solid #e0e0e0',
-        padding: '12px 16px',
+        zIndex: 40,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(12px)',
+        borderBottom: '1px solid rgba(0,0,0,0.04)',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
+        padding: '16px',
         display: 'flex',
         alignItems: 'center',
-        gap: '16px'
+        justifyContent: 'center',
+        gap: '16px',
+        height: '64px'
       }}>
         <button 
           onClick={() => router.back()}
           style={{
-            background: 'none',
+            position: 'absolute',
+            right: '16px',
+            background: '#f5f5f5',
             border: 'none',
-            fontSize: '1.25rem',
-            cursor: 'pointer'
+            fontSize: '1.2rem',
+            cursor: 'pointer',
+            width: '40px',
+            height: '40px',
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#444',
+            transition: 'background 0.2s'
           }}
         >
           &#x2192;
@@ -1519,7 +1639,10 @@ function CheckoutPageContent() {
             position: 'relative',
             fontSize: '0.9rem',
             fontWeight: 500,
-            cursor: 'pointer'
+            cursor: 'pointer',
+            textAlign: 'center',
+            color: '#333',
+            maxWidth: '70%'
           }}
         >
           {tickerMessages.map((msg, index) => (
@@ -1577,21 +1700,23 @@ function CheckoutPageContent() {
 
       {/* Address */}
       <section style={{
-        margin: '12px',
+        margin: '16px',
         backgroundColor: '#fff',
-        borderRadius: '14px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-        padding: '16px',
+        borderRadius: '20px',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.04)',
+        border: '1px solid rgba(0,0,0,0.02)',
+        padding: '20px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        fontSize: '0.85rem'
+        fontSize: '0.9rem',
+        transition: 'transform 0.2s',
       }}>
         {hasAddress ? (
           <>
             <div>
-              <p style={{ margin: 0, marginBottom: '4px' }}>{savedAddress.fullAddress}</p>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: '#666' }}>
+              <p style={{ margin: 0, marginBottom: '6px', fontWeight: 400, color: '#333' }}>{savedAddress.fullAddress}</p>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: '#777' }}>
                 {headerDetails || displayedDetails}
               </p>
             </div>
@@ -1600,12 +1725,17 @@ function CheckoutPageContent() {
               style={{
                 color: '#E31C5F',
                 textDecoration: 'none',
-                background: 'none',
+                background: 'rgba(227, 28, 95, 0.05)',
                 border: 'none',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                padding: '8px 16px',
+                borderRadius: '12px',
+                fontWeight: 500,
+                fontSize: '0.85rem',
+                transition: 'background 0.2s',
               }}
             >
-              ویرایش آدرس
+              ویرایش
             </button>
           </>
         ) : (
@@ -1614,13 +1744,16 @@ function CheckoutPageContent() {
             style={{
               color: '#E31C5F',
               textDecoration: 'none',
-              background: 'none',
-              border: 'none',
+              background: 'rgba(227, 28, 95, 0.05)',
+              border: '1px dashed #E31C5F',
               cursor: 'pointer',
-              fontSize: '0.9rem',
-              fontWeight: 500,
+              fontSize: '0.95rem',
+              fontWeight: 600,
               width: '100%',
-              textAlign: 'center'
+              textAlign: 'center',
+              padding: '16px',
+              borderRadius: '16px',
+              transition: 'background 0.2s',
             }}
           >
             + افزودن آدرس
@@ -1632,20 +1765,21 @@ function CheckoutPageContent() {
       {shouldShowToggle && (
         <section style={{
           backgroundColor: '#fff',
-          margin: '8px',
-          borderRadius: '12px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-          padding: '8px'
+          margin: '16px',
+          borderRadius: '20px',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.04)',
+          border: '1px solid rgba(0,0,0,0.02)',
+          padding: '12px'
         }}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
+            gap: '12px',
             padding: '8px',
-            fontSize: '0.8rem'
+            fontSize: '0.85rem'
           }}>
-            <div style={{ fontSize: '1.2rem' }}>💰</div>
-            <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '1.4rem' }}>💰</div>
+            <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => setInfoModalOpen(true)}>
               {isInvitedUser ? (
                 greenToggle ? (
                   <>
@@ -1664,7 +1798,10 @@ function CheckoutPageContent() {
                   </>
                 ) : (
                   <>
-                    <p style={{ margin: '0', lineHeight: '1.4' }}>سفارش دوستانت رو دریافت کن</p>
+                    <p style={{ margin: '0', lineHeight: '1.4', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      سفارش دوستانت رو دریافت کن
+                      <AiOutlineQuestionCircle size={18} color="#666" />
+                    </p>
                     <p style={{ margin: '0', lineHeight: '1.4' }}>حداقل 10 هزار تومان تخفیف بگیر!</p>
                   </>
                 )
@@ -1715,29 +1852,31 @@ function CheckoutPageContent() {
       {/* Shipping */}
       <section style={{
         backgroundColor: '#fff',
-        margin: '12px',
-        borderRadius: '14px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
+        margin: '16px',
+        borderRadius: '20px',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.04)',
+        border: '1px solid rgba(0,0,0,0.02)',
+        overflow: 'hidden'
       }}>
         <div style={{
-          padding: '16px',
-          borderBottom: '1px solid #e0e0e0',
-          fontSize: '0.85rem'
+          padding: '20px',
+          borderBottom: '1px solid rgba(0,0,0,0.04)',
+          fontSize: '0.9rem'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-            <span>هزینه ارسال:</span>
-            <span style={{ color: '#00c853', fontWeight: 700 }}>رایگان</span>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+            <span style={{ color: '#555', fontWeight: 700, marginLeft: '8px' }}>هزینه ارسال:</span>
+            <span style={{ color: '#00c853', fontWeight: 700, backgroundColor: '#e8f5e9', padding: '2px 10px', borderRadius: '12px', fontSize: '0.85rem' }}>رایگان</span>
           </div>
           {/* Delivery time: for invited + consolidation ON, hide picker and show message; otherwise show for all users including leaders */}
           {(isInvitedUser && greenToggle) ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>زمان ارسال سفارش را سرگروه مشخص می‌کند</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#f5f5f5', padding: '12px', borderRadius: '12px' }}>
+              <span style={{ fontSize: '0.85rem', color: '#666' }}>زمان ارسال سفارش را سرگروه مشخص می‌کند</span>
               <button
                 onClick={() => setShowInvitedShipInfoPopup(true)}
                 aria-label="توضیحات زمان ارسال توسط سرگروه"
                 style={{
-                  width: '18px',
-                  height: '18px',
+                  width: '20px',
+                  height: '20px',
                   borderRadius: '50%',
                   border: '1px solid #999',
                   color: '#666',
@@ -1752,8 +1891,8 @@ function CheckoutPageContent() {
               >؟</button>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>زمان ارسال: {selectedSlot || '—'}</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ color: '#444', fontWeight: 700 }}>زمان ارسال: <span style={{ fontWeight: 400, color: '#666', marginRight: '4px' }}>{selectedSlot || '—'}</span></span>
               <button
                 onClick={() => {
                   setTempChosenSlot(0); // Reset temp slot when opening popup
@@ -1764,7 +1903,9 @@ function CheckoutPageContent() {
                   border: 'none',
                   color: '#E31C5F',
                   cursor: 'pointer',
-                  fontSize: '0.8rem'
+                  fontSize: '0.85rem',
+                  fontWeight: 500,
+                  padding: 0
                 }}
               >
                 تغییر زمان
@@ -1778,12 +1919,13 @@ function CheckoutPageContent() {
       {walletBalance > 0 && (
       <section style={{
         backgroundColor: '#fff',
-        margin: '12px',
-        borderRadius: '14px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-        padding: '16px'
+        margin: '16px',
+        borderRadius: '20px',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.04)',
+        border: '1px solid rgba(0,0,0,0.02)',
+        padding: '20px'
       }}>
-        <h2 style={{ margin: '0 0 13px', fontSize: '0.95rem' }}>روش پرداخت</h2>
+        <h2 style={{ margin: '0 0 13px', fontSize: '0.95rem', fontWeight: 700 }}>روش پرداخت</h2>
         <label style={{
           display: 'flex',
           alignItems: 'center',
@@ -1843,81 +1985,90 @@ function CheckoutPageContent() {
       {/* Order Summary */}
       <section style={{
         backgroundColor: '#fff',
-        margin: '12px',
-        borderRadius: '14px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-        padding: '16px',
-        fontSize: '0.85rem',
+        margin: '16px',
+        borderRadius: '20px',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.04)',
+        border: '1px solid rgba(0,0,0,0.02)',
+        padding: '24px',
+        fontSize: '0.9rem',
         maxHeight: '60vh',
-        overflowY: 'auto'
+        overflowY: 'auto',
+        marginBottom: '100px'
       }}>
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '16px'
+          marginBottom: '20px'
         }}>
           <h3 style={{
             margin: 0,
-            fontSize: '0.95rem',
-            fontWeight: 500,
-            color: '#666'
+            fontSize: '1rem',
+            fontWeight: 700,
+            color: '#333'
           }}>خلاصه سفارش</h3>
           <button
             onClick={() => setShowBasketPopup(true)}
             style={{
-              fontSize: '0.85rem',
+              fontSize: '0.9rem',
               color: '#E31C5F',
               textDecoration: 'none',
               background: 'none',
               border: 'none',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              padding: '0',
+              fontWeight: 500
             }}
           >
             مشاهده کالاها
           </button>
         </div>
-        <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px' }}>
+        <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {actualMode === 'group' && (
-            <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <li style={{ display: 'flex', justifyContent: 'space-between', color: '#666' }}>
               <span>قیمت اصلی کالاها</span>
               <span>{formatPrice(calculations.originalPrice)}</span>
             </li>
           )}
-          <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <li style={{ display: 'flex', justifyContent: 'space-between', color: '#444' }}>
             <span>{actualMode === 'solo' ? 'قیمت کالاها' : 'قیمت کالاها با خرید گروهی'}</span>
             <span>{formatPrice(calculations.currentPrice)}</span>
           </li>
-          <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <li style={{ display: 'flex', justifyContent: 'space-between', color: '#444' }}>
             <span>هزینه ارسال</span>
-            <span>رایگان</span>
+            <span style={{ color: '#00c853' }}>رایگان</span>
           </li>
           {calculations.consolidationDiscount > 0 && (
-            <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <li style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>تخفیف تجمیع سفارش</span>
               <span style={{ color: '#e53935' }}>−{formatPrice(calculations.consolidationDiscount)}</span>
             </li>
           )}
           {calculations.walletUse > 0 && (
-            <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <li style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>کسر از کیف پول</span>
               <span>−{formatPrice(calculations.walletUse)}</span>
             </li>
           )}
           {calculations.savings > 0 && (
-            <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <li style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', paddingTop: '12px', borderTop: '1px dashed #eee' }}>
               <span>سود شما از این خرید</span>
-              <span style={{ color: '#00c853' }}>{formatPrice(calculations.savings)}</span>
+              <span style={{ color: '#00c853', fontWeight: 600 }}>{formatPrice(calculations.savings)}</span>
             </li>
           )}
         </ul>
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
-          fontWeight: 700
+          alignItems: 'center',
+          fontWeight: 700,
+          fontSize: '0.95rem',
+          color: '#222',
+          paddingTop: '20px',
+          borderTop: '1px solid #eee'
         }}>
           <span>جمع کل</span>
-          <strong>{calculations.isFree ? 'رایگان' : formatPrice(calculations.total)}</strong>
+          <strong style={{ color: '#222' }}>{calculations.isFree ? 'رایگان' : formatPrice(calculations.total)}</strong>
         </div>
       </section>
 
@@ -1925,10 +2076,10 @@ function CheckoutPageContent() {
       {isVpnActive && !calculations.isFree && (
         <div style={{
           position: 'fixed',
-          bottom: 72,
+          bottom: 90,
           left: 0,
           right: 0,
-          zIndex: 10,
+          zIndex: infoModalOpen || showAddressPopup || showMapModal ? 0 : 60,
           backgroundColor: '#E31C5F',
           color: '#fff',
           textAlign: 'center',
@@ -1947,48 +2098,57 @@ function CheckoutPageContent() {
         bottom: 0,
         left: 0,
         right: 0,
-        zIndex: 9,
-        backgroundColor: '#fff',
-        borderTop: '1px solid #e0e0e0',
+        zIndex: 50,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(12px)',
+        borderTop: '1px solid rgba(0,0,0,0.04)',
+        boxShadow: '0 -4px 20px rgba(0,0,0,0.06)',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '13px 16px'
+        padding: '16px 20px',
+        borderTopLeftRadius: '20px',
+        borderTopRightRadius: '20px',
       }}>
-        <div 
-          onClick={() => setShowSummaryPopup(true)}
-          style={{ cursor: 'pointer' }}
-        >
-          <div style={{
-            fontSize: '0.75rem',
-            color: '#666',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '3px'
-          }}>
-            مبلغ قابل پرداخت <span style={{ fontSize: '0.65rem' }}>▲</span>
-          </div>
-          <div style={{
-            fontWeight: 700,
-            marginTop: '2px',
-            fontSize: '0.9rem'
-          }}>{calculations.isFree ? 'رایگان' : formatPrice(calculations.total)}</div>
-        </div>
         <button
           onClick={handlePayment}
           style={{
             backgroundColor: '#E31C5F',
             color: '#fff',
             border: 'none',
-            borderRadius: '14px',
-            padding: '12px 32px',
-            fontSize: '1rem',
+            borderRadius: '16px',
+            padding: '14px 40px',
+            fontSize: '1.05rem',
+            fontWeight: 700,
             cursor: 'pointer',
-            transition: '0.2s'
+            transition: 'all 0.2s',
+            boxShadow: '0 4px 12px rgba(227, 28, 95, 0.3)'
           }}
         >
           {calculations.isFree ? 'ثبت سفارش' : 'پرداخت'}
         </button>
+        <div 
+          onClick={() => setShowSummaryPopup(true)}
+          style={{ cursor: 'pointer', transition: 'transform 0.1s', textAlign: 'left' }}
+        >
+          <div style={{
+            fontSize: '0.8rem',
+            color: '#666',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: '4px',
+            fontWeight: 500
+          }}>
+            مبلغ قابل پرداخت <span style={{ fontSize: '0.7rem' }}>▲</span>
+          </div>
+          <div style={{
+            fontWeight: 800,
+            marginTop: '4px',
+            fontSize: '1.1rem',
+            color: '#333'
+          }}>{calculations.isFree ? 'رایگان' : formatPrice(calculations.total)}</div>
+        </div>
       </div>
 
       {/* Popups */}
@@ -2000,11 +2160,12 @@ function CheckoutPageContent() {
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'rgba(0,0,0,0.45)',
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'flex-end',
             justifyContent: 'center',
-            zIndex: 11
+            zIndex: 100
           }}
           onClick={() => setShowSummaryPopup(false)}
         >
@@ -2013,64 +2174,82 @@ function CheckoutPageContent() {
               backgroundColor: '#fff',
               width: '100%',
               maxWidth: '420px',
-              borderRadius: '20px 20px 0 0',
-              padding: '20px 16px 48px',
+              borderRadius: '24px 24px 0 0',
+              padding: '24px 20px 48px',
               position: 'relative',
-              minHeight: '200px'
+              minHeight: '200px',
+              boxShadow: '0 -4px 20px rgba(0,0,0,0.1)'
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Handle Bar */}
+            <div style={{
+              width: '40px',
+              height: '4px',
+              backgroundColor: '#e0e0e0',
+              borderRadius: '2px',
+              margin: '0 auto 20px',
+            }}></div>
+
             <button 
               onClick={() => setShowSummaryPopup(false)}
               style={{
-                background: 'none',
+                background: '#f3f4f6',
                 border: 'none',
-                fontSize: '1.4rem',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 position: 'absolute',
-                top: '10px',
-                left: '16px',
-                cursor: 'pointer'
+                top: '20px',
+                left: '20px',
+                cursor: 'pointer',
+                color: '#666',
+                fontSize: '1.2rem',
+                lineHeight: 1
               }}
             >×</button>
             
-            <h3 style={{ margin: '0 0 16px', fontSize: '0.95rem', fontWeight: 500, color: '#666' }}>خلاصه سفارش</h3>
-            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px', fontSize: '0.85rem' }}>
+            <h3 style={{ margin: '0 0 20px', fontSize: '1.1rem', fontWeight: 700, color: '#333', textAlign: 'center' }}>خلاصه سفارش</h3>
+            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {actualMode === 'group' && (
-                <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <li style={{ display: 'flex', justifyContent: 'space-between', color: '#666' }}>
                   <span>قیمت اصلی کالاها</span>
                   <span>{formatPrice(calculations.originalPrice)}</span>
                 </li>
               )}
-              <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <li style={{ display: 'flex', justifyContent: 'space-between', color: '#444' }}>
                 <span>{actualMode === 'solo' ? 'قیمت کالاها' : 'قیمت کالاها با خرید گروهی'}</span>
                 <span>{formatPrice(calculations.currentPrice)}</span>
               </li>
-              <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <li style={{ display: 'flex', justifyContent: 'space-between', color: '#444' }}>
                 <span>هزینه ارسال</span>
-                <span>رایگان</span>
+                <span style={{ color: '#00c853' }}>رایگان</span>
               </li>
               {calculations.consolidationDiscount > 0 && (
-                <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <li style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>تخفیف تجمیع سفارش</span>
                   <span style={{ color: '#e53935' }}>−{formatPrice(calculations.consolidationDiscount)}</span>
                 </li>
               )}
               {calculations.walletUse > 0 && (
-                <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <li style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>کسر از کیف پول</span>
                   <span>−{formatPrice(calculations.walletUse)}</span>
                 </li>
               )}
               {calculations.savings > 0 && (
-                <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <li style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', paddingTop: '12px', borderTop: '1px dashed #eee' }}>
                   <span>سود شما از این خرید</span>
-                  <span style={{ color: '#00c853' }}>{formatPrice(calculations.savings)}</span>
+                  <span style={{ color: '#00c853', fontWeight: 600 }}>{formatPrice(calculations.savings)}</span>
                 </li>
               )}
             </ul>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '0.85rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.1rem', borderTop: '1px solid #eee', paddingTop: '20px', color: '#222' }}>
               <span>جمع کل</span>
-              <strong>{calculations.isFree ? 'رایگان' : formatPrice(calculations.total)}</strong>
+              <strong style={{ color: '#E31C5F' }}>{calculations.isFree ? 'رایگان' : formatPrice(calculations.total)}</strong>
             </div>
           </div>
         </div>
@@ -2084,11 +2263,12 @@ function CheckoutPageContent() {
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'rgba(0,0,0,0.45)',
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'flex-end',
             justifyContent: 'center',
-            zIndex: 11
+            zIndex: 60
           }}
           onClick={() => setShowHeaderPopup(false)}
         >
@@ -2097,29 +2277,92 @@ function CheckoutPageContent() {
               backgroundColor: '#fff',
               width: '100%',
               maxWidth: '420px',
-              borderRadius: '20px 20px 0 0',
-              padding: '20px 16px 48px',
-              position: 'relative'
+              borderRadius: '24px 24px 0 0',
+              padding: '0 0 24px',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 -4px 20px rgba(0,0,0,0.1)'
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Image Area */}
+            <div style={{
+              width: '100%',
+              height: '180px',
+              background: 'linear-gradient(135deg, #fff0f5 0%, #ffebee 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '20px'
+            }}>
+               {/* Placeholder for actual image */}
+               <div style={{ fontSize: '4rem' }}>🎁</div>
+            </div>
+
             <button 
               onClick={() => setShowHeaderPopup(false)}
               style={{
-                background: 'none',
+                background: 'rgba(255,255,255,0.8)',
                 border: 'none',
-                fontSize: '1.4rem',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 position: 'absolute',
-                top: '10px',
-                left: '16px',
-                cursor: 'pointer'
+                top: '16px',
+                right: '16px', // Moved to right
+                cursor: 'pointer',
+                color: '#333',
+                fontSize: '1.2rem',
+                lineHeight: 1,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
               }}
             >×</button>
-            <p style={{ lineHeight: '1.8' }}>
-              ارسال رایگان برای سفارش‌های بالای ۳۰۰٬۰۰۰ تومان به‌صورت خودکار اعمال می‌شود.<br />
-              همچنین با لینک دعوت دوستان می‌توانید تا ۴۰٪ تخفیف دریافت کنید.<br />
-              هر روز پیشنهاد شگفت‌انگیز داریم، حتما صفحه اول را ببینید!
-            </p>
+
+            <div style={{ padding: '0 24px' }}>
+              <h3 style={{ 
+                margin: '0 0 12px', 
+                fontSize: '1.1rem', 
+                fontWeight: 700, 
+                color: '#333',
+                textAlign: 'center' 
+              }}>
+                پیشنهادهای ویژه باهم
+              </h3>
+              
+              <p style={{ 
+                lineHeight: '1.8', 
+                color: '#666', 
+                fontSize: '0.9rem', 
+                fontWeight: 400, // Normal font
+                textAlign: 'center',
+                marginBottom: '24px'
+              }}>
+                ارسال رایگان برای سفارش‌های بالای ۳۰۰٬۰۰۰ تومان به‌صورت خودکار اعمال می‌شود.
+                همچنین با لینک دعوت دوستان می‌توانید تا ۴۰٪ تخفیف دریافت کنید.
+                هر روز پیشنهاد شگفت‌انگیز داریم، حتما صفحه اول را ببینید!
+              </p>
+
+              <button
+                onClick={() => setShowHeaderPopup(false)}
+                style={{
+                  width: '100%',
+                  backgroundColor: '#E31C5F',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '16px',
+                  padding: '14px',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+              >
+                متوجه شدم
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2132,11 +2375,14 @@ function CheckoutPageContent() {
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'rgba(0,0,0,0.45)',
+            background: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'flex-end',
             justifyContent: 'center',
-            zIndex: 11
+            zIndex: 60,
+            transition: 'opacity 0.3s ease'
           }}
           onClick={() => setShowShipPopup(false)}
         >
@@ -2145,75 +2391,117 @@ function CheckoutPageContent() {
               backgroundColor: '#fff',
               width: '100%',
               maxWidth: '420px',
-              borderRadius: '20px 20px 0 0',
-              padding: '20px 16px 48px',
-              position: 'relative'
+              borderRadius: '24px 24px 0 0',
+              padding: '24px 20px 48px',
+              position: 'relative',
+              boxShadow: '0 -4px 20px rgba(0,0,0,0.1)',
+              animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <button 
-              onClick={() => setShowShipPopup(false)}
-              style={{
-                background: 'none',
-                border: 'none',
-                fontSize: '1.4rem',
-                position: 'absolute',
-                top: '10px',
-                left: '16px',
-                cursor: 'pointer'
-              }}
-            >×</button>
-            <h3 style={{ margin: '0 0 16px', fontSize: '1rem', fontWeight: 700, color: '#444' }}>انتخاب بازه زمانی</h3>
+            {/* Handle bar */}
+            <div style={{
+              width: '40px',
+              height: '4px',
+              backgroundColor: '#e0e0e0',
+              borderRadius: '2px',
+              margin: '0 auto 20px',
+            }}></div>
+
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#1f2937' }}>انتخاب زمان تحویل</h3>
+              <button 
+                onClick={() => setShowShipPopup(false)}
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  background: '#f3f4f6',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#4b5563',
+                  fontSize: '1.2rem',
+                  lineHeight: 1
+                }}
+              >×</button>
+            </div>
             
             <div style={{
               display: 'flex',
-              gap: '10px',
+              gap: '12px',
               overflowX: 'auto',
-              marginBottom: '16px'
+              marginBottom: '24px',
+              paddingBottom: '4px',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
             }}>
               {(useAdminTomorrowSlots ? [{ id: 0, label: tomorrowLabelPrefix, dayNum: '' as any }] : days).map((day) => (
                 <div
                   key={day.id}
                   style={{
-                    minWidth: '68px',
+                    minWidth: '80px',
                     textAlign: 'center',
-                    border: `1px solid ${chosenDay === day.id ? '#E31C5F' : '#e0e0e0'}`,
-                    borderRadius: '12px',
-                    padding: '10px 3px',
-                    fontSize: '0.8rem',
+                    border: chosenDay === day.id ? '2px solid #E31C5F' : '1px solid #e5e7eb',
+                    backgroundColor: chosenDay === day.id ? '#fff0f5' : '#fff',
+                    borderRadius: '16px',
+                    padding: '12px 8px',
+                    fontSize: '0.85rem',
                     cursor: 'pointer',
                     flexShrink: 0,
                     userSelect: 'none',
-                    color: chosenDay === day.id ? '#E31C5F' : 'inherit',
-                    fontWeight: chosenDay === day.id ? 700 : 'normal'
+                    color: chosenDay === day.id ? '#E31C5F' : '#374151',
+                    fontWeight: chosenDay === day.id ? 700 : 'normal',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}
                   onClick={() => setChosenDay(day.id)}
                 >
-                  <div style={{ fontWeight: 700 }}>{day.label}</div>
+                  <div style={{ fontWeight: 700, marginBottom: '4px' }}>{day.label}</div>
                   {useAdminTomorrowSlots && tomorrowIso && (
-                    <div style={{ fontSize: '0.7rem', margin: '.2rem 0', color: '#666', lineHeight: '1.2' }}>
+                    <div style={{ fontSize: '0.75rem', marginBottom: '4px', color: '#6b7280', lineHeight: '1.2' }}>
                       {formatPersianDate(tomorrowIso)}
                     </div>
                   )}
-                  {!useAdminTomorrowSlots && <div style={{ fontSize: '1.2rem', margin: '.3rem 0' }}>{toFa(day.dayNum)}</div>}
-                  <small style={{ color: '#00c853' }}>رایگان</small>
+                  {!useAdminTomorrowSlots && <div style={{ fontSize: '1.2rem', marginBottom: '4px', color: 'inherit' }}>{toFa(day.dayNum)}</div>}
+                  <span style={{ 
+                    color: '#059669', 
+                    fontSize: '0.75rem', 
+                    backgroundColor: '#d1fae5', 
+                    padding: '2px 8px', 
+                    borderRadius: '10px',
+                    fontWeight: 600
+                  }}>رایگان</span>
                 </div>
               ))}
             </div>
             
             <div style={{
               display: 'flex',
-              gap: '10px',
+              gap: '12px',
               overflowX: 'auto',
-              marginBottom: '16px'
+              marginBottom: '32px',
+              paddingBottom: '4px',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
             }}>
               {availableSlotLabels.length === 0 && useAdminTomorrowSlots ? (
                 <div style={{
                   width: '100%',
                   textAlign: 'center',
-                  padding: '20px',
-                  color: '#666',
-                  fontSize: '0.9rem'
+                  padding: '32px 20px',
+                  color: '#6b7280',
+                  fontSize: '0.95rem',
+                  backgroundColor: '#f9fafb',
+                  borderRadius: '16px',
+                  border: '1px dashed #d1d5db'
                 }}>
                   هیچ بازه زمانی فعالی برای فردا تعریف نشده است
                 </div>
@@ -2222,17 +2510,20 @@ function CheckoutPageContent() {
                 <div
                   key={index}
                   style={{
-                    minWidth: '68px',
+                    minWidth: '90px',
                     textAlign: 'center',
-                    border: `1px solid ${tempChosenSlot === index ? '#E31C5F' : '#e0e0e0'}`,
-                    borderRadius: '12px',
-                    padding: '10px 3px',
-                    fontSize: '0.8rem',
+                    border: tempChosenSlot === index ? '2px solid #E31C5F' : '1px solid #e5e7eb',
+                    backgroundColor: tempChosenSlot === index ? '#fff0f5' : '#fff',
+                    borderRadius: '16px',
+                    padding: '14px 10px',
+                    fontSize: '0.9rem',
                     cursor: 'pointer',
                     flexShrink: 0,
                     userSelect: 'none',
-                    color: tempChosenSlot === index ? '#E31C5F' : 'inherit',
-                    fontWeight: tempChosenSlot === index ? 700 : 'normal'
+                    color: tempChosenSlot === index ? '#E31C5F' : '#374151',
+                    fontWeight: tempChosenSlot === index ? 700 : 'normal',
+                    transition: 'all 0.2s ease',
+                    boxShadow: tempChosenSlot === index ? '0 2px 8px rgba(227, 28, 95, 0.15)' : 'none'
                   }}
                   onClick={() => setTempChosenSlot(index)}
                 >
@@ -2276,15 +2567,21 @@ function CheckoutPageContent() {
               }}
               style={{
                 width: '100%',
-                backgroundColor: '#ff006a',
+                background: 'linear-gradient(135deg, #E31C5F 0%, #d01855 100%)',
                 color: '#fff',
                 border: 'none',
-                borderRadius: '14px',
-                padding: '11px',
-                fontSize: '0.95rem',
-                cursor: 'pointer'
+                borderRadius: '16px',
+                padding: '16px',
+                fontSize: '1rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(227, 28, 95, 0.3)',
+                transition: 'transform 0.1s ease, box-shadow 0.2s ease',
               }}
-            >تأیید</button>
+              onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.98)'}
+              onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            >تأیید و ادامه</button>
           </div>
         </div>
       )}
@@ -2301,7 +2598,7 @@ function CheckoutPageContent() {
             display: 'flex',
             alignItems: 'flex-end',
             justifyContent: 'center',
-            zIndex: 11
+            zIndex: 60
           }}
           onClick={() => setShowLeaderShipInfoPopup(false)}
         >
@@ -2349,7 +2646,7 @@ function CheckoutPageContent() {
             display: 'flex',
             alignItems: 'flex-end',
             justifyContent: 'center',
-            zIndex: 11
+            zIndex: 60
           }}
           onClick={() => setShowInvitedShipInfoPopup(false)}
         >
@@ -2397,7 +2694,7 @@ function CheckoutPageContent() {
             display: 'flex',
             alignItems: 'flex-end',
             justifyContent: 'center',
-            zIndex: 11
+            zIndex: 60
           }}
           onClick={() => setShowBasketPopup(false)}
         >
@@ -2556,6 +2853,76 @@ function CheckoutPageContent() {
           : savedAddress?.coordinates)}
       />
 
+      <CustomModal
+        isOpen={infoModalOpen}
+        onClose={() => setInfoModalOpen(false)}
+        title=""
+        hideFooter={true}
+      >
+        <div style={{ padding: '0 0 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+          
+          {/* Image Placeholder */}
+          <div style={{
+            width: '120px',
+            height: '120px',
+            backgroundColor: '#f0f4f8',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '20px'
+          }}>
+             <AiOutlineTeam size={64} color="#E31C5F" />
+          </div>
+
+          {/* Bold Title */}
+          <h3 style={{ 
+            fontSize: '1.2rem', 
+            fontWeight: 800, 
+            color: '#333', 
+            marginBottom: '16px' 
+          }}>
+            دریافت سفارش دوستان
+          </h3>
+
+          {/* Description */}
+          <div style={{ lineHeight: '1.8', color: '#666', fontSize: '0.95rem', marginBottom: '32px' }}>
+            <p style={{ marginBottom: '8px' }}>
+              با فعال کردن این گزینه، شما می‌توانید به عنوان سرگروه سفارش‌های دوستان خود را یکجا دریافت کنید.
+            </p>
+            <p>
+              این کار باعث کاهش هزینه ارسال و دریافت تخفیف‌های بیشتر برای همه می‌شود.
+            </p>
+          </div>
+
+          {/* Button */}
+          <button 
+            onClick={() => setInfoModalOpen(false)}
+            style={{
+              width: '100%',
+              backgroundColor: '#E31C5F',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '16px',
+              padding: '16px',
+              fontSize: '1rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(227, 28, 95, 0.25)',
+              transition: 'transform 0.2s'
+            }}
+          >
+            متوجه شدم
+          </button>
+        </div>
+      </CustomModal>
+
+      <style jsx global>{`
+        @keyframes slideUp {
+          from { transform: translateY(100%); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }

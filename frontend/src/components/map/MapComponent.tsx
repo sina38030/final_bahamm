@@ -228,35 +228,23 @@ export default function MapComponent({ center, onLocationChange, invalidateTrigg
       <div ref={mapRef} className="absolute inset-0" style={{ pointerEvents: 'auto', zIndex: 0 }} />
       {/* Center pin overlay (non-interactive) */}
       <div className="absolute inset-0 pointer-events-none flex items-center justify-center" style={{ zIndex: 1000 }}>
-        <div className="relative" style={{ width: 28, height: 64 }}>
-          <div
-            className="rounded-full shadow"
-            style={{
-              position: 'absolute',
-              left: '50%',
-              top: 0,
-              transform: 'translateX(-50%)',
-              width: 28,
-              height: 28,
-              background: '#f44336',
-              border: '4px solid #fff',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-              zIndex: 2,
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              left: '50%',
-              top: 20,
-              transform: 'translateX(-50%)',
-              width: 4,
-              height: 40,
-              background: '#f44336',
-              borderRadius: 6,
-              zIndex: 1,
-            }}
-          />
+        {/* We translate -50% Y so the tip of the pin (bottom) sits exactly at the center of the map */}
+        <div className="relative -translate-y-1/2 drop-shadow-xl filter">
+          <svg 
+            width="50" 
+            height="50" 
+            viewBox="0 0 24 24" 
+            fill="#E31C5F" 
+            stroke="white" 
+            strokeWidth="1.5" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          >
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+            <circle cx="12" cy="10" r="3" fill="white" stroke="none"></circle>
+          </svg>
+          {/* Small shadow at the tip */}
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-2 h-1 bg-black/20 blur-[1px] rounded-full"></div>
         </div>
       </div>
     </div>

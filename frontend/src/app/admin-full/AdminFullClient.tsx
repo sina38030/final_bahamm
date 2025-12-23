@@ -2381,19 +2381,31 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
   }
 
   /* --------------------------------------------------------------------------
-     Banners
+     Settings - Dynamic Category Image Management
      -------------------------------------------------------------------------- */
 
+  // Color palette for category cards
+  const CATEGORY_COLORS = [
+    { border: "border-blue-400", title: "text-blue-700", bg: "bg-blue-50" },
+    { border: "border-green-400", title: "text-green-700", bg: "bg-green-50" },
+    { border: "border-orange-400", title: "text-orange-700", bg: "bg-orange-50" },
+    { border: "border-purple-400", title: "text-purple-700", bg: "bg-purple-50" },
+    { border: "border-pink-400", title: "text-pink-700", bg: "bg-pink-50" },
+    { border: "border-teal-400", title: "text-teal-700", bg: "bg-teal-50" },
+    { border: "border-indigo-400", title: "text-indigo-700", bg: "bg-indigo-50" },
+    { border: "border-red-400", title: "text-red-700", bg: "bg-red-50" },
+  ];
+
   function SettingsContent() {
-    const [label, setLabel] = useState<string>("همه");
-    const [imageUrl, setImageUrl] = useState<string>("");
-    const [file, setFile] = useState<File | null>(null);
-    const [fruitLabel, setFruitLabel] = useState<string>("میوه ها");
-    const [fruitImageUrl, setFruitImageUrl] = useState<string>("");
-    const [fruitFile, setFruitFile] = useState<File | null>(null);
-    const [veggieLabel, setVeggieLabel] = useState<string>("صیفی جات");
-    const [veggieImageUrl, setVeggieImageUrl] = useState<string>("");
-    const [veggieFile, setVeggieFile] = useState<File | null>(null);
+    // Dynamic categories state
+    const [categories, setCategories] = useState<any[]>([]);
+    // categoryImages: { [categoryId]: { imageUrl: string, file: File | null } }
+    const [categoryImages, setCategoryImages] = useState<Record<number, { imageUrl: string; file: File | null }>>({});
+    // "All" tab settings
+    const [allLabel, setAllLabel] = useState<string>("همه");
+    const [allImageUrl, setAllImageUrl] = useState<string>("");
+    const [allFile, setAllFile] = useState<File | null>(null);
+    // AI chatbot
     const [aiChatbotEnabled, setAiChatbotEnabled] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(true);
     const [saving, setSaving] = useState<boolean>(false);
@@ -2401,16 +2413,32 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
     const load = useCallback(async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${ADMIN_API_BASE_URL}/admin/settings`, API_INIT);
-        if (res.ok) {
-          const js = await res.json();
-          setLabel(js?.all_category_label || "همه");
-          setImageUrl(js?.all_category_image || "");
-          setFruitLabel(js?.fruit_category_label || "میوه ها");
-          setFruitImageUrl(js?.fruit_category_image || "");
-          setVeggieLabel(js?.veggie_category_label || "صیفی جات");
-          setVeggieImageUrl(js?.veggie_category_image || "");
+        // Fetch categories
+        const catRes = await fetch(`${ADMIN_API_BASE_URL}/admin/categories`, API_INIT);
+        let cats: any[] = [];
+        if (catRes.ok) {
+          cats = await catRes.json();
+          setCategories(Array.isArray(cats) ? cats : []);
+        }
+
+        // Fetch settings
+        const settingsRes = await fetch(`${ADMIN_API_BASE_URL}/admin/settings`, API_INIT);
+        if (settingsRes.ok) {
+          const js = await settingsRes.json();
+          setAllLabel(js?.all_category_label || "همه");
+          setAllImageUrl(js?.all_category_image || "");
           setAiChatbotEnabled(js?.ai_chatbot_enabled === "true" || js?.ai_chatbot_enabled === true);
+          
+          // Initialize category images from settings (category_<id>_image keys)
+          const newCatImages: Record<number, { imageUrl: string; file: File | null }> = {};
+          for (const cat of cats) {
+            const key = `category_${cat.id}_image`;
+            newCatImages[cat.id] = {
+              imageUrl: js?.[key] || cat.image_url || "",
+              file: null,
+            };
+          }
+          setCategoryImages(newCatImages);
         }
       } finally {
         setLoading(false);
@@ -2419,58 +2447,100 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
 
     useEffect(() => { load(); }, [load]);
 
+    const updateCategoryImage = (catId: number, field: "imageUrl" | "file", value: string | File | null) => {
+      setCategoryImages(prev => ({
+        ...prev,
+        [catId]: {
+          ...prev[catId],
+          [field]: value,
+          // If setting file, clear imageUrl; if setting imageUrl, clear file
+          ...(field === "file" && value ? { imageUrl: "" } : {}),
+          ...(field === "imageUrl" && value ? { file: null } : {}),
+        },
+      }));
+    };
+
     const handleSave = async () => {
       setSaving(true);
       try {
+        // Check if any files need to be uploaded
+        const hasFiles = allFile || Object.values(categoryImages).some(ci => ci.file);
+        
         let res: Response;
-        if (file || fruitFile || veggieFile) {
+        if (hasFiles) {
           const form = new FormData();
-          form.append("all_category_label", label);
-          if (file) form.append("all_category_image_file", file);
-          else if (imageUrl) form.append("all_category_image", imageUrl);
-          
-          form.append("fruit_category_label", fruitLabel);
-          if (fruitFile) form.append("fruit_category_image_file", fruitFile);
-          else if (fruitImageUrl) form.append("fruit_category_image", fruitImageUrl);
-          
-          form.append("veggie_category_label", veggieLabel);
-          if (veggieFile) form.append("veggie_category_image_file", veggieFile);
-          else if (veggieImageUrl) form.append("veggie_category_image", veggieImageUrl);
-          
+          form.append("all_category_label", allLabel);
+          if (allFile) form.append("all_category_image_file", allFile);
+          else if (allImageUrl) form.append("all_category_image", allImageUrl);
           form.append("ai_chatbot_enabled", aiChatbotEnabled.toString());
+          
+          // Add category images
+          for (const cat of categories) {
+            const ci = categoryImages[cat.id];
+            if (ci?.file) {
+              form.append(`category_${cat.id}_image_file`, ci.file);
+            } else if (ci?.imageUrl) {
+              form.append(`category_${cat.id}_image`, ci.imageUrl);
+            }
+          }
+          
           res = await fetch(`${ADMIN_API_BASE_URL}/admin/settings`, { method: "PUT", body: form });
         } else {
+          const payload: any = {
+            all_category_label: allLabel,
+            ai_chatbot_enabled: aiChatbotEnabled,
+          };
+          if (allImageUrl) payload.all_category_image = allImageUrl;
+          
+          // Add category images
+          for (const cat of categories) {
+            const ci = categoryImages[cat.id];
+            if (ci?.imageUrl) {
+              payload[`category_${cat.id}_image`] = ci.imageUrl;
+            }
+          }
+          
           res = await fetch(`${ADMIN_API_BASE_URL}/admin/settings`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              all_category_label: label,
-              ...(imageUrl ? { all_category_image: imageUrl } : {}),
-              fruit_category_label: fruitLabel,
-              ...(fruitImageUrl ? { fruit_category_image: fruitImageUrl } : {}),
-              veggie_category_label: veggieLabel,
-              ...(veggieImageUrl ? { veggie_category_image: veggieImageUrl } : {}),
-              ai_chatbot_enabled: aiChatbotEnabled,
-            }),
+            body: JSON.stringify(payload),
           });
         }
+        
         if (!res.ok) throw new Error(`${res.status}`);
-        const js = await res.json();
-        setLabel(js?.all_category_label || label);
-        setImageUrl(js?.all_category_image || imageUrl);
-        setFruitLabel(js?.fruit_category_label || fruitLabel);
-        setFruitImageUrl(js?.fruit_category_image || fruitImageUrl);
-        setVeggieLabel(js?.veggie_category_label || veggieLabel);
-        setVeggieImageUrl(js?.veggie_category_image || veggieImageUrl);
-        setAiChatbotEnabled(js?.ai_chatbot_enabled === "true" || js?.ai_chatbot_enabled === true);
-        setFile(null);
-        setFruitFile(null);
-        setVeggieFile(null);
+        
+        // Reload to get fresh data
+        await load();
         alert("تنظیمات ذخیره شد");
       } catch (e: any) {
+        console.error("Save settings error:", e);
         alert("خطا در ذخیره تنظیمات");
       } finally {
         setSaving(false);
+      }
+    };
+
+    const handleDeleteCategoryImage = async (catId: number) => {
+      if (!confirm("آیا از حذف تصویر این دسته‌بندی اطمینان دارید؟")) return;
+      
+      try {
+        // Send empty value to delete
+        const res = await fetch(`${ADMIN_API_BASE_URL}/admin/settings`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [`category_${catId}_image`]: "" }),
+        });
+        
+        if (!res.ok) throw new Error(`${res.status}`);
+        
+        setCategoryImages(prev => ({
+          ...prev,
+          [catId]: { imageUrl: "", file: null },
+        }));
+        alert("تصویر دسته‌بندی حذف شد");
+      } catch (e: any) {
+        console.error("Delete category image error:", e);
+        alert("خطا در حذف تصویر");
       }
     };
 
@@ -2483,79 +2553,88 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
         ) : (
           <div className="grid gap-6 max-w-4xl">
             {/* تنظیمات تب همه */}
-            <div className="border rounded-lg p-4 bg-gray-50">
+            <div className="border rounded-lg p-4 bg-blue-50 border-blue-400">
               <h3 className="text-lg font-semibold mb-3 text-blue-700">تب «همه»</h3>
               <div className="grid gap-4">
                 <div>
                   <label className="block text-sm mb-1 font-medium">برچسب تب «همه»</label>
-                  <input className="border rounded p-2 w-full" value={label} onChange={(e) => setLabel(e.target.value)} />
+                  <input className="border rounded p-2 w-full" value={allLabel} onChange={(e) => setAllLabel(e.target.value)} />
                 </div>
                 <div>
                   <label className="block text-sm mb-1 font-medium">آدرس تصویر (اختیاری)</label>
-                  <input className="border rounded p-2 w-full" placeholder="https://…" value={imageUrl} onChange={(e) => { setImageUrl(e.target.value); setFile(null); }} />
+                  <input className="border rounded p-2 w-full" placeholder="https://…" value={allImageUrl} onChange={(e) => { setAllImageUrl(e.target.value); setAllFile(null); }} />
                 </div>
                 <div>
                   <label className="block text-sm mb-1 font-medium">آپلود تصویر (اختیاری)</label>
-                  <input type="file" accept="image/*" onChange={(e) => { setFile(e.target.files?.[0] || null); if (e.target.files?.[0]) setImageUrl(""); }} />
+                  <input type="file" accept="image/*" onChange={(e) => { setAllFile(e.target.files?.[0] || null); if (e.target.files?.[0]) setAllImageUrl(""); }} />
                 </div>
-                {(file || imageUrl) && (
+                {(allFile || allImageUrl) && (
                   <div>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={file ? URL.createObjectURL(file) : imageUrl} alt="preview" className="w-32 h-32 object-cover rounded-lg border-2 border-blue-400" />
+                    <img src={allFile ? URL.createObjectURL(allFile) : allImageUrl} alt="preview" className="w-32 h-32 object-cover rounded-lg border-2 border-blue-400" />
                   </div>
                 )}
               </div>
             </div>
 
-            {/* تنظیمات تب میوه ها */}
-            <div className="border rounded-lg p-4 bg-gray-50">
-              <h3 className="text-lg font-semibold mb-3 text-green-700">تب «میوه ها»</h3>
-              <div className="grid gap-4">
-                <div>
-                  <label className="block text-sm mb-1 font-medium">برچسب تب «میوه ها»</label>
-                  <input className="border rounded p-2 w-full" value={fruitLabel} onChange={(e) => setFruitLabel(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1 font-medium">آدرس تصویر (اختیاری)</label>
-                  <input className="border rounded p-2 w-full" placeholder="https://…" value={fruitImageUrl} onChange={(e) => { setFruitImageUrl(e.target.value); setFruitFile(null); }} />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1 font-medium">آپلود تصویر (اختیاری)</label>
-                  <input type="file" accept="image/*" onChange={(e) => { setFruitFile(e.target.files?.[0] || null); if (e.target.files?.[0]) setFruitImageUrl(""); }} />
-                </div>
-                {(fruitFile || fruitImageUrl) && (
-                  <div>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={fruitFile ? URL.createObjectURL(fruitFile) : fruitImageUrl} alt="preview" className="w-32 h-32 object-cover rounded-lg border-2 border-green-400" />
+            {/* Dynamic category image settings */}
+            {categories.map((cat, index) => {
+              const colorScheme = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+              const ci = categoryImages[cat.id] || { imageUrl: "", file: null };
+              
+              return (
+                <div key={cat.id} className={`border rounded-lg p-4 ${colorScheme.bg} ${colorScheme.border}`}>
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className={`text-lg font-semibold ${colorScheme.title}`}>
+                      دسته‌بندی «{cat.name}»
+                    </h3>
+                    {(ci.imageUrl || ci.file) && (
+                      <button
+                        onClick={() => handleDeleteCategoryImage(cat.id)}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
+                        حذف تصویر
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
+                  <div className="grid gap-4">
+                    <div>
+                      <label className="block text-sm mb-1 font-medium">آدرس تصویر (اختیاری)</label>
+                      <input
+                        className="border rounded p-2 w-full"
+                        placeholder="https://…"
+                        value={ci.imageUrl}
+                        onChange={(e) => updateCategoryImage(cat.id, "imageUrl", e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm mb-1 font-medium">آپلود تصویر (اختیاری)</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => updateCategoryImage(cat.id, "file", e.target.files?.[0] || null)}
+                      />
+                    </div>
+                    {(ci.file || ci.imageUrl) && (
+                      <div>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={ci.file ? URL.createObjectURL(ci.file) : ci.imageUrl}
+                          alt="preview"
+                          className={`w-32 h-32 object-cover rounded-lg border-2 ${colorScheme.border}`}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
 
-            {/* تنظیمات تب صیفی جات */}
-            <div className="border rounded-lg p-4 bg-gray-50">
-              <h3 className="text-lg font-semibold mb-3 text-orange-700">تب «صیفی جات»</h3>
-              <div className="grid gap-4">
-                <div>
-                  <label className="block text-sm mb-1 font-medium">برچسب تب «صیفی جات»</label>
-                  <input className="border rounded p-2 w-full" value={veggieLabel} onChange={(e) => setVeggieLabel(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1 font-medium">آدرس تصویر (اختیاری)</label>
-                  <input className="border rounded p-2 w-full" placeholder="https://…" value={veggieImageUrl} onChange={(e) => { setVeggieImageUrl(e.target.value); setVeggieFile(null); }} />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1 font-medium">آپلود تصویر (اختیاری)</label>
-                  <input type="file" accept="image/*" onChange={(e) => { setVeggieFile(e.target.files?.[0] || null); if (e.target.files?.[0]) setVeggieImageUrl(""); }} />
-                </div>
-                {(veggieFile || veggieImageUrl) && (
-                  <div>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={veggieFile ? URL.createObjectURL(veggieFile) : veggieImageUrl} alt="preview" className="w-32 h-32 object-cover rounded-lg border-2 border-orange-400" />
-                  </div>
-                )}
+            {categories.length === 0 && (
+              <div className="text-center py-8 text-gray-500 border rounded-lg">
+                هیچ دسته‌بندی‌ای وجود ندارد. ابتدا از بخش «دسته‌بندی‌ها» دسته‌بندی اضافه کنید.
               </div>
-            </div>
+            )}
 
             {/* تنظیمات چت‌بات */}
             <div className="border-t pt-4 mt-4">
@@ -2585,6 +2664,10 @@ import { syncTokenFromURL } from "@/utils/crossDomainAuth";
       </div>
     );
   }
+
+  /* --------------------------------------------------------------------------
+     Banners
+     -------------------------------------------------------------------------- */
 
   function BannersContent() {
     const [banners, setBanners] = useState<any[]>([]);

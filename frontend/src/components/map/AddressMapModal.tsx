@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
+import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/utils/apiClient';
 import { safeStorage } from '@/utils/safeStorage';
@@ -564,22 +565,29 @@ export default function AddressMapModal({ isOpen, onClose, onAddressSave, userTo
   return (
     <>
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/20 z-[900]"
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[900]"
         onClick={onClose}
       />
       
       {/* Main Modal */}
-      <div className="fixed inset-0 z-[950] flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg w-full max-w-4xl h-[90vh] flex flex-col relative overflow-hidden">
+      <div className="fixed inset-0 z-[950] flex items-center justify-center p-4 sm:p-6 pointer-events-none">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          className="bg-white rounded-3xl w-full max-w-4xl h-[90vh] flex flex-col relative overflow-hidden shadow-2xl ring-1 ring-black/5 pointer-events-auto"
+        >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white/90 backdrop-blur-sm z-[960]">
-            <h2 className="text-lg font-bold">انتخاب آدرس</h2>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white/80 backdrop-blur-md z-[960]">
+            <h2 className="text-lg font-bold text-gray-800">انتخاب موقعیت مکانی</h2>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 text-xl"
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition-colors"
             >
-              ×
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
           </div>
 
@@ -597,154 +605,192 @@ export default function AddressMapModal({ isOpen, onClose, onAddressSave, userTo
             <button
               onClick={handleLocateMe}
               disabled={isLocating}
-              className={`absolute bottom-6 left-1/2 -translate-x-1/2 text-white px-8 py-4 rounded-full shadow-xl transition-all duration-200 font-bold text-lg border-2 border-white ${
+              className={`absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center justify-center gap-2 px-6 py-3 rounded-full shadow-lg transition-all duration-200 font-medium text-sm border border-white/20 backdrop-blur-sm ${
                 isLocating 
-                  ? 'bg-gray-500 cursor-not-allowed' 
-                  : 'bg-green-500 hover:bg-green-600'
+                  ? 'bg-gray-800/80 text-white cursor-not-allowed' 
+                  : 'bg-gray-900/90 text-white hover:bg-black hover:scale-105'
               }`}
               style={{
-                fontSize: '16px',
-                fontWeight: 'bold',
-                boxShadow: '0 4px 20px rgba(76, 175, 80, 0.4), 0 2px 10px rgba(0, 0, 0, 0.2)',
-                minWidth: '160px',
                 zIndex: 1100
               }}
             >
-              {isLocating ? 'در حال تعیین...' : 'تعیین موقعیت'}
+              {isLocating ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                  <span>در حال یافتن...</span>
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
+                  <span>موقعیت من</span>
+                </>
+              )}
             </button>
           </div>
 
           {/* Address Card */}
-          <div className="p-4 border-t bg-white/90 backdrop-blur-sm">
-            <div className="mb-3 pb-16">{/* extra padding-bottom so bottom button never overlaps */}
-              <p className="text-sm text-gray-600 mb-2">آدرس انتخاب شده:</p>
-              {isLocating ? (
-                <p className="text-xs text-black mb-2">🔍 در حال تعیین موقعیت شما...</p>
-              ) : (
-                <p className="text-xs text-black mb-2">"میتوانید نقشه را حرکت دهید.سفارش شما به این آدرس ارسال خواهد شد."</p>
-              )}
-              <div className="relative">
+          <div className="p-5 border-t border-gray-100 bg-white z-[970]">
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-bold text-gray-700">آدرس انتخاب شده:</p>
+                {isLocating && <span className="text-xs text-[#E31C5F] animate-pulse">در حال تعیین موقعیت...</span>}
+              </div>
+              
+              <div className="relative group">
+                <div className="absolute top-3 right-3 text-gray-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                </div>
                 <textarea
                   value={currentAddress}
                   onChange={(e) => setCurrentAddress(e.target.value)}
-                  className="w-full bg-white p-3 rounded border min-h-[50px] resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder="آدرس را ویرایش کنید یا موقعیت را روی نقشه مشخص کنید"
+                  className="w-full bg-gray-50 p-3 pr-10 rounded-xl border border-gray-200 min-h-[80px] resize-none focus:bg-white focus:ring-2 focus:ring-[#E31C5F] focus:border-transparent transition-all duration-200 text-sm leading-relaxed"
+                  placeholder="آدرس دقیق اینجا نمایش داده می‌شود..."
                   rows={2}
-                  style={{ 
-                    minHeight: '60px',
-                    lineHeight: '1.4',
-                    fontSize: '14px'
-                  }}
                 />
                 {isAddressLoading && (
-                  <div className="absolute top-2 left-2 text-xs text-gray-500 bg-white px-2 py-1 rounded shadow">
-                    در حال بروزرسانی...
+                  <div className="absolute bottom-2 left-2 flex items-center gap-1 text-[10px] text-gray-500 bg-white/80 px-2 py-1 rounded-full shadow-sm backdrop-blur-sm">
+                    <span className="w-2 h-2 bg-[#E31C5F] rounded-full animate-pulse"/>
+                    بروزرسانی...
                   </div>
                 )}
               </div>
+              
+              {!isLocating && (
+                <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                  برای تغییر موقعیت، نقشه را جابجا کنید
+                </p>
+              )}
             </div>
+            
             <button
               type="button"
               onClick={handleConfirmPosition}
-              className="w-full bg-[#e31c5f] text-white py-3 rounded-lg hover:bg-[#c21750] transition-colors font-medium"
+              className="w-full bg-[#E31C5F] text-white py-4 rounded-xl hover:bg-[#c21750] active:scale-[0.98] transition-all font-bold text-base shadow-lg shadow-[#E31C5F]/20 flex items-center justify-center gap-2"
             >
-              تایید آدرس
+              <span>تایید موقعیت و ادامه</span>
             </button>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Address Form Modal */}
       {showAddressForm && (
         <>
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-[1200]"
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[1200]"
             onClick={() => setShowAddressForm(false)}
           />
-          <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg w-full max-w-md">
+          <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 pointer-events-none">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-3xl w-full max-w-md shadow-2xl ring-1 ring-black/5 overflow-hidden pointer-events-auto"
+            >
               <form onSubmit={handleSubmit}>
                 {/* Form Header */}
-                <div className="flex items-center justify-between p-4 border-b">
-                  <h3 className="text-lg font-bold">تکمیل اطلاعات آدرس</h3>
+                <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50/50">
+                  <h3 className="text-lg font-bold text-gray-800">تکمیل اطلاعات آدرس</h3>
                   <button
                     type="button"
                     onClick={() => setShowAddressForm(false)}
-                    className="text-gray-500 hover:text-gray-700 text-xl"
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shadow-sm border border-gray-100"
                   >
-                    ×
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                   </button>
                 </div>
 
                 {/* Form Body */}
-                <div className="p-4 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      آدرس
+                <div className="p-6 space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                      آدرس کامل
                     </label>
                     <textarea
                       value={formData.fullAddress}
                       onChange={(e) => setFormData(prev => ({ ...prev, fullAddress: e.target.value }))}
-                      className={`w-full px-3 py-2 border rounded-lg resize-none ${errors.fullAddress ? 'border-red-500' : 'border-gray-300'}`}
+                      className={`w-full px-4 py-3 bg-gray-50 border rounded-xl resize-none focus:bg-white focus:ring-2 focus:ring-[#E31C5F]/20 transition-all duration-200 ${errors.fullAddress ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-[#E31C5F]'}`}
                       rows={3}
                       required
                     />
                     {errors.fullAddress && (
-                      <p className="text-red-500 text-sm mt-1">{errors.fullAddress}</p>
+                      <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                        {errors.fullAddress}
+                      </p>
                     )}
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      جزییات
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.details}
-                      onChange={(e) => setFormData(prev => ({ ...prev, details: e.target.value }))}
-                      className={`w-full px-3 py-2 border rounded-lg ${errors.details ? 'border-red-500' : 'border-gray-300'}`}
-                      placeholder="مثلاً پلاک ۱۲، واحد ۳"
-                      required
-                    />
-                    {errors.details && (
-                      <p className="text-red-500 text-sm mt-1">{errors.details}</p>
-                    )}
-                  </div>
+                  <div className="grid grid-cols-1 gap-5">
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                        پلاک و واحد
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.details}
+                        onChange={(e) => setFormData(prev => ({ ...prev, details: e.target.value }))}
+                        className={`w-full px-4 py-3 bg-gray-50 border rounded-xl focus:bg-white focus:ring-2 focus:ring-[#E31C5F]/20 transition-all duration-200 ${errors.details ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-[#E31C5F]'}`}
+                        placeholder="مثلاً پلاک ۱۲، واحد ۳"
+                        required
+                      />
+                      {errors.details && (
+                        <p className="text-red-500 text-xs mt-1">{errors.details}</p>
+                      )}
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      شماره تلفن
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                      className={`w-full px-3 py-2 border rounded-lg ${errors.phone ? 'border-red-500' : 'border-gray-300'}`}
-                      placeholder="09xxxxxxxxx"
-                      required
-                    />
-                    {errors.phone && (
-                      <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
-                    )}
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                        شماره تماس گیرنده
+                      </label>
+                      <input
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                        className={`w-full px-4 py-3 bg-gray-50 border rounded-xl focus:bg-white focus:ring-2 focus:ring-[#E31C5F]/20 transition-all duration-200 ${errors.phone ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-[#E31C5F]'}`}
+                        placeholder="09xxxxxxxxx"
+                        required
+                        dir="ltr"
+                        style={{ textAlign: 'right' }}
+                      />
+                      {errors.phone && (
+                        <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {/* Form Footer */}
-                <div className="p-4 border-t">
+                <div className="p-6 border-t border-gray-100 bg-gray-50/50">
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className={`w-full py-3 rounded-lg font-medium transition-colors ${
+                    className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${
                       isSaving 
-                        ? 'bg-gray-400 cursor-not-allowed' 
-                        : 'bg-[#e31c5f] hover:bg-[#c21750]'
-                    } text-white`}
+                        ? 'bg-gray-400 cursor-not-allowed text-gray-100' 
+                        : 'bg-[#E31C5F] hover:bg-[#c21750] text-white shadow-[#E31C5F]/20'
+                    }`}
                   >
-                    {isSaving ? 'در حال ذخیره...' : 'ذخیره آدرس'}
+                    {isSaving ? (
+                      <>
+                        <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                        <span>در حال ذخیره...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>ثبت و ذخیره آدرس</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>
-            </div>
+            </motion.div>
           </div>
         </>
       )}

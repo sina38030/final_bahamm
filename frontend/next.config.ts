@@ -11,7 +11,6 @@ const nextConfig: NextConfig = {
 	allowedDevOrigins: ['https://bahamm.ir', 'https://www.bahamm.ir', 'http://bahamm.ir', 'http://www.bahamm.ir'],
 	
     // Development mode optimizations - FASTER HOTLOAD
-    swcMinify: true, // Faster minification
     modularizeImports: {
         '@/components': {
             transform: '@/components/{{member}}'

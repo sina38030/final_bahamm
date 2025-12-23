@@ -63,13 +63,17 @@ export default function CustomModal({
             onOpenChange={preventClose ? undefined : onClose}
             style={{ zIndex: 1000 }}
             shouldBlockScroll // جلوگیری از اسکرول پس‌زمینه
+            classNames={{
+                wrapper: "justify-end sm:justify-center",
+                base: "!m-0 sm:!m-4 !w-full sm:!w-auto"
+            }}
         >
             <ModalContent
                 className={cn(
-                    "fixed left-0 right-0 bottom-0 mx-auto w-full",
+                    "fixed left-0 right-0 bottom-0 mx-auto w-full !m-0 sm:!m-4 sm:relative sm:bottom-auto sm:top-auto",
                     // If size is full, height is full, otherwise auto height based on content
                     size === 'full' ? "h-full max-h-[100vh]" : "h-auto max-h-[85vh]",
-                     "flex flex-col overflow-hidden bg-white rounded-t-2xl sm:rounded-2xl sm:relative sm:bottom-auto sm:my-auto sm:w-auto sm:max-w-lg"
+                     "flex flex-col overflow-hidden bg-white rounded-t-2xl sm:rounded-2xl sm:max-w-lg"
                 )}
                 onClick={handleContentClick}
             >
@@ -81,10 +85,10 @@ export default function CustomModal({
                                 headerClass
                             )}
                         >
-                            <span>{title}</span>
                             <button onClick={onClose} className="text-gray-600">
                                 <AiOutlineClose size={20} />
                             </button>
+                            <span>{title}</span>
                         </ModalHeader>
                         <ModalBody
                             className={cn(

@@ -7,6 +7,7 @@ from enum import Enum
 class UserTypeEnum(str, Enum):
     CUSTOMER = 'CUSTOMER'
     MERCHANT = 'MERCHANT'
+    ADMIN = 'ADMIN'
 
 # Base models (shared properties)
 class CategoryBase(BaseModel):

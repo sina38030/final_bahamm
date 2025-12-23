@@ -23,6 +23,7 @@ class Banner(Base):
 class UserType(enum.Enum):
     CUSTOMER = 'CUSTOMER'
     MERCHANT = 'MERCHANT'
+    ADMIN = 'ADMIN'
 
 class OrderType(enum.Enum):
     ALONE = 'ALONE'
