@@ -421,6 +421,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
         
+        // ✅ Handle page navigation deep links (e.g., groups-orders)
+        if (startParam === 'groups-orders') {
+          console.log('[AuthContext] Detected groups-orders deep link, navigating to /groups-orders?tab=groups');
+          setTimeout(() => {
+            router.push('/groups-orders?tab=groups');
+          }, 500);
+          return;
+        }
+        
         // ✅ FIX: Check if start_param is an invite code FIRST before trying payment authority
         // Invite codes have specific patterns: GB{digits}{chars} or 12-char alphanumeric
         const isInviteCode = startParam.startsWith('GB') || 

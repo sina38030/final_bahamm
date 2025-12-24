@@ -301,7 +301,7 @@ function InviteeSuccessContent() {
 
           {/* CTAs */}
           <div className="grid grid-cols-2 gap-3">
-            <Link href={`/order/${data.order.id}`} className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors">
+            <Link href={`/order/${data.order.id}`} className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-white text-gray-700 text-sm font-semibold border border-gray-200 shadow-sm hover:bg-gray-50 hover:border-gray-300 transition-all duration-200">
               جزئیات سفارش
             </Link>
             {data?.order?.id && !timerExpired ? (
@@ -338,7 +338,7 @@ function InviteeSuccessContent() {
                   }
                 }}
                 disabled={isCreatingSecondaryGroup}
-                className="inline-flex flex-col items-center justify-center px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                className="inline-flex flex-col items-center justify-center px-4 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 text-white text-sm font-bold shadow-md hover:from-pink-600 hover:to-purple-700 hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:shadow-none disabled:transform-none"
               >
                 <span>{isCreatingSecondaryGroup ? 'در حال ایجاد...' : 'مبلغ پرداختیت رو پس بگیر!'}</span>
                 {!isCreatingSecondaryGroup && typeof timeLeft === 'number' && timeLeft > 0 && (

@@ -1,13 +1,18 @@
 "use client";
 
-import React, { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import React, { Suspense, useEffect, useState, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import PrevPage from "@/components/common/PrevPage";
 import ProductCard from "@/components/ProductCard";
 import { Product as ProductCardType } from "@/data/products";
-import { FaSearch } from "react-icons/fa";
+import { FaSearch, FaTimes, FaArrowRight, FaFire, FaHistory } from "react-icons/fa";
 import { API_BASE_URL } from "@/utils/api";
 import CartBar from "@/components/CartBar";
+import {
+  addToSearchHistory,
+  clearSearchHistory,
+  getSearchHistory
+} from "@/utils/searchHistory";
 
 // Define Product type
 type Product = {
@@ -24,15 +29,55 @@ type Product = {
 
 function SearchContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const query = searchParams.get("q") || "";
   
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState(query);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [popularSearches, setPopularSearches] = useState<string[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Load search history and popular searches on mount
+  useEffect(() => {
+    try {
+      setSearchHistory(getSearchHistory());
+    } catch (err) {
+      console.error("Error loading search history:", err);
+    }
+
+    // Fetch popular searches from backend
+    (async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/popular-searches`);
+        if (response.ok) {
+          const data = await response.json();
+          setPopularSearches(data.map((item: any) => item.search_term));
+        }
+      } catch (err) {
+        console.error("Error loading popular searches:", err);
+        // Fallback to default searches if backend fails
+        setPopularSearches([
+          'سیب',
+          'موز',
+          'پرتقال',
+          'انگور',
+          'هندوانه',
+          'گوجه'
+        ]);
+      }
+    })();
+
+    // Auto-focus input
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, []);
 
   useEffect(() => {
     // Only search if there's a query
     if (query) {
+      setSearchTerm(query);
       fetchSearchResults(query);
     } else {
       setProducts([]);
@@ -169,26 +214,151 @@ function SearchContent() {
     }
   };
 
+  const handleSearch = (term: string) => {
+    if (term.trim()) {
+      // Add to search history
+      const updatedHistory = addToSearchHistory(term.trim(), searchHistory);
+      setSearchHistory(updatedHistory);
+      // Navigate with query
+      router.push(`/search?q=${encodeURIComponent(term.trim())}`);
+    }
+  };
+
+  const handleClearSearchHistory = () => {
+    clearSearchHistory();
+    setSearchHistory([]);
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
+    inputRef.current?.focus();
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
-      <PrevPage title={`نتایج جستجو: ${query}`} />
-      
-      {/* Search status and summary */}
-      <div className="p-4 bg-white">
-        {loading ? (
-          <p className="text-gray-500 text-center py-2">در حال جستجو...</p>
-        ) : error ? (
-          <p className="text-red-500 text-center py-2">{error}</p>
-        ) : (
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-600">
-              {products.length === 0 
-                ? "هیچ نتیجه‌ای یافت نشد" 
-                : `${products.length} نتیجه برای "${query}"`}
-            </p>
+      {/* Search Header */}
+      <div className="sticky top-0 z-50 bg-white border-b">
+        <div className="p-4 flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            className="text-gray-600 p-2"
+          >
+            <FaArrowRight size={20} />
+          </button>
+          <div className="flex-1 relative">
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="جستجو در محصولات..."
+              className="w-full p-3 pr-10 rounded-lg text-right shadow-sm bg-gray-100 border-none outline-none"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearch(searchTerm);
+                }
+              }}
+            />
+            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+              {searchTerm ? (
+                <FaTimes className="cursor-pointer" onClick={clearSearch} />
+              ) : (
+                <FaSearch />
+              )}
+            </div>
           </div>
-        )}
+          {searchTerm && (
+            <button
+              onClick={() => handleSearch(searchTerm)}
+              className="bg-primary text-white px-4 py-2 rounded-lg text-sm"
+            >
+              جستجو
+            </button>
+          )}
+        </div>
       </div>
+      
+      {/* Show suggestions when no query */}
+      {!query && (
+        <div className="p-4">
+          {/* Popular Searches */}
+          <div className="mb-6">
+            <div className="flex items-center mb-3">
+              <FaFire className="text-red-500 ml-2" />
+              <h3 className="text-sm font-bold">جستجوهای پرطرفدار</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {popularSearches.map((term, index) => (
+                <button
+                  key={index}
+                  className="bg-gray-100 hover:bg-gray-200 rounded-full px-4 py-2 text-sm"
+                  onClick={() => {
+                    setSearchTerm(term);
+                    handleSearch(term);
+                  }}
+                >
+                  {term}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Search History */}
+          {searchHistory.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center">
+                  <FaHistory className="text-gray-500 ml-2" />
+                  <h3 className="text-sm font-bold">تاریخچه جستجو</h3>
+                </div>
+                <button
+                  onClick={handleClearSearchHistory}
+                  className="text-red-500 text-sm"
+                >
+                  پاک کردن تاریخچه
+                </button>
+              </div>
+              <div className="flex flex-col gap-3">
+                {searchHistory.map((term, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-white rounded-lg cursor-pointer shadow-sm"
+                    onClick={() => {
+                      setSearchTerm(term);
+                      handleSearch(term);
+                    }}
+                  >
+                    <div className="flex items-center">
+                      <FaHistory className="text-gray-400 ml-2" />
+                      <span>{term}</span>
+                    </div>
+                    <FaArrowRight className="text-gray-400 rotate-180" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Search results */}
+      {query && (
+        <div className="p-4 bg-white mb-2">
+          {loading ? (
+            <p className="text-gray-500 text-center py-2">در حال جستجو...</p>
+          ) : error ? (
+            <p className="text-red-500 text-center py-2">{error}</p>
+          ) : (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                {products.length === 0 
+                  ? "هیچ نتیجه‌ای یافت نشد" 
+                  : `${products.length} نتیجه برای "${query}"`}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
       
       {/* Search results */}
       {!loading && !error && (

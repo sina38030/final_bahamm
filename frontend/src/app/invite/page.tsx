@@ -10,7 +10,7 @@ import { generateInviteLink, generateShareUrl, extractInviteCode, isTelegramMini
 import { API_BASE_URL } from '@/utils/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTelegram, faWhatsapp, faInstagram } from '@fortawesome/free-brands-svg-icons';
-import { faCommentSms, faLink, faCheck, faShareNodes } from '@fortawesome/free-solid-svg-icons';
+import { faCommentSms, faCopy, faCheck, faShareNodes } from '@fortawesome/free-solid-svg-icons';
 
 interface Product {
   id: number;
@@ -987,10 +987,6 @@ function InvitePageContent() {
       >
         {/* Header with 24-hour Timer */}
         <header className="header">
-          <button className="home-btn" onClick={() => router.push('/')}>
-            <i className="fa-solid fa-house-chimney"></i>
-          </button>
-
           <h2>
             حالا وقتشه دوستات رو دعوت کنی تا سفارشـت
             <span className="free"> رایگان</span> بشه!
@@ -1088,19 +1084,19 @@ function InvitePageContent() {
               onClick={copyInviteLink}
               title={copied ? 'کپی شد!' : 'کپی لینک'}
             >
-              <FontAwesomeIcon icon={copied ? faCheck : faLink} />
+              <FontAwesomeIcon icon={copied ? faCheck : faCopy} />
             </button>
           </div>
          </section>
 
         {/* Description Card */}
         <section className="description-card">
-          <h3>چگونه سفارش رو رایگان کنیم:</h3>
+          <h3>🎁 چگونه سفارش رو رایگان کنیم:</h3>
           <p>
-            • ری است.<br />
-            • ل نیست.<br />
-            • دیه شارژ می‌شود.<br />
-            • برای دنند.
+            • لینک دعوت رو با ۳ تا از دوستات به اشتراک بذار.<br />
+            • هر دوستی که از لینک تو خرید کنه، یک چهارم هزینه برمی‌گرده.<br />
+            • اگه ۳ نفر خرید کنن، سفارش تو کاملاً رایگان می‌شه!<br />
+            • مبلغ برگشتی به کیف پول تو شارژ می‌شه.
           </p>
         </section>
       </div>
@@ -1241,8 +1237,6 @@ function InvitePageContent() {
           </a>
         </div>
 
-        <div className="share-footer">
-        </div>
       </aside>
 
       {/* Minimal styles for success banner and copy toast */}

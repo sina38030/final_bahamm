@@ -127,11 +127,23 @@ class NotificationService:
             base = base[:-1]
         return f"{base}/groups-orders?tab=groups"
 
+    def _telegram_miniapp_groups_orders_link(self) -> str:
+        """Generate the Telegram Mini App deep link to groups-orders page."""
+        bot_username = getattr(self._settings, "TELEGRAM_BOT_USERNAME", "Bahamm_bot")
+        miniapp_name = getattr(self._settings, "TELEGRAM_MINIAPP_NAME", "bahamm")
+        return f"https://t.me/{bot_username}/{miniapp_name}?startapp=groups-orders"
+
     def get_groups_orders_link(self) -> str:
         """
         Public helper to expose the groups/orders page link for other services.
         """
         return self._groups_orders_link()
+    
+    def get_telegram_miniapp_groups_orders_link(self) -> str:
+        """
+        Public helper to expose the Telegram Mini App groups/orders link for other services.
+        """
+        return self._telegram_miniapp_groups_orders_link()
 
     def _leader_has_paid(self, group_order: Any) -> bool:
         if getattr(group_order, "leader_paid_at", None):
@@ -177,28 +189,34 @@ class NotificationService:
         status_value = status.value if isinstance(status, GroupOrderStatus) else str(status or "")
 
         if needs_refund:
+            telegram_link = self._telegram_miniapp_groups_orders_link()
+            # Format refund amount with Persian thousands separator
+            formatted_refund = f"{refund_due_amount:,}".replace(",", "٬")
             return {
-                "title": "گروه با موفقیت تکمیل شد",
+                "title": "تبریک! گروه با موفقیت تشکیل شد",
                 "message": (
-                    "گروه شما با موفقیت تشکیل شد! جهت بازگشت مبلغ لطفا وارد لینک زیر شده و "
-                    "شماره کارت خودتون رو ثبت بفرمایید.\n"
-                    f"{link}"
+                    f"تبریک! گروه با موفقیت تشکیل شد.\n"
+                    f"مبلغ {formatted_refund} تومان به شما برگشت داده می‌شود.\n"
+                    f"لطفا از صفحه گروه و سفارش‌ها روش برگشت را تایید نمایید.\n\n"
+                    f"👇 <a href=\"{telegram_link}\">مشاهده گروه‌های من</a>"
                 ),
                 "sms_message": (
-                    "گروه شما تکمیل شد. برای ثبت کارت و دریافت بازگشت وجه وارد لینک زیر شوید "
-                    f"{link}"
+                    f"تبریک! گروه با موفقیت تشکیل شد. مبلغ {formatted_refund} تومان به شما برگشت داده می‌شود. "
+                    f"برای تایید روش برگشت وارد لینک شوید {link}"
                 ),
             }
 
         if needs_payment:
+            telegram_link = self._telegram_miniapp_groups_orders_link()
             return {
-                "title": "تکمیل گروه - پرداخت نهایی",
+                "title": "تبریک! گروه با موفقیت تشکیل شد",
                 "message": (
-                    "گروه شما با موفقیت تشکیل شد. لطفا برای نهایی شدن سفارشتون مبلغ باقیمانده رو پرداخت بفرمایید.\n"
-                    f"{link}"
+                    "تبریک! گروه با موفقیت تشکیل شد.\n"
+                    "برای نهایی شدن سفارشتون مبلغ باقیمانده را پرداخت نمایید.\n\n"
+                    f"👇 <a href=\"{telegram_link}\">مشاهده گروه‌های من</a>"
                 ),
                 "sms_message": (
-                    "گروه شما تکمیل شد. برای پرداخت مبلغ نهایی وارد این لینک شوید "
+                    "تبریک! گروه با موفقیت تشکیل شد. برای نهایی شدن سفارشتون مبلغ باقیمانده را پرداخت نمایید. "
                     f"{link}"
                 ),
             }

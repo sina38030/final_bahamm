@@ -1002,12 +1002,17 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
         </div>
       </header>
 
-      <p className="discount-text">
-        پرداخت {isGroupReady ? <b>{formattedRefWithFriend}</b> : <span className="skel-line" aria-hidden="true" />}<span className="currency">تومان</span> بجای {isGroupReady ? <s>{formattedRefAlone}</s> : <span className="skel-line" aria-hidden="true" />}<span className="currency">تومان</span> با خرید این سبد
-      </p>
+      <div className="hero-content">
+        <p className="discount-text">
+          <span className="discount-emoji">🎁</span>
+          پرداخت {isGroupReady ? <b>{formattedRefWithFriend}</b> : <span className="skel-line" aria-hidden="true" />}<span className="currency"> تومان</span>
+          <br />
+          بجای {isGroupReady ? <s>{formattedRefAlone}</s> : <span className="skel-line" aria-hidden="true" />}<span className="currency"> تومان</span> با خرید این سبد
+        </p>
 
-      <div className="basket-head">
-        <button className="view-full" onClick={() => { renderGroupBasket(); }}>مشاهده کامل سبد</button>
+        <div className="basket-head">
+          <button className="view-full" onClick={() => { renderGroupBasket(); }}>مشاهده کامل سبد</button>
+        </div>
       </div>
 
       <section className="basket-carousel" id="basket">
@@ -1033,8 +1038,9 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
       </section>
 
       <div className="countdown-wrapper">
+        <span className="countdown-icon">⏰</span>
         <span id="countdown" ref={countdownRef}>۰۰:۰۰:۰۰</span>
-        <span className="countdown-label">تا پایان این خرید گروهی زمان باقیست</span>
+        <span className="countdown-label">تا پایان خرید گروهی</span>
       </div>
 
       <button
@@ -1044,6 +1050,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
         aria-disabled={disabledJoin}
         title={disabledJoin ? (groupStatus === 'failed' ? 'گروه ناموفق بوده است' : 'گروه تکمیل شده است') : 'پیوستن به گروه'}
       >
+        <span className="cta-icon">🛒</span>
         پیوستن به گروه با خرید سبد دوستت
       </button>
 
@@ -1126,7 +1133,10 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
       />
 
       <div className="green-box" onClick={() => openSheet("اطلاعات بیشتر", (<p style={{ lineHeight: 1.9 }}>اگر سبد جدید تشکیل بدهی، همچنان عضو همین گروه می‌مانی و دو سبد در انتها تجمیع می‌شوند.</p>))}>
-        با تشکیل سبد خودت هم،میتونی عضو این گروه بشی!
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 8 }}>
+          <path d="M19 9l-7 7-7-7" />
+        </svg>
+        <span>با تشکیل سبد خودت هم، میتونی عضو این گروه بشی!</span>
       </div>
 
       <section>
@@ -1283,29 +1293,129 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
       <ProductModal />
 
       <style jsx>{`
-        .basket-skeleton { display: flex; gap: 12px; padding: 8px 0; }
-        .skeleton-circle { width: 90px; height: 90px; border-radius: 12px; background: linear-gradient(90deg,#eee 25%,#f5f5f5 37%,#eee 63%); background-size: 400% 100%; animation: shimmer 1.2s infinite; }
-        .skel-line { display:inline-block; width: 96px; height: 1em; border-radius: 6px; vertical-align: middle; background: linear-gradient(90deg,#eee 25%,#f5f5f5 37%,#eee 63%); background-size: 400% 100%; animation: shimmer 1.2s infinite; }
-        @keyframes shimmer { 0% { background-position: 100% 0 } 100% { background-position: -100% 0 } }
+        .basket-skeleton { 
+          display: flex; 
+          gap: 14px; 
+          padding: 8px 20px; 
+          overflow-x: auto;
+        }
+        .skeleton-circle { 
+          width: 88px; 
+          height: 88px; 
+          border-radius: 16px; 
+          background: linear-gradient(90deg, #f8f4f5 25%, #fff 37%, #f8f4f5 63%); 
+          background-size: 400% 100%; 
+          animation: shimmer 1.5s ease-in-out infinite;
+          flex-shrink: 0;
+          box-shadow: 0 2px 8px rgba(230,0,92,0.06);
+        }
+        .skel-line { 
+          display: inline-block; 
+          width: 80px; 
+          height: 1.1em; 
+          border-radius: 8px; 
+          vertical-align: middle; 
+          background: linear-gradient(90deg, #f8f4f5 25%, #fff 37%, #f8f4f5 63%); 
+          background-size: 400% 100%; 
+          animation: shimmer 1.5s ease-in-out infinite; 
+        }
+        @keyframes shimmer { 
+          0% { background-position: 100% 0; } 
+          100% { background-position: -100% 0; } 
+        }
+        
         /* Keep the category tabs pinned while scrolling the product list, just below header */
         /* z-index is below ProductModal overlay (60) to avoid overlapping the popup */
-        .tabs { position: sticky; top: var(--landingTopOffset, 0px); z-index: 40; background: #ffffff; border-bottom: 1px solid #f1f1f1; }
-        .tabs :global(.tab) { padding-inline: 10px; }
-        .tabs-row { display: flex; align-items: center; justify-content: flex-start; gap: 12px; padding: 8px 0 8px 12px; }
-        .tabs-left { display: flex; align-items: center; gap: 12px; width: 100%; justify-content: flex-end; overflow-x: auto; }
+        .tabs { 
+          position: sticky; 
+          top: var(--landingTopOffset, 0px); 
+          z-index: 40; 
+          background: linear-gradient(180deg, #fff 0%, #fefefe 100%); 
+          border-bottom: 1px solid rgba(0,0,0,0.05);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        }
+        .tabs :global(.tab) { 
+          padding-inline: 12px; 
+          padding-block: 6px;
+          border-radius: 20px;
+          transition: all 0.3s ease;
+        }
+        .tabs :global(.tab:hover) {
+          background: rgba(230,0,92,0.05);
+        }
+        .tabs :global(.tab.active) {
+          background: rgba(230,0,92,0.1);
+          color: #e31c5f;
+        }
+        .tabs-row { 
+          display: flex; 
+          align-items: center; 
+          justify-content: flex-start; 
+          gap: 10px; 
+          padding: 10px 12px;
+        }
+        .tabs-left { 
+          display: flex; 
+          align-items: center; 
+          gap: 8px; 
+          width: 100%; 
+          justify-content: flex-end; 
+          overflow-x: auto; 
+        }
         .tabs-left > :global(*) { flex: 0 0 auto; }
-        .search-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 40px; height: 32px; border-radius: 8px; background: #f7f7f7; color: #333; }
-        .search-btn :global(svg) { width: 16px; height: 16px; }
-        .inline-search { display: flex; align-items: center; gap: 6px; background: #f7f7f7; padding: 3px 6px; border-radius: 8px; }
-        .inline-icon { width: 14px; height: 14px; color: #666; }
-        .search-input { width: 120px; height: 26px; border: none; outline: none; background: transparent; font-size: 13px; }
-        @media (min-width: 390px) { .search-input { width: 150px; } }
-        .tab { font-size: 14px; }
+        .search-btn { 
+          display: inline-flex; 
+          align-items: center; 
+          justify-content: center; 
+          min-width: 38px; 
+          height: 34px; 
+          border-radius: 12px; 
+          background: linear-gradient(135deg, #fff 0%, #f9f7f8 100%); 
+          color: #e31c5f; 
+          border: 1px solid rgba(230,0,92,0.15);
+          transition: all 0.3s ease;
+        }
+        .search-btn:hover {
+          background: rgba(230,0,92,0.08);
+          box-shadow: 0 2px 8px rgba(230,0,92,0.12);
+        }
+        .search-btn :global(svg) { width: 15px; height: 15px; }
+        .inline-search { 
+          display: flex; 
+          align-items: center; 
+          gap: 8px; 
+          background: linear-gradient(135deg, #fff 0%, #f9f7f8 100%); 
+          padding: 4px 10px; 
+          border-radius: 12px;
+          border: 1px solid rgba(230,0,92,0.15);
+        }
+        .inline-icon { width: 14px; height: 14px; color: #e31c5f; }
+        .search-input { 
+          width: 110px; 
+          height: 28px; 
+          border: none; 
+          outline: none; 
+          background: transparent; 
+          font-size: 13px;
+          color: #333;
+        }
+        .search-input::placeholder { color: #aaa; }
+        @media (min-width: 390px) { .search-input { width: 140px; } }
+        .close-x {
+          background: none;
+          border: none;
+          font-size: 1.3rem;
+          color: #999;
+          cursor: pointer;
+          padding: 0 4px;
+          line-height: 1;
+        }
+        .close-x:hover { color: #e31c5f; }
+        .tab { font-size: 14px; font-weight: 600; }
+        
         /* Ensure overlays cover sticky elements */
         .sheet-overlay { z-index: 10000; }
         .bottom-sheet { z-index: 10001; }
-
-        /* Removed drawer styles; inline only */
       `}</style>
     </div>
   );
