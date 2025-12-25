@@ -64,15 +64,20 @@ export async function GET(
     const data = await response.json().catch(() => ({}));
     console.log('API Response status:', response.status); // DEBUG
     console.log('API Response data:', data); // DEBUG
+    console.log('Response OK:', response.ok); // DEBUG
 
     if (!response.ok) {
+      console.log('Response not OK, returning error'); // DEBUG
       return NextResponse.json(
         { success: false, error: data?.detail || 'Failed to fetch order' },
         { status: response.status }
       );
     }
 
-    return NextResponse.json({ success: true, order: data });
+    console.log('Response OK, wrapping data'); // DEBUG
+    const wrappedResponse = { success: true, order: data };
+    console.log('Wrapped response:', wrappedResponse); // DEBUG
+    return NextResponse.json(wrappedResponse);
   } catch (e) {
     return NextResponse.json(
       { success: false, error: 'Internal server error' },

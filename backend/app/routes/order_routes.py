@@ -178,15 +178,26 @@ async def get_order_public(order_id: int, db: Session = Depends(get_db)):
     # Masked payment
     masked_card = None
     bank_ref = getattr(order, 'payment_ref_id', None)
+
+    # Calculate totals based on order type
+    total_original = float(order.total_amount or 0)
+    total_paid = total_original
+
+    # For group orders, apply the 10,000 toman discount that was applied during payment
+    if order.order_type == OrderType.GROUP and order.group_order_id:
+        total_paid = max(0, total_original - 10000)
+
     return {
         "id": order.id,
         "userId": order.user_id,
         "status": (order.status or ""),
-        "totalOriginal": order.total_amount,
-        "totalPaid": order.total_amount,
+        "totalOriginal": total_original,
+        "totalPaid": total_paid,
         "paidAt": order.paid_at.isoformat() if order.paid_at else None,
         "items": items,
         "payment": {"maskedCard": masked_card or "****-****-****-****", "bankRef": bank_ref or ""},
+        "delivery_slot": order.delivery_slot,
+        "address": order.shipping_address,
     }
 
 @order_router.post("/payment-success/{order_id}")

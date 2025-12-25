@@ -46,9 +46,11 @@ export default function CommentsPage() {
     const [error, setError] = useState<string | null>(null);
     const [showPhoneAuth, setShowPhoneAuth] = useState(false);
 
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [editingReview, setEditingReview] = useState<Review | null>(null);
+    const [editingReviewId, setEditingReviewId] = useState<number | null>(null);
+    const [editedRating, setEditedRating] = useState<number>(0);
     const [editedComment, setEditedComment] = useState('');
+    const [savingEdit, setSavingEdit] = useState(false);
+    const [editError, setEditError] = useState<string | null>(null);
 
     // Fetch reviews on mount
     useEffect(() => {
@@ -104,23 +106,50 @@ export default function CommentsPage() {
     };
 
     const handleEdit = (review: Review) => {
-        // Navigate to the review page for the order
-        if (review.order) {
-            router.push(`/order/${review.order.id}/review`);
+        setEditingReviewId(review.id);
+        setEditedRating(review.rating);
+        setEditedComment(review.comment || '');
+        setEditError(null);
+    };
+
+    const handleCancelEdit = () => {
+        setEditingReviewId(null);
+        setEditedRating(0);
+        setEditedComment('');
+        setEditError(null);
+    };
+
+    const handleSaveEdit = async (review: Review) => {
+        if (!review) return;
+
+        setSavingEdit(true);
+        setEditError(null);
+
+        try {
+            const res = await apiClient.put(`/product/${review.product_id}/reviews/${review.id}`, {
+                rating: editedRating,
+                comment: editedComment.trim() || null,
+                display_name: null, // Keep existing display name
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData?.detail || errorData?.error || 'خطا در ویرایش نظر');
+            }
+
+            // Refresh reviews to get updated approval status
+            await fetchReviews();
+
+            setEditingReviewId(null);
+            setEditedRating(0);
+            setEditedComment('');
+        } catch (err: any) {
+            setEditError(err?.message || 'خطا در ویرایش نظر');
+        } finally {
+            setSavingEdit(false);
         }
     };
 
-    const handleSaveEdit = () => {
-        if (editingReview) {
-            setReviews(reviews.map(review => 
-                review.id === editingReview.id 
-                    ? { ...review, comment: editedComment }
-                    : review
-            ));
-            setIsEditModalOpen(false);
-            setEditingReview(null);
-        }
-    };
 
     const EmptyState = () => (
         <div className="flex flex-col items-center justify-center py-20 animate-fade-in-up">
@@ -184,6 +213,8 @@ export default function CommentsPage() {
             }
         };
 
+        const isEditing = editingReviewId === review.id;
+
         return (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-4 transition-all hover:shadow-md">
                 {/* Review Header with Product Info */}
@@ -222,28 +253,85 @@ export default function CommentsPage() {
 
                     {/* اطلاعات نظر */}
                     <div className="flex-grow min-w-0">
-                        <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start justify-between gap-2 mb-3">
                             <div className="min-w-0">
                                 <h3 className="font-bold text-gray-800 mb-2 truncate text-sm sm:text-base">
                                     {review.product_name}
                                 </h3>
-                                <StarRating rating={review.rating} />
+                                {isEditing ? (
+                                    <div className="flex items-center gap-2">
+                                        {[1, 2, 3, 4, 5].map((value) => (
+                                            <button
+                                                key={value}
+                                                type="button"
+                                                className={`flex flex-col items-center flex-1 py-1 rounded-lg border transition ${
+                                                    editedRating >= value ? "border-yellow-400 bg-yellow-50" : "border-gray-200 bg-gray-50"
+                                                }`}
+                                                onClick={() => setEditedRating(value)}
+                                            >
+                                                <FaStar className={editedRating >= value ? "text-yellow-400" : "text-gray-300"} size={14} />
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <StarRating rating={review.rating} />
+                                )}
                             </div>
                             <div className="flex gap-2 shrink-0">
-                                <button
-                                    onClick={() => handleEdit(review)}
-                                    className="p-2 text-gray-400 hover:text-[#E31C5F] hover:bg-[#E31C5F]/5 rounded-xl transition-all"
-                                    title="ویرایش نظر"
-                                >
-                                    <FaEdit size={16} />
-                                </button>
+                                {isEditing ? (
+                                    <>
+                                        <button
+                                            onClick={() => handleSaveEdit(review)}
+                                            disabled={savingEdit || editedRating < 1}
+                                            className="px-3 py-1.5 bg-emerald-500 text-white text-xs font-medium rounded-lg hover:bg-emerald-600 disabled:bg-gray-400 transition"
+                                        >
+                                            {savingEdit ? 'در حال ذخیره...' : 'ذخیره'}
+                                        </button>
+                                        <button
+                                            onClick={handleCancelEdit}
+                                            className="px-3 py-1.5 bg-gray-500 text-white text-xs font-medium rounded-lg hover:bg-gray-600 transition"
+                                        >
+                                            انصراف
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        onClick={() => handleEdit(review)}
+                                        className="p-2 text-gray-400 hover:text-[#E31C5F] hover:bg-[#E31C5F]/5 rounded-xl transition-all"
+                                        title="ویرایش نظر"
+                                    >
+                                        <FaEdit size={16} />
+                                    </button>
+                                )}
                             </div>
                         </div>
-                        {review.comment && (
-                            <div className="bg-gray-50 rounded-xl p-3 mt-3 text-sm text-gray-600 leading-relaxed">
-                                {review.comment}
+
+                        {isEditing ? (
+                            <div className="space-y-3">
+                                <textarea
+                                    value={editedComment}
+                                    onChange={(e) => setEditedComment(e.target.value)}
+                                    rows={3}
+                                    className="w-full rounded-xl border border-gray-200 p-3 text-sm focus:border-rose-500 focus:ring focus:ring-rose-100 transition"
+                                    placeholder="نظر خود را ویرایش کنید..."
+                                />
+                                <div className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg p-2">
+                                    توجه: پس از ویرایش نظر، نیاز به تایید مجدد توسط مدیر دارد.
+                                </div>
+                                {editError && (
+                                    <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-2">
+                                        {editError}
+                                    </div>
+                                )}
                             </div>
+                        ) : (
+                            review.comment && (
+                                <div className="bg-gray-50 rounded-xl p-3 mt-3 text-sm text-gray-600 leading-relaxed">
+                                    {review.comment}
+                                </div>
+                            )
                         )}
+
                         <div className="flex items-center gap-3 mt-3">
                             <span className="text-gray-400 text-xs font-medium bg-gray-50 px-2 py-1 rounded-lg">
                                 {formatDate(review.created_at)}
@@ -292,10 +380,10 @@ export default function CommentsPage() {
                                                             onError={(e) => {
                                                                 const target = e.target as HTMLImageElement;
                                                                 target.style.display = 'none';
-                                                            }}
-                                                        />
-                                                    );
-                                                }
+                                            }}
+                                        />
+                                    );
+                                }
                                             } catch (error) {
                                                 console.warn('Error rendering order item image:', error);
                                             }
@@ -408,4 +496,5 @@ export default function CommentsPage() {
             </div>
         </div>
     );
+} 
 } 

@@ -8,7 +8,8 @@ import { generateInviteLink, generateShareUrl, extractInviteCode } from "@/utils
 import { API_BASE_URL } from "@/utils/api";
 import { safeStorage, safeSessionStorage } from "@/utils/safeStorage";
 import { finalizeGroupBuy } from "@/utils/groupFinalize";
-// Removed auth requirement for public access
+import "../track.css";
+// Track page - Beautiful modern design v4 - force full rebuild
 
 type GroupStatus = "ongoing" | "success" | "failed";
 interface Participant {
@@ -560,8 +561,24 @@ export default function TrackPage() {
 
   if (!data)
     return (
-      <div dir="rtl" className="p-4">
-        در حال بارگذاری...
+      <div dir="rtl" className="track-page">
+        <div className="timer-header" style={{ marginTop: 0 }}>
+          <div className="timer-content">
+            <div className="timer-label">در حال بارگذاری...</div>
+            <div className="skeleton" style={{ width: 120, height: 28 }}></div>
+          </div>
+        </div>
+        <div className="basket-card">
+          <div className="basket-thumbs">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="basket-thumb skeleton"></div>
+            ))}
+          </div>
+        </div>
+        <div className="progress-card">
+          <div className="skeleton" style={{ width: '80%', height: 20, marginBottom: 12 }}></div>
+          <div className="skeleton" style={{ width: '60%', height: 16 }}></div>
+        </div>
       </div>
     );
 
@@ -569,34 +586,30 @@ export default function TrackPage() {
   const expiredSuccess = expired && nonLeaderPaid >= 1;
   const statusBanner =
     data.status === "success" || expiredSuccess
-      ? { text: "گروه تشکیل شد. سفارش‌ها در حال پردازش هستند.", color: "bg-green-50 text-green-700 border-green-200" }
+      ? { text: "گروه تشکیل شد. سفارش‌ها در حال پردازش هستند.", type: "success", icon: "✓" }
       : (expired && nonLeaderPaid === 0) || data.status === "failed"
-      ? { text: "این گروه ناموفق شد.", color: "bg-gray-50 text-gray-700 border-gray-200" }
+      ? { text: "این گروه ناموفق شد.", type: "failed", icon: "✕" }
       : null;
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50 p-4 space-y-4">
+    <div dir="rtl" className="track-page">
 
       {statusBanner && (
-        <div
-          className={`border ${statusBanner.color} text-sm px-3 py-2 rounded-lg`}
-        >
-          {statusBanner.text}
+        <div className={`status-banner ${statusBanner.type}`}>
+          <div className="icon">{statusBanner.icon}</div>
+          <span>{statusBanner.text}</span>
         </div>
       )}
 
       {/* Header timer + complete button */}
-      <div className="flex items-center justify-between">
-        <div className="font-bold">
-          زمان باقیمانده برای تشکیل گروه: {hh}:{mm}:{ss}
+      <div className="timer-header">
+        <div className="timer-content">
+          <div className="timer-label">زمان باقیمانده برای تشکیل گروه</div>
+          <div className={`timer-value ${expired ? 'expired' : ''}`}>{hh}:{mm}:{ss}</div>
         </div>
         {isLeader && (
           <button
-            className={`text-sm px-3 py-1 rounded-full transition ${
-              canComplete
-                ? "bg-custom-pink text-white hover:bg-custom-pink"
-                : "bg-gray-200 text-gray-600 cursor-not-allowed"
-            }`}
+            className={`complete-btn ${canComplete ? 'active' : 'disabled'}`}
             aria-disabled={!canComplete}
             disabled={!canComplete}
             onClick={() => canComplete && handleComplete()}
@@ -608,24 +621,26 @@ export default function TrackPage() {
       </div>
 
       {/* Basket card */}
-      <div className="bg-white rounded-xl shadow p-4">
-        <div className="text-xs text-gray-500 text-right mb-2">
+      <div className="basket-card">
+        <div className="basket-header">
+          <span className="basket-title">سبد خرید</span>
           <button
             type="button"
-            className="underline"
+            className="view-basket-btn"
             onClick={() => setShowBasket(true)}
           >
-            مشاهده کامل سبد
+            <span>مشاهده جزئیات</span>
+            <span>←</span>
           </button>
         </div>
-        <div className="flex gap-3">
+        <div className="basket-thumbs">
           {(data.basket || [])
             .slice(0, 4)
             .map((b, i) => (
               <button
                 key={i}
                 type="button"
-                className="w-14 h-14 bg-gray-100 rounded-xl relative overflow-hidden"
+                className="basket-thumb"
                 onClick={() => setShowBasket(true)}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -633,28 +648,24 @@ export default function TrackPage() {
                   <img
                     src={b.image}
                     alt={b.name}
-                    className="w-full h-full object-cover"
                     onError={(e) => {
-                      const fb = `https://picsum.photos/seed/${encodeURIComponent(b.productId || String(i))}/56/56`;
+                      const fb = `https://picsum.photos/seed/${encodeURIComponent(b.productId || String(i))}/72/72`;
                       if (e.currentTarget.src !== fb) e.currentTarget.src = fb;
                     }}
                   />
                 ) : (
                   <img
-                    src={`https://picsum.photos/seed/${encodeURIComponent(b.productId || String(i))}/56/56`}
+                    src={`https://picsum.photos/seed/${encodeURIComponent(b.productId || String(i))}/72/72`}
                     alt={b.name}
-                    className="w-full h-full object-cover"
                   />
                 )}
-                <span className="absolute -top-2 -right-2 bg-custom-pink text-white text-[10px] rounded-full px-1">
-                  {b.qty}
-                </span>
+                <span className="qty-badge">{b.qty}</span>
               </button>
             ))}
           {(data.basket || []).length > 4 && (
             <button
               type="button"
-              className="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center text-xs"
+              className="basket-more"
               onClick={() => setShowBasket(true)}
             >
               +{(data.basket || []).length - 4}
@@ -663,101 +674,95 @@ export default function TrackPage() {
         </div>
       </div>
 
-      {/* Invite / progress */}
-      <div className="bg-white rounded-xl shadow p-4 space-y-3">
-        <div className="text-right">
-           {!data ? (
-            <div className="animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-            </div>
-          ) : nonLeaderPaid === 1 ? (
-            <p>تا الان ۱ نفر از دوستانت عضو گروه شده است.</p>
+      {/* Progress card */}
+      <div className="progress-card">
+        <div className="progress-info">
+          {nonLeaderPaid === 1 ? (
+            <p>تا الان <span className="highlight">۱ نفر</span> از دوستانت عضو گروه شده است.</p>
           ) : (
             <p>
-              تا الان {nonLeaderPaid.toLocaleString('fa-IR')} نفر از دوستانت عضو گروه شده است.
+              تا الان <span className="highlight">{nonLeaderPaid.toLocaleString('fa-IR')} نفر</span> از دوستانت عضو گروه شده است.
             </p>
           )}
-          {!data ? (
-            <div className="animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-4/5"></div>
-            </div>
-          ) : isSecondaryGroup ? (
+          {isSecondaryGroup ? (
             <p>
-              هر دوستی که دعوت می‌کنی یک چهارم هزینه‌ی اولیه ({currentPricing.originalTotal.toLocaleString("fa-IR")} تومان) را برمی‌گرداند؛ الان سهم تو {currentPricing.currentTotal === 0 ? 'رایگان' : `${currentPricing.currentTotal.toLocaleString("fa-IR")} تومان`} است.
+              هر دوستی که دعوت می‌کنی یک چهارم هزینه‌ی اولیه را برمی‌گرداند
             </p>
-          ) : (
-            <p>
-              قیمت از {currentPricing.originalTotal.toLocaleString("fa-IR")} تومان به {currentPricing.currentTotal === 0 ? 'رایگان' : `${currentPricing.currentTotal.toLocaleString("fa-IR")} تومان`} کاهش یافت!
-            </p>
-          )}
+          ) : null}
+          <div className="price-change">
+            <span className="original-price">{currentPricing.originalTotal.toLocaleString("fa-IR")} تومان</span>
+            <span className="arrow">←</span>
+            {currentPricing.currentTotal === 0 ? (
+              <span className="free-badge">رایگان!</span>
+            ) : (
+              <span className="current-price">{currentPricing.currentTotal.toLocaleString("fa-IR")} تومان</span>
+            )}
+          </div>
           {data.status === "success" && (
-            <div className="text-green-600 text-sm mt-1">
+            <div className="success-msg">
+              <span>✓</span>
               این خرید گروهی به اتمام رسیده است.
             </div>
           )}
         </div>
-        <div>
-          <div className="flex justify-between text-[11px] text-gray-500 mb-1">
-            {/* Optional helper text — you can compute remaining needed people */}
-            <span>
-              {Math.max(0, required - nonLeaderPaid)} دوست دیگر تا تکمیل
-            </span>
+        <div className="progress-bar-wrapper">
+          <div className="progress-label">
+            <span>{Math.max(0, required - nonLeaderPaid)} دوست دیگر تا تکمیل</span>
+            <span>{nonLeaderPaid} از {required}</span>
           </div>
-          <div className="h-2 bg-gray-200 rounded">
+          <div className="progress-bar">
             <div
-              className="h-2 bg-custom-pink rounded transition-all"
+              className="progress-fill"
               style={{ width: `${progressPct}%` }}
             />
           </div>
         </div>
         {isLeader && (
           <button
-            className={`w-full py-3 rounded-xl transition ${
-              inviteDisabled
-                ? "bg-gray-200 text-gray-600 cursor-not-allowed"
-                : "bg-custom-pink text-white hover:bg-custom-pink"
-            }`}
+            className={`invite-btn ${inviteDisabled ? 'disabled' : ''}`}
             aria-disabled={inviteDisabled}
             onClick={() => !inviteDisabled && setShowShare(true)}
           >
-            دعوت دوستان
+            🎉 دعوت دوستان
           </button>
         )}
       </div>
 
       {/* Members card */}
-      <div className="bg-white rounded-xl shadow p-4">
-        <div className="font-semibold mb-3">لیست اعضای گروه</div>
-        <div className="space-y-2">
-          {!data ? (
-            <div className="space-y-2">
-              {[1, 2].map((i) => (
-                <div key={i} className="animate-pulse flex items-center space-x-2 space-x-reverse">
-                  <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
-                  <div className="flex-1">
-                    <div className="h-3 bg-gray-200 rounded w-20 mb-1"></div>
-                    <div className="h-2 bg-gray-200 rounded w-16"></div>
-                  </div>
-                  <div className="w-12 h-5 bg-gray-200 rounded"></div>
-                </div>
-              ))}
-            </div>
-          ) : (data.participants || []).length === 0 ? (
-            <div className="text-sm text-gray-500">
-              هنوز کسی دعوت را نپذیرفته است.
+      <div className="members-card">
+        <div className="members-header">
+          <div className="members-icon">👥</div>
+          <span className="members-title">اعضای گروه</span>
+          <span className="members-count">{(data.participants || []).length} نفر</span>
+        </div>
+        <div className="members-list">
+          {(data.participants || []).length === 0 ? (
+            <div className="empty-members">
+              <div className="icon">🔗</div>
+              <p>هنوز کسی دعوت را نپذیرفته است.</p>
+              <p>لینک دعوت را با دوستانت به اشتراک بگذار!</p>
             </div>
           ) : (
-            (data.participants || []).map((m) => {
+            (data.participants || []).map((m, idx) => {
             const displayName =
-              (m.phone || "").trim() ||
-              (m.username || "").trim() ||
-              (m.telegramId || "").trim() ||
-              "کاربر ناشناس";
+              (m.username && m.username !== '@member' && m.username.trim() !== '')
+                ? m.username
+                : (m.phone || "").trim() ||
+                  (m.telegramId || "").trim() ||
+                  "کاربر ناشناس";
+            const initials = displayName.charAt(0).toUpperCase();
             return (
-              <div key={m.id} className="flex items-center justify-between">
-                <div className="text-sm">{displayName}</div>
-                {m.isLeader && (
-                  <span className="text-[11px] text-gray-500">لیدر</span>
+              <div key={m.id || `member-${idx}`} className="member-item">
+                <div className={`member-avatar ${m.isLeader ? 'leader' : ''}`}>
+                  {m.isLeader ? '👑' : initials}
+                </div>
+                <div className="member-info">
+                  <div className="member-name">{displayName}</div>
+                </div>
+                {m.isLeader ? (
+                  <span className="member-badge leader">لیدر</span>
+                ) : (
+                  <span className="member-badge joined">عضو شده</span>
                 )}
               </div>
             );
@@ -769,45 +774,45 @@ export default function TrackPage() {
       {/* Basket modal */}
       {showBasket && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center"
-          style={{ zIndex: 9999 }}
+          className="modal-overlay"
           onClick={() => setShowBasket(false)}
         >
           <div
-            className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[80vh] overflow-auto p-4"
+            className="modal-content"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="text-right text-sm text-gray-500 mb-3">
-              جزئیات سبد
+            <div className="modal-handle"></div>
+            <div className="modal-header">
+              <h4 className="modal-title">🛒 جزئیات سبد خرید</h4>
+              <button className="modal-close" onClick={() => setShowBasket(false)}>✕</button>
             </div>
-            <div className="space-y-3">
-              {(data.basket || []).map((it, idx) => (
-                <div key={idx} className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gray-100 rounded-xl overflow-hidden">
+            <div className="modal-body">
+              <div className="basket-list">
+                {(data.basket || []).map((it, idx) => (
+                  <div key={idx} className="basket-item">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     {it.image ? (
                       <img
                         src={it.image}
                         alt={it.name}
-                        className="w-full h-full object-cover"
+                        className="basket-item-img"
                         onError={(e) => {
-                          const fb = `https://picsum.photos/seed/${encodeURIComponent(it.productId || String(idx))}/48/48`;
+                          const fb = `https://picsum.photos/seed/${encodeURIComponent(it.productId || String(idx))}/64/64`;
                           if (e.currentTarget.src !== fb) e.currentTarget.src = fb;
                         }}
                       />
                     ) : (
                       <img
-                        src={`https://picsum.photos/seed/${encodeURIComponent(it.productId || String(idx))}/48/48`}
+                        src={`https://picsum.photos/seed/${encodeURIComponent(it.productId || String(idx))}/64/64`}
                         alt={it.name}
-                        className="w-full h-full object-cover"
+                        className="basket-item-img"
                       />
                     )}
-                  </div>
-                  <div className="flex-1 text-sm">
-                    <div className="flex justify-between items-start w-full">
-                      <span>
-                        {it.name} × {it.qty}
-                      </span>
+                    <div className="basket-item-info">
+                      <div className="basket-item-name">{it.name}</div>
+                      <span className="basket-item-qty">تعداد: {it.qty}</span>
+                    </div>
+                    <div className="basket-item-price">
                       {(() => {
                         const original = Number((it as any).unitPrice || 0) * Number(it.qty || 0);
                         let current = 0;
@@ -821,40 +826,36 @@ export default function TrackPage() {
                         }
 
                         return (
-                          <div className="text-right">
-                            <div className={original !== current ? 'line-through text-gray-400' : ''}>
-                              {original.toLocaleString('fa-IR')} تومان
-                            </div>
+                          <>
                             {original !== current && (
-                              <div className="text-[11px] text-gray-700">
-                                {current === 0 ? 'رایگان' : `${current.toLocaleString('fa-IR')} تومان`}
-                              </div>
+                              <span className="original">{original.toLocaleString('fa-IR')} تومان</span>
                             )}
-                          </div>
+                            <span className="current">
+                              {current === 0 ? 'رایگان' : `${current.toLocaleString('fa-IR')} تومان`}
+                            </span>
+                          </>
                         );
                       })()}
                     </div>
                   </div>
+                ))}
+              </div>
+              <div className="basket-total">
+                <div className="basket-total-row">
+                  <span>قیمت اولیه</span>
+                  <span>{currentPricing.originalTotal.toLocaleString("fa-IR")} تومان</span>
                 </div>
-              ))}
-            </div>
-            <div className="mt-4 border-t pt-3 text-sm space-y-1">
-              <div className="flex justify-between">
-                <span>قیمت کل</span>
-                <span>
-                  {currentPricing.originalTotal.toLocaleString("fa-IR")} تومان
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>قیمت پس از تخفیف</span>
-                <span>
-                  {currentPricing.currentTotal.toLocaleString("fa-IR")} تومان
-                </span>
+                <div className="basket-total-row final">
+                  <span>قیمت نهایی شما</span>
+                  <span className="value">
+                    {currentPricing.currentTotal === 0 ? 'رایگان! 🎉' : `${currentPricing.currentTotal.toLocaleString("fa-IR")} تومان`}
+                  </span>
+                </div>
               </div>
             </div>
-            <div className="mt-4">
+            <div className="modal-footer">
               <button
-                className="w-full py-2 rounded-xl bg-gray-200"
+                className="close-modal-btn"
                 onClick={() => setShowBasket(false)}
               >
                 بستن
@@ -868,107 +869,127 @@ export default function TrackPage() {
       {/* Share sheet (aligned with Invite page behavior) */}
       {showShare && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 bg-black/40 flex items-end"
-          style={{ zIndex: 9999 }}
+          className="modal-overlay"
           onClick={() => setShowShare(false)}
         >
           <div
-            className="bg-white rounded-t-2xl w-full p-4"
+            className="modal-content"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Direct invite link with copy + open */}
-            <div className="mb-4">
-              <div className="text-right font-medium mb-2">لینک دعوت</div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  readOnly
-                  value={resolvedInviteLink || ""}
-                  onFocus={(e) => (e.currentTarget as HTMLInputElement).select()}
-                  className="flex-1 border rounded px-2 py-2 text-sm"
-                />
-                <button
-                  onClick={copyInviteLink}
-                  className="px-3 py-2 rounded bg-gray-100 text-sm"
-                >
-                  کپی
-                </button>
+            <div className="modal-handle"></div>
+            <div className="modal-header">
+              <h4 className="modal-title">🔗 اشتراک‌گذاری لینک دعوت</h4>
+              <button className="modal-close" onClick={() => setShowShare(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              {/* Direct invite link with copy + open */}
+              <div className="share-link-section">
+                <div className="share-link-label">لینک دعوت شما</div>
+                <div className="share-link-input-wrapper">
+                  <input
+                    type="text"
+                    readOnly
+                    value={resolvedInviteLink || ""}
+                    onFocus={(e) => (e.currentTarget as HTMLInputElement).select()}
+                    className="share-link-input"
+                  />
+                  <button
+                    onClick={copyInviteLink}
+                    className={`copy-btn ${copied ? 'copied' : ''}`}
+                  >
+                    {copied ? '✓ کپی شد' : 'کپی'}
+                  </button>
+                </div>
+                {resolvedInviteLink && (
+                  <a
+                    className="open-link"
+                    href={resolvedInviteLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setShowShare(false)}
+                  >
+                    ← باز کردن لینک دعوت
+                  </a>
+                )}
+                {copied && (
+                  <div className="copied-msg">✓ لینک در کلیپ‌بورد کپی شد</div>
+                )}
               </div>
-              {resolvedInviteLink && (
+
+              {/* Share apps: Telegram, WhatsApp, Instagram (with deep-link fallbacks) */}
+              <div className="share-apps">
                 <a
-                  className="text-custom-pink text-sm underline mt-2 inline-block"
-                  href={resolvedInviteLink}
+                  href={`https://t.me/share/url?url=${encodedLanding}&text=${encodedMsg}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => setShowShare(false)}
-                >
-                  باز کردن لینک دعوت
-                </a>
-              )}
-              {copied && (
-                <div className="text-green-600 text-xs mt-1">لینک کپی شد ✅</div>
-              )}
-            </div>
-
-            {/* Share apps: Telegram, WhatsApp, Instagram (with deep-link fallbacks) */}
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <a
-                href={`https://t.me/share/url?url=${encodedLanding}&text=${encodedMsg}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => {
-                  try { setShowShare(false); } catch {}
-                  e.preventDefault();
-                  const appUrl = `tg://msg?text=${encodeURIComponent(shareText)}`;
-                  let deepLinkTried = false;
-                  try {
-                    (window as any).location.href = appUrl;
-                    deepLinkTried = true;
-                  } catch {}
-                  setTimeout(() => {
+                  onClick={(e) => {
+                    try { setShowShare(false); } catch {}
+                    e.preventDefault();
+                    const appUrl = `tg://msg?text=${encodeURIComponent(shareText)}`;
+                    let deepLinkTried = false;
                     try {
-                      window.open(`https://t.me/share/url?url=${encodedLanding}&text=${encodedMsg}`, '_blank', 'noopener,noreferrer');
-                    } catch {
-                      (window as any).location.href = `https://t.me/share/url?url=${encodedLanding}&text=${encodedMsg}`;
-                    }
-                  }, deepLinkTried ? 500 : 300);
-                }}
-                className="flex flex-col items-center"
-              >
-                <span>تلگرام</span>
-              </a>
-              <a
-                href={`https://wa.me/?text=${encodedMsg}%20${encodedLanding}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => {
-                  e.preventDefault();
-                  try { setShowShare(false); } catch {}
-                  const appUrl = `whatsapp://send?text=${encodedMsg}%20${encodedLanding}`;
-                  try { (window as any).location.href = appUrl; } catch {}
-                  setTimeout(() => {
-                    try { window.open(`https://wa.me/?text=${encodedMsg}%20${encodedLanding}`, '_blank', 'noopener,noreferrer'); } catch {
-                      (window as any).location.href = `https://wa.me/?text=${encodedMsg}%20${encodedLanding}`;
-                    }
-                  }, 400);
-                }}
-                className="flex flex-col items-center"
-              >
-                <span>واتساپ</span>
-              </a>
-              <a
-                href={`https://www.instagram.com/?url=${encodedLanding}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => { try { setShowShare(false); } catch {} }}
-                className="flex flex-col items-center"
-              >
-                <span>اینستاگرام</span>
-              </a>
+                      (window as any).location.href = appUrl;
+                      deepLinkTried = true;
+                    } catch {}
+                    setTimeout(() => {
+                      try {
+                        window.open(`https://t.me/share/url?url=${encodedLanding}&text=${encodedMsg}`, '_blank', 'noopener,noreferrer');
+                      } catch {
+                        (window as any).location.href = `https://t.me/share/url?url=${encodedLanding}&text=${encodedMsg}`;
+                      }
+                    }, deepLinkTried ? 500 : 300);
+                  }}
+                  className="share-app telegram"
+                >
+                  <div className="share-app-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.67-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.25.38-.51 1.07-.78 4.19-1.82 6.99-3.03 8.39-3.61 4-1.68 4.83-1.97 5.37-1.98.12 0 .39.03.56.17.15.12.19.28.21.45-.01.06.01.24 0 .38z"/></svg>
+                  </div>
+                  <span className="share-app-name">تلگرام</span>
+                </a>
+                <a
+                  href={`https://wa.me/?text=${encodedMsg}%20${encodedLanding}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    try { setShowShare(false); } catch {}
+                    const appUrl = `whatsapp://send?text=${encodedMsg}%20${encodedLanding}`;
+                    try { (window as any).location.href = appUrl; } catch {}
+                    setTimeout(() => {
+                      try { window.open(`https://wa.me/?text=${encodedMsg}%20${encodedLanding}`, '_blank', 'noopener,noreferrer'); } catch {
+                        (window as any).location.href = `https://wa.me/?text=${encodedMsg}%20${encodedLanding}`;
+                      }
+                    }, 400);
+                  }}
+                  className="share-app whatsapp"
+                >
+                  <div className="share-app-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                  </div>
+                  <span className="share-app-name">واتساپ</span>
+                </a>
+                <a
+                  href={`https://www.instagram.com/?url=${encodedLanding}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => { try { setShowShare(false); } catch {} }}
+                  className="share-app instagram"
+                >
+                  <div className="share-app-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                  </div>
+                  <span className="share-app-name">اینستاگرام</span>
+                </a>
+              </div>
             </div>
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Toast notification */}
+      {toast && (
+        <div className="toast">{toast}</div>
       )}
     </div>
   );

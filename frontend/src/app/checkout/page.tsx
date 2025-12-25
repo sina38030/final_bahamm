@@ -2045,7 +2045,7 @@ function CheckoutPageContent() {
           left: 0,
           right: 0,
           zIndex: infoModalOpen || showAddressPopup || showMapModal ? 0 : 60,
-          backgroundColor: '#E31C5F',
+          backgroundColor: '#F06292',
           color: '#fff',
           textAlign: 'center',
           padding: '8px 16px',

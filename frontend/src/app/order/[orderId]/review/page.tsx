@@ -97,10 +97,22 @@ export default function OrderReviewPage() {
       try {
         const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}`, { cache: "no-store" });
         const payload = await res.json().catch(() => ({}));
-        if (!res.ok || !payload?.success) {
-          throw new Error(payload?.error || "خطا در دریافت اطلاعات سفارش");
+        
+        // Handle both wrapped and unwrapped responses
+        let orderData;
+        if (payload?.success === true && payload?.order) {
+          // Wrapped format: { success: true, order: {...} }
+          orderData = payload.order;
+        } else if (payload?.id) {
+          // Unwrapped format: direct order object
+          orderData = payload;
+        } else if (!res.ok) {
+          throw new Error(payload?.error || payload?.detail || "خطا در دریافت اطلاعات سفارش");
+        } else {
+          throw new Error("فرمت پاسخ نامعتبر است");
         }
-        const normalized = normalizeOrderForReview(payload.order, orderId);
+        
+        const normalized = normalizeOrderForReview(orderData, orderId);
         if (!alive) return;
         setOrder(normalized);
         if (normalized.items.length > 0) {

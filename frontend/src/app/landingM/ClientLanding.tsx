@@ -997,7 +997,16 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
           </svg>
         </button>
 
-        <div id="rotatingText" className={rotatingTextIndex !== 0 ? 'fade-up' : ''} onClick={() => openSheet("توضیحات", (<p style={{ lineHeight: 1.9 }}>با خرید گروهی مستقیماً از مزرعه، هزینهٔ هر نفر کاهش می‌یابد.</p>))}>
+        <div id="rotatingText" className={rotatingTextIndex !== 0 ? 'fade-up' : ''} onClick={() => openSheet("توضیحات", (
+          <div className="sheet-info-card">
+            <div className="sheet-info-image">
+              <img src="/images/group-buy-illustration.svg" alt="خرید گروهی" />
+            </div>
+            <h3 className="sheet-info-title">خرید گروهی چیست؟</h3>
+            <p className="sheet-info-desc">با خرید گروهی مستقیماً از مزرعه، هزینهٔ هر نفر کاهش می‌یابد. هرچه تعداد اعضای گروه بیشتر باشد، قیمت برای همه کمتر می‌شود!</p>
+            <button className="sheet-info-btn" onClick={closeSheet}>متوجه شدم</button>
+          </div>
+        ))}>
           <span>{rotatingMessages[rotatingTextIndex]}</span>
         </div>
       </header>
@@ -1051,7 +1060,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
         title={disabledJoin ? (groupStatus === 'failed' ? 'گروه ناموفق بوده است' : 'گروه تکمیل شده است') : 'پیوستن به گروه'}
       >
         <span className="cta-icon">🛒</span>
-        پیوستن به گروه با خرید سبد دوستت
+        پیوستن به گروه
       </button>
 
       <hr className="divider" />
@@ -1132,7 +1141,16 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
         }}
       />
 
-      <div className="green-box" onClick={() => openSheet("اطلاعات بیشتر", (<p style={{ lineHeight: 1.9 }}>اگر سبد جدید تشکیل بدهی، همچنان عضو همین گروه می‌مانی و دو سبد در انتها تجمیع می‌شوند.</p>))}>
+      <div className="green-box" onClick={() => openSheet("اطلاعات بیشتر", (
+        <div className="sheet-info-card">
+          <div className="sheet-info-image">
+            <img src="/images/basket-merge-illustration.svg" alt="تجمیع سبد" />
+          </div>
+          <h3 className="sheet-info-title">سبد خودت رو بساز!</h3>
+          <p className="sheet-info-desc">اگر سبد جدید تشکیل بدهی، همچنان عضو همین گروه می‌مانی و دو سبد در انتها تجمیع می‌شوند. به این ترتیب هم از تخفیف گروهی بهره‌مند می‌شوی!</p>
+          <button className="sheet-info-btn" onClick={closeSheet}>متوجه شدم</button>
+        </div>
+      ))}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 8 }}>
           <path d="M19 9l-7 7-7-7" />
         </svg>
@@ -1276,12 +1294,9 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
         <>
           <div id="sheetOverlay" className="sheet-overlay visible" onClick={closeSheet}></div>
           <div id="bottomSheet" className="bottom-sheet open" role="dialog" aria-hidden="false" aria-modal="true" ref={sheetRef} tabIndex={-1}>
+            <button className="sheet-close-x" aria-label="بستن" onClick={closeSheet} ref={closeBtnRef}>&times;</button>
             <div className="sheet-handle"></div>
             <div id="sheetContent" className="sheet-content">
-              <div className="sheet-header">
-                <span>{sheetContent.title}</span>
-                <button className="close-btn" aria-label="بستن" onClick={closeSheet} ref={closeBtnRef}>&times;</button>
-              </div>
               <div>{sheetContent.body}</div>
             </div>
           </div>
