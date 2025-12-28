@@ -74,6 +74,63 @@ def _ensure_product_position_columns(db: Session):
         # Fail open; routes will still work if columns already exist
         logger.warning(f"ensure columns error: {_e}")
 
+# -----------------------------------------------------------------------------
+# Product images helpers (dedupe / upsert by URL)
+# -----------------------------------------------------------------------------
+
+def _dedupe_image_dicts_by_url(images: List[dict]) -> List[dict]:
+    """
+    Deduplicate a list of image dicts by image_url while preserving order.
+    If duplicates exist, prefer the one with is_main=True.
+    """
+    seen: dict[str, dict] = {}
+    order: List[str] = []
+    for img in images or []:
+        url = (img.get("image_url") or "").strip()
+        if not url:
+            continue
+        if url not in seen:
+            seen[url] = img
+            order.append(url)
+        else:
+            # Prefer main if any duplicate is main
+            try:
+                if img.get("is_main") and not seen[url].get("is_main"):
+                    seen[url] = img
+            except Exception:
+                pass
+    return [seen[u] for u in order]
+
+def _dedupe_product_images_output(product: "Product") -> List[dict]:
+    """
+    Build a stable, deduped output list of product images for admin UI.
+    This does NOT mutate DB; it only deduplicates the response.
+    """
+    imgs = [
+        {"id": img.id, "image_url": img.image_url, "is_main": getattr(img, "is_main", False)}
+        for img in (product.images or [])
+        if getattr(img, "image_url", None)
+    ]
+    # Sort: main first then by id
+    imgs.sort(key=lambda x: (0 if x.get("is_main") else 1, x.get("id") or 0))
+    return _dedupe_image_dicts_by_url(imgs)
+
+def _dedupe_product_image_urls_for_listing(product: "Product") -> List[str]:
+    """Return a sorted list of image URLs for product listing, deduped by URL."""
+    urls: List[str] = []
+    seen: set[str] = set()
+    imgs = sorted(
+        (product.images or []),
+        key=lambda x: (0 if getattr(x, "is_main", False) else 1, getattr(x, "id", 0)),
+    )
+    for img in imgs:
+        u = (getattr(img, "image_url", "") or "").strip()
+        if not u or u in seen:
+            continue
+        seen.add(u)
+        urls.append(u)
+    return urls
+
 def _format_datetime_with_tz(dt):
     """Format datetime with proper timezone info"""
     if not dt:
@@ -518,14 +575,8 @@ async def get_all_products(
             "rating_seed_sum": (getattr(product, 'rating_seed_sum', None) or 0),
             "rating_baseline_sum": (getattr(product, 'rating_baseline_sum', None) or 0),
             "rating_baseline_count": (getattr(product, 'rating_baseline_count', None) or 0),
-            # Include image URLs if available (main image first)
-            "images": (
-                [
-                    img.image_url
-                    for img in sorted((product.images or []), key=lambda x: (0 if getattr(x, 'is_main', False) else 1, getattr(x, 'id', 0)))
-                ]
-                if product.images else []
-            )
+            # Include image URLs if available (main image first), deduped by URL
+            "images": _dedupe_product_image_urls_for_listing(product)
         }
         for product in products
     ]
@@ -691,7 +742,16 @@ async def create_product(
                             f.write(content)
                         # Store absolute URL so frontend can render directly
                         img_url = f"{static_base}/{dest.relative_to(backend_dir / 'uploads').as_posix()}"
-                        db.add(ProductImage(product_id=product.id, image_url=img_url, is_main=True))
+                        # Avoid duplicate rows for same URL; prefer upsert + main flag
+                        existing = (
+                            db.query(ProductImage)
+                            .filter(ProductImage.product_id == product.id, ProductImage.image_url == img_url)
+                            .first()
+                        )
+                        if existing:
+                            existing.is_main = True
+                        else:
+                            db.add(ProductImage(product_id=product.id, image_url=img_url, is_main=True))
                         has_main_image = True
                     except Exception as e:
                         uploads_logger.error(f"Failed to save main_image: {e}")
@@ -711,7 +771,14 @@ async def create_product(
                         with open(dest, "wb") as f:
                             f.write(content)
                         img_url = f"{static_base}/{dest.relative_to(backend_dir / 'uploads').as_posix()}"
-                        db.add(ProductImage(product_id=product.id, image_url=img_url, is_main=False))
+                        # Skip duplicates by URL
+                        exists = (
+                            db.query(ProductImage)
+                            .filter(ProductImage.product_id == product.id, ProductImage.image_url == img_url)
+                            .first()
+                        )
+                        if not exists:
+                            db.add(ProductImage(product_id=product.id, image_url=img_url, is_main=False))
                     except Exception as e:
                         uploads_logger.error(f"Failed to save image {i}: {e}")
 
@@ -724,7 +791,15 @@ async def create_product(
                     import json as _json
                     main_image_url = (data.get("image_url") or data.get("main_image_url") or "").strip()
                     if main_image_url and not has_main_image:
-                        db.add(ProductImage(product_id=product.id, image_url=str(main_image_url), is_main=True))
+                        existing = (
+                            db.query(ProductImage)
+                            .filter(ProductImage.product_id == product.id, ProductImage.image_url == str(main_image_url))
+                            .first()
+                        )
+                        if existing:
+                            existing.is_main = True
+                        else:
+                            db.add(ProductImage(product_id=product.id, image_url=str(main_image_url), is_main=True))
                         has_main_image = True
 
                     raw_extra = data.get("extra_image_urls") or data.get("image_urls") or ""
@@ -882,7 +957,16 @@ async def update_product(
                         img.is_main = False
                     except Exception:
                         pass
-                db.add(ProductImage(product_id=product.id, image_url=img_url, is_main=True))
+                # Avoid duplicates by URL (important when filename is reused)
+                existing = (
+                    db.query(ProductImage)
+                    .filter(ProductImage.product_id == product.id, ProductImage.image_url == img_url)
+                    .first()
+                )
+                if existing:
+                    existing.is_main = True
+                else:
+                    db.add(ProductImage(product_id=product.id, image_url=img_url, is_main=True))
                 has_main_image = True
 
             try:
@@ -898,7 +982,14 @@ async def update_product(
                 with open(dest, "wb") as f:
                     f.write(content)
                 img_url = f"{static_base}/{dest.relative_to(backend_dir / 'uploads').as_posix()}"
-                db.add(ProductImage(product_id=product.id, image_url=img_url, is_main=False))
+                # Skip duplicates by URL
+                exists = (
+                    db.query(ProductImage)
+                    .filter(ProductImage.product_id == product.id, ProductImage.image_url == img_url)
+                    .first()
+                )
+                if not exists:
+                    db.add(ProductImage(product_id=product.id, image_url=img_url, is_main=False))
         
         # Also support providing image URLs directly (JSON or form fields)
         # Only process URL-based images if NO file was uploaded
@@ -913,7 +1004,15 @@ async def update_product(
                             img.is_main = False
                         except Exception:
                             pass
-                    db.add(ProductImage(product_id=product.id, image_url=str(main_image_url), is_main=True))
+                    existing = (
+                        db.query(ProductImage)
+                        .filter(ProductImage.product_id == product.id, ProductImage.image_url == str(main_image_url))
+                        .first()
+                    )
+                    if existing:
+                        existing.is_main = True
+                    else:
+                        db.add(ProductImage(product_id=product.id, image_url=str(main_image_url), is_main=True))
                     has_main_image = True
 
                 raw_extra = data.get("extra_image_urls") or data.get("image_urls") or ""
@@ -932,7 +1031,16 @@ async def update_product(
                     urls = [str(u).strip() for u in raw_extra if str(u).strip()]
 
                 for u in urls:
-                    db.add(ProductImage(product_id=product.id, image_url=str(u), is_main=False))
+                    u = str(u).strip()
+                    if not u:
+                        continue
+                    exists = (
+                        db.query(ProductImage)
+                        .filter(ProductImage.product_id == product.id, ProductImage.image_url == u)
+                        .first()
+                    )
+                    if not exists:
+                        db.add(ProductImage(product_id=product.id, image_url=u, is_main=False))
             except Exception:
                 pass
 
@@ -952,10 +1060,7 @@ async def list_product_images(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     try:
-        images = [
-            {"id": img.id, "image_url": img.image_url, "is_main": getattr(img, "is_main", False)}
-            for img in (product.images or [])
-        ]
+        images = _dedupe_product_images_output(product)
         return {"product_id": product.id, "images": images}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -1015,8 +1120,18 @@ async def add_product_image(
                             img.is_main = False
                         except Exception:
                             pass
-                created = ProductImage(product_id=product.id, image_url=img_url, is_main=bool(mark_main))
-                db.add(created)
+                existing = (
+                    db.query(ProductImage)
+                    .filter(ProductImage.product_id == product.id, ProductImage.image_url == img_url)
+                    .first()
+                )
+                if existing:
+                    if mark_main:
+                        existing.is_main = True
+                    created = existing
+                else:
+                    created = ProductImage(product_id=product.id, image_url=img_url, is_main=bool(mark_main))
+                    db.add(created)
         # If URL provided
         if created is None:
             image_url = (data.get("image_url") or data.get("url") or "").strip() if isinstance(data, dict) else ""
@@ -1028,8 +1143,19 @@ async def add_product_image(
                         img.is_main = False
                     except Exception:
                         pass
-            created = ProductImage(product_id=product.id, image_url=str(image_url), is_main=bool(mark_main))
-            db.add(created)
+            image_url = str(image_url).strip()
+            existing = (
+                db.query(ProductImage)
+                .filter(ProductImage.product_id == product.id, ProductImage.image_url == image_url)
+                .first()
+            )
+            if existing:
+                if mark_main:
+                    existing.is_main = True
+                created = existing
+            else:
+                created = ProductImage(product_id=product.id, image_url=image_url, is_main=bool(mark_main))
+                db.add(created)
 
         db.commit()
         db.refresh(created)

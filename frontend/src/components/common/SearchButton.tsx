@@ -15,6 +15,11 @@ const SearchButton: React.FC<SearchButtonProps> = ({
 }) => {
   const router = useRouter();
 
+  React.useEffect(() => {
+    // Speed up navigation on first click
+    router.prefetch("/search");
+  }, [router]);
+
   const handleClick = () => {
     // Navigate to search page
     router.push("/search");
@@ -24,6 +29,8 @@ const SearchButton: React.FC<SearchButtonProps> = ({
     <div
       className={`relative bg-gray-100 rounded-lg p-3 flex items-center cursor-pointer ${className}`}
       onClick={handleClick}
+      onPointerEnter={() => router.prefetch("/search")}
+      onFocus={() => router.prefetch("/search")}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {

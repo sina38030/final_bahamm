@@ -59,7 +59,7 @@
 }
 /* ───────── Slide Index (۱/۵) ───────── */
 .slideIdx{
-  position:absolute;left:16px;bottom:16px;
+  position:absolute;left:16px;bottom:35px;
   color:#fff;font-size:13px;font-weight: 600;
   padding: 4px 10px;
   border-radius: 20px;

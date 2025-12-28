@@ -36,6 +36,7 @@ function SearchContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState(query);
+  const [debouncedTerm, setDebouncedTerm] = useState(query);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [popularSearches, setPopularSearches] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -75,15 +76,40 @@ function SearchContent() {
   }, []);
 
   useEffect(() => {
-    // Only search if there's a query
-    if (query) {
-      setSearchTerm(query);
-      fetchSearchResults(query);
-    } else {
+    // Keep local state in sync with URL changes (back/forward, external navigation)
+    setSearchTerm(prev => (prev !== query ? query : prev));
+    setDebouncedTerm(query);
+  }, [query]);
+
+  // Debounce typing so we don't fire a request on every keystroke
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedTerm(searchTerm.trim()), 350);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  // Keep the URL in sync with the debounced term (without spamming history)
+  useEffect(() => {
+    const term = debouncedTerm.trim();
+
+    if (!term) {
       setProducts([]);
       setLoading(false);
+      setError(null);
+      if (query) router.replace("/search");
+      return;
     }
-  }, [query]);
+
+    if (term !== query) {
+      router.replace(`/search?q=${encodeURIComponent(term)}`);
+    }
+  }, [debouncedTerm, query, router]);
+
+  // Fetch whenever the debounced term changes (only once per term)
+  useEffect(() => {
+    const term = debouncedTerm.trim();
+    if (!term) return;
+    fetchSearchResults(term);
+  }, [debouncedTerm]);
 
   const fetchSearchResults = async (searchQuery: string) => {
     setLoading(true);
@@ -215,13 +241,13 @@ function SearchContent() {
   };
 
   const handleSearch = (term: string) => {
-    if (term.trim()) {
-      // Add to search history
-      const updatedHistory = addToSearchHistory(term.trim(), searchHistory);
-      setSearchHistory(updatedHistory);
-      // Navigate with query
-      router.push(`/search?q=${encodeURIComponent(term.trim())}`);
-    }
+    const t = term.trim();
+    if (!t) return;
+    // Add to search history
+    setSearchHistory(prev => addToSearchHistory(t, prev));
+    // Trigger search immediately (URL + fetch are handled by effects)
+    setSearchTerm(t);
+    setDebouncedTerm(t);
   };
 
   const handleClearSearchHistory = () => {
@@ -240,6 +266,7 @@ function SearchContent() {
       <div className="sticky top-0 z-50 bg-white border-b">
         <div className="p-4 flex items-center gap-3">
           <button
+            type="button"
             onClick={() => router.back()}
             className="text-gray-600 p-2"
           >
@@ -267,19 +294,11 @@ function SearchContent() {
               )}
             </div>
           </div>
-          {searchTerm && (
-            <button
-              onClick={() => handleSearch(searchTerm)}
-              className="bg-primary text-white px-4 py-2 rounded-lg text-sm"
-            >
-              جستجو
-            </button>
-          )}
         </div>
       </div>
       
       {/* Show suggestions when no query */}
-      {!query && (
+      {!searchTerm.trim() && (
         <div className="p-4">
           {/* Popular Searches */}
           <div className="mb-6">
@@ -291,9 +310,9 @@ function SearchContent() {
               {popularSearches.map((term, index) => (
                 <button
                   key={index}
+                  type="button"
                   className="bg-gray-100 hover:bg-gray-200 rounded-full px-4 py-2 text-sm"
                   onClick={() => {
-                    setSearchTerm(term);
                     handleSearch(term);
                   }}
                 >
@@ -312,6 +331,7 @@ function SearchContent() {
                   <h3 className="text-sm font-bold">تاریخچه جستجو</h3>
                 </div>
                 <button
+                  type="button"
                   onClick={handleClearSearchHistory}
                   className="text-red-500 text-sm"
                 >
@@ -324,7 +344,6 @@ function SearchContent() {
                     key={index}
                     className="flex items-center justify-between p-3 bg-white rounded-lg cursor-pointer shadow-sm"
                     onClick={() => {
-                      setSearchTerm(term);
                       handleSearch(term);
                     }}
                   >
@@ -342,7 +361,7 @@ function SearchContent() {
       )}
       
       {/* Search results */}
-      {query && (
+      {debouncedTerm && (
         <div className="p-4 bg-white mb-2">
           {loading ? (
             <p className="text-gray-500 text-center py-2">در حال جستجو...</p>
@@ -353,7 +372,7 @@ function SearchContent() {
               <p className="text-sm text-gray-600">
                 {products.length === 0 
                   ? "هیچ نتیجه‌ای یافت نشد" 
-                  : `${products.length} نتیجه برای "${query}"`}
+                  : `${products.length} نتیجه برای "${debouncedTerm}"`}
               </p>
             </div>
           )}
@@ -361,7 +380,7 @@ function SearchContent() {
       )}
       
       {/* Search results */}
-      {!loading && !error && (
+      {!!debouncedTerm && !loading && !error && (
         <div className="p-4">
           {products.length === 0 ? (
             <div className="text-center py-8">

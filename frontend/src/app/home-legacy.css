@@ -33,7 +33,22 @@ header.compact .cat-icon{display:none}
 
 /* Ensure homepage header is full-bleed (override landingM global header styles) */
 header#mainHeader{display:block;justify-content:unset;align-items:unset;padding:0;margin:0}
-header#mainHeader .top-card{width:100%;margin-right:calc(50% - 50vw);margin-left:calc(50% - 50vw);border-radius:0;padding-right:16px;padding-left:16px}
+/* Remove the unwanted "bar" between the category card and banners (landingM header styles leak here) */
+header#mainHeader{
+  background:var(--bg) !important;
+  border-bottom:none !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+}
+header#mainHeader .top-card{
+  width:100%;
+  margin-right:calc(50% - 50vw);
+  margin-left:calc(50% - 50vw);
+  margin-bottom:0; /* kill the strip/gap under the top-card */
+  border-radius:0;
+  padding-right:16px;
+  padding-left:16px;
+}
 header#mainHeader.compact .top-card{padding-right:16px;padding-left:16px}
 
 /* جست‌وجو */
@@ -51,11 +66,22 @@ header#mainHeader.compact .top-card{padding-right:16px;padding-left:16px}
 .cat-item.active span{color:#e31c5f;border-bottom:2px solid #e31c5f;padding-bottom:2px}
 
 /* ===== اسلایدر ===== */
-.slider{width:100%;overflow:hidden}
+.slider{width:100%;overflow:hidden;contain:layout paint;min-height:185px}
 .slides-scroll{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;padding:0 12px}
 .slides-scroll::-webkit-scrollbar{display:none}
-.slide{flex:none;width:85%;scroll-snap-align:center;border-radius:var(--radius);overflow:hidden}
-.slide img{width:100%;height:120px;object-fit:cover}
+.slide{
+  flex:none;
+  width:95%;
+  scroll-snap-align:center;
+  border-radius:15px;
+  overflow:hidden;
+  position:relative;
+  height:185px;
+  min-height:185px;
+  max-height:185px;
+}
+/* Ensure Next.js Image with fill stays within bounds */
+.slide img,.slide span[style*="position"],.slide>span{width:100%!important;height:100%!important;max-height:185px!important;object-fit:cover;object-position:center center}
 
 /* ===== محصولات ===== */
 .products{display:grid;grid-template-columns:repeat(2,1fr);gap:18px 8px;padding:24px 12px 80px}
@@ -66,7 +92,7 @@ header#mainHeader.compact .top-card{padding-right:16px;padding-left:16px}
 .prod-img img{width:100%;height:100%;object-fit:cover}
 
 /* افزودن / تعداد */
-.add-btn,.qty-box{position:absolute;bottom:8px;left:8px;background:var(--bg);border:1px solid var(--primary);border-radius:22px;padding:4px 14px;font-size:.9rem;color:var(--primary);cursor:pointer;box-shadow:var(--shadow);user-select:none}
+.add-btn,.qty-box{position:absolute;bottom:11px;left:11px;background:var(--bg);border:1px solid var(--primary);border-radius:22px;padding:4px 14px;font-size:.9rem;color:var(--primary);cursor:pointer;box-shadow:var(--shadow);user-select:none}
 .qty-box{display:none;align-items:center;gap:10px}
 .qty-box button{border:none;background:transparent;font-size:10px;font-weight:700;width:24px;height:24px;text-align:center;border-radius:50%;color:var(--primary)}
 .qty-box .count{min-width:16px;text-align:center;font-weight:700;color:var(--primary)}
@@ -108,7 +134,6 @@ header#mainHeader.compact .top-card{padding-right:16px;padding-left:16px}
 .observer{height:2px}
 
 /* --- CTA روی بنر --- */
-.slide{position:relative}
 .slide-cta{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:#fff;color:#000;border:none;border-radius:15px;padding:6px 18px;font-size:.8rem;cursor:pointer;box-shadow:var(--shadow);transition:.2s}
 .slide-cta:hover{opacity:.9}
 

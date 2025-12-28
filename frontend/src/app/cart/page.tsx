@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import PhoneAuthModal from '@/components/auth/PhoneAuthModal';
+import { FiTrash2 } from 'react-icons/fi';
 
 /* ---------------------- helpers ---------------------- */
 const toFa = (val: number | string) =>
@@ -565,10 +566,5 @@ export default function CartPage() {
   );
 }
 
-/* -------- inline trash SVG -------- */
-const trashSvg = (
-  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16">
-    <path d="M5.5 5.5a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0v-6a.5.5 0 0 1 .5-.5zm2.5.5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0v-6zm3-.5a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0v-6a.5.5 0 0 1 .5-.5z" />
-    <path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1 0-2h3.09a1 1 0 0 1 .97.757l.36 1.123h2.46l.36-1.123A1 1 0 0 1 9.41 1h3.09a1 1 0 0 1 1 1z" />
-  </svg>
-);
+/* -------- outline trash icon -------- */
+const trashSvg = <FiTrash2 size={14} aria-hidden style={{ display: 'block' }} />;

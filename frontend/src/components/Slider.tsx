@@ -1,13 +1,29 @@
 'use client';
-import { useEffect, useRef, useState, memo } from 'react';
+import { useEffect, useRef, useState, memo, useMemo } from 'react';
 import Image from 'next/image';
-import Popup from './Popup';
+import BannerBottomSheet from './BannerBottomSheet';
 
 type Banner = {
   id: number | string;
   image_url: string;
   title?: string | null;
   description?: string | null;
+};
+
+// Default content for banners (used when backend doesn't provide content)
+const defaultBannerContent: Record<number, { title: string; description: string }> = {
+  0: {
+    title: '🎁 خرید گروهی، تخفیف بیشتر!',
+    description: 'با دوستانت خرید کن و تا ۵۰٪ تخفیف بگیر! هرچه تعداد اعضای گروه بیشتر باشه، قیمت برای همه کمتر میشه. مستقیم از مزرعه، تازه و با کیفیت.',
+  },
+  1: {
+    title: '🚚 ارسال رایگان و سریع',
+    description: 'سفارش‌های بالای ۲۰۰ هزار تومان با ارسال رایگان! محصولات تازه رو همون روز درب منزل تحویل بگیر. بسته‌بندی بهداشتی و حرفه‌ای.',
+  },
+  2: {
+    title: '🌿 محصولات ارگانیک و تازه',
+    description: 'میوه و سبزیجات تازه مستقیم از باغ‌های شمال! بدون واسطه، با قیمت مناسب و کیفیت عالی. هر روز محصولات جدید با بهترین کیفیت.',
+  },
 };
 
 const ADMIN_API_BASE_URL = '/backend/api';
@@ -17,6 +33,12 @@ const Slider = memo(function Slider({ initialBanners = [] as Banner[] }: { initi
   const [idx, setIdx] = useState(0);
   const [open, setOpen] = useState<string | number | null>(null);
   const [banners, setBanners] = useState<Banner[]>(initialBanners);
+  // Track if component is mounted to prevent flash of unstyled content
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (initialBanners && initialBanners.length) return; // داده سروری داریم
@@ -33,9 +55,9 @@ const Slider = memo(function Slider({ initialBanners = [] as Banner[] }: { initi
       .finally(() => {
         // Fallback to legacy hardcoded if none
         setBanners((prev) => prev.length ? prev : [
-          { id: '1', image_url: 'https://picsum.photos/800/400?random=11', title: 'پیشنهاد ویژه‌ی ۱', description: 'اینجا توضیحات بنر اول را بنویسید…' },
-          { id: '2', image_url: 'https://picsum.photos/800/400?random=12', title: 'پیشنهاد ویژه‌ی ۲', description: 'اینجا توضیحات دوم را بنویسید…' },
-          { id: '3', image_url: 'https://picsum.photos/800/400?random=13', title: 'پیشنهاد ویژه‌ی ۳', description: 'اینجا توضیحات سوم را بنویسید…' },
+          { id: '1', image_url: 'https://picsum.photos/800/400?random=11', title: 'خرید گروهی، تخفیف بیشتر!', description: 'با دوستانت خرید کن و تا ۵۰٪ تخفیف بگیر!' },
+          { id: '2', image_url: 'https://picsum.photos/800/400?random=12', title: 'ارسال رایگان و سریع', description: 'سفارش‌های بالای ۲۰۰ هزار تومان با ارسال رایگان!' },
+          { id: '3', image_url: 'https://picsum.photos/800/400?random=13', title: 'محصولات ارگانیک و تازه', description: 'میوه و سبزیجات تازه مستقیم از باغ!' },
         ]);
       });
   }, [initialBanners]);
@@ -53,39 +75,51 @@ const Slider = memo(function Slider({ initialBanners = [] as Banner[] }: { initi
     trackRef.current.scrollTo({ left: offset, behavior: 'smooth' });
   }, [idx]);
 
-  if (!banners.length) return null;
+  // Get content for a banner (use backend data if available, otherwise use defaults)
+  const getBannerContent = (banner: Banner, index: number) => {
+    const defaultContent = defaultBannerContent[index % 3] || defaultBannerContent[0];
+    return {
+      title: banner.title || defaultContent.title,
+      description: banner.description || defaultContent.description,
+    };
+  };
+
+  // Don't render anything until mounted to prevent flash of unstyled content
+  if (!mounted || !banners.length) return null;
 
   return (
     <>
-      <section className="slider">
+      <section className="slider" style={{ contain: 'layout paint', minHeight: 185 }}>
         <div id="sliderTrack" className="slides-scroll" ref={trackRef}>
-          {banners.map(b => (
-            <div key={b.id} className="slide" onClick={() => setOpen(b.id)} style={{ position: 'relative', minHeight: '150px' }}>
+          {banners.map((b, index) => (
+            <div key={b.id} className="slide" onClick={() => setOpen(b.id)} style={{ position: 'relative', height: 185, minWidth: '95%' }}>
               <Image 
                 src={b.image_url} 
-                alt={b.title || 'Banner'} 
+                alt={getBannerContent(b, index).title} 
                 fill
                 sizes="(max-width: 768px) 100vw, 50vw"
-                style={{ objectFit: 'cover' }}
-                priority={idx === 0}
-                loading={idx === 0 ? 'eager' : 'lazy'}
+                style={{ objectFit: 'cover', objectPosition: 'center center' }}
+                priority={index === 0}
+                loading={index === 0 ? 'eager' : 'lazy'}
               />
-              {(b.title || b.description) && (
-                <button className="slide-cta" onClick={e => { e.stopPropagation(); setOpen(b.id); }}>
-                  باهم بخر, رایگان شه!
-                </button>
-              )}
             </div>
           ))}
         </div>
       </section>
 
-      {banners.map(b => (
-        <Popup key={b.id} show={open === b.id} onClose={() => setOpen(null)}>
-          {b.title ? <h2>{b.title}</h2> : null}
-          {b.description ? <p>{b.description}</p> : null}
-        </Popup>
-      ))}
+      {banners.map((b, index) => {
+        const content = getBannerContent(b, index);
+        return (
+          <BannerBottomSheet
+            key={b.id}
+            show={open === b.id}
+            onClose={() => setOpen(null)}
+            imageUrl={b.image_url}
+            title={content.title}
+            description={content.description}
+          />
+        );
+      })}
     </>
   );
 });

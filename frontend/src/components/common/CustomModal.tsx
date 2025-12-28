@@ -81,7 +81,7 @@ export default function CustomModal({
                     <>
                         <ModalHeader
                             className={cn(
-                                "flex justify-between items-center bg-white shadow-sm w-full sticky top-0 z-50 p-4 border-b",
+                                "flex flex-row-reverse justify-between items-center bg-white shadow-sm w-full sticky top-0 z-50 p-4 border-b",
                                 headerClass
                             )}
                         >
