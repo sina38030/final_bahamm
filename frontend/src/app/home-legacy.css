@@ -66,7 +66,14 @@ header#mainHeader.compact .top-card{padding-right:16px;padding-left:16px}
 .cat-item.active span{color:#e31c5f;border-bottom:2px solid #e31c5f;padding-bottom:2px}
 
 /* ===== اسلایدر ===== */
-.slider{width:100%;overflow:hidden;contain:layout paint;min-height:185px}
+.slider{
+  width:100%;
+  overflow:hidden;
+  contain:layout paint;
+  min-height:185px;
+  /* فاصله بین کارت دسته‌بندی‌ها (در هدر) و بنرها */
+  margin-top:23px;
+}
 .slides-scroll{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;padding:0 12px}
 .slides-scroll::-webkit-scrollbar{display:none}
 .slide{

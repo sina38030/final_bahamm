@@ -630,10 +630,11 @@ function InvitePageContent() {
     switch (app) {
       case 'telegram':
         // Generate share URL using utility
-        url = generateShareUrl('telegram', landingUrl, shareMessage);
+        // Ensure Telegram shows message above the link (text + newline, url separately)
+        url = generateShareUrl('telegram', landingUrl, `${shareMessage}\n`);
         // Try opening Telegram app first, then fallback to web
         try {
-          const tgApp = `tg://msg_url?url=${inviteURL}&text=${inviteMsg}`;
+          const tgApp = `tg://msg_url?url=${inviteURL}&text=${encodeURIComponent(`${shareMessage}\n`)}`;
           const winApp = window.open(tgApp, '_blank', 'noopener,noreferrer');
           setTimeout(() => {
             const winWeb = window.open(url, '_blank', 'noopener,noreferrer');
@@ -711,19 +712,24 @@ function InvitePageContent() {
     return generateInviteLink(inviteCode);
   }, [order, createdGroup]);
 
-  // Include the link inside the text too for clients that ignore the url param
-  const encodedMsg = encodeURIComponent(`${shareMsg} ${resolvedInviteLink || ''}`.trim());
-  const shareText = `${shareMsg} ${resolvedInviteLink || ''}`.trim();
+  // Web-site sharing: For Telegram, put message FIRST then link so message appears above link.
+  // For WhatsApp/SMS we embed the link in the text (since they only take a "text/body" param).
+  // Telegram: use tg://msg?text=... with "message\nlink" so message is on top
+  const encodedTextWithLink = encodeURIComponent(
+    resolvedInviteLink ? `${shareMsg}\n${resolvedInviteLink}` : shareMsg
+  );
   const encodedLanding = encodeURIComponent(resolvedInviteLink || '');
 
   const copyInviteLink = async () => {
     try {
       if (!resolvedInviteLink) return;
+      // Copy both message and link (message above link)
+      const textToCopy = `${shareMsg}\n${resolvedInviteLink}`;
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(resolvedInviteLink);
+        await navigator.clipboard.writeText(textToCopy);
       } else {
         const ta = document.createElement('textarea');
-        ta.value = resolvedInviteLink;
+        ta.value = textToCopy;
         document.body.appendChild(ta);
         ta.select();
         document.execCommand('copy');
@@ -1176,8 +1182,18 @@ function InvitePageContent() {
             onClick={(e) => {
               e.preventDefault();
               try { setShareSheetOpen(false); } catch {}
-              const deepLink = `tg://msg_url?url=${encodedLanding}&text=${encodedMsg}`;
+              // Telegram: use tg://msg?text=... with "message\nlink" so message appears ABOVE link
+              const deepLink = `tg://msg?text=${encodedTextWithLink}`;
               window.location.href = deepLink;
+              // Fallback to web share after short delay
+              setTimeout(() => {
+                const webUrl = `https://t.me/share/url?text=${encodedTextWithLink}`;
+                try {
+                  window.open(webUrl, '_blank', 'noopener,noreferrer');
+                } catch {
+                  window.location.href = webUrl;
+                }
+              }, 350);
             }}
           >
             <div className="icon-wrapper">
@@ -1189,17 +1205,17 @@ function InvitePageContent() {
           {/* WhatsApp */}
           <a
             className="whatsapp"
-            href={`https://wa.me/?text=${encodedMsg}%20${encodedLanding}`}
+            href={`https://wa.me/?text=${encodedTextWithLink}`}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => {
               e.preventDefault();
               try { setShareSheetOpen(false); } catch {}
-              const appUrl = `whatsapp://send?text=${encodedMsg}%20${encodedLanding}`;
+              const appUrl = `whatsapp://send?text=${encodedTextWithLink}`;
               try { (window as any).location.href = appUrl; } catch {}
               setTimeout(() => {
-                try { window.open(`https://wa.me/?text=${encodedMsg}%20${encodedLanding}`, '_blank', 'noopener,noreferrer'); } catch {
-                  (window as any).location.href = `https://wa.me/?text=${encodedMsg}%20${encodedLanding}`;
+                try { window.open(`https://wa.me/?text=${encodedTextWithLink}`, '_blank', 'noopener,noreferrer'); } catch {
+                  (window as any).location.href = `https://wa.me/?text=${encodedTextWithLink}`;
                 }
               }, 400);
             }}
@@ -1210,13 +1226,25 @@ function InvitePageContent() {
             <span>واتساپ</span>
           </a>
 
-          {/* Instagram */}
+          {/* Instagram - copy link to clipboard since Instagram doesn't support direct share URLs */}
           <a
             className="instagram"
-            href={`https://www.instagram.com/?url=${encodedLanding}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => { try { setShareSheetOpen(false); } catch {} }}
+            href="#"
+            onClick={async (e) => {
+              e.preventDefault();
+              try { setShareSheetOpen(false); } catch {}
+              // Instagram doesn't support share URLs, so copy text+link to clipboard
+              const textToCopy = resolvedInviteLink ? `${shareMsg}\n${resolvedInviteLink}` : shareMsg;
+              try {
+                await navigator.clipboard.writeText(textToCopy);
+                setCopied(true);
+                setShowCopyToast(true);
+                setTimeout(() => setCopied(false), 1500);
+                setTimeout(() => setShowCopyToast(false), 2000);
+              } catch {}
+              // Open Instagram app/website
+              window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer');
+            }}
           >
             <div className="icon-wrapper">
               <FontAwesomeIcon icon={faInstagram} />
@@ -1224,11 +1252,22 @@ function InvitePageContent() {
             <span>اینستاگرام</span>
           </a>
 
-          {/* SMS */}
+          {/* SMS - use sms:&body= format for better compatibility across devices */}
           <a
             className="sms"
-            href={`sms:?body=${encodedMsg}%20${encodedLanding}`}
-            onClick={() => { try { setShareSheetOpen(false); } catch {} }}
+            href={`sms:&body=${encodedTextWithLink}`}
+            onClick={(e) => {
+              try { setShareSheetOpen(false); } catch {}
+              // Try multiple SMS URI formats for cross-device compatibility
+              e.preventDefault();
+              // iOS format: sms:&body=
+              // Android format: sms:?body=
+              const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+              const smsUrl = isIOS 
+                ? `sms:&body=${encodedTextWithLink}`
+                : `sms:?body=${encodedTextWithLink}`;
+              window.location.href = smsUrl;
+            }}
           >
             <div className="icon-wrapper">
               <FontAwesomeIcon icon={faCommentSms} />

@@ -191,18 +191,22 @@ function SecondaryInvitePageContent() {
   }, [groupData]);
 
   const shareMsg = 'بیا با هم سبد رو بخریم تا رایگان بگیریم!';
-  const encodedMsg = encodeURIComponent(`${shareMsg} ${resolvedInviteLink || ''}`.trim());
-  const shareText = `${shareMsg} ${resolvedInviteLink || ''}`.trim();
+  // For Telegram: put message FIRST then link so message appears above link
+  const encodedTextWithLink = encodeURIComponent(
+    resolvedInviteLink ? `${shareMsg}\n${resolvedInviteLink}` : shareMsg
+  );
   const encodedLanding = encodeURIComponent(resolvedInviteLink || '');
 
   const copyInviteLink = async () => {
     try {
       if (!resolvedInviteLink) return;
+      // Copy both message and link (message above link)
+      const textToCopy = `${shareMsg}\n${resolvedInviteLink}`;
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(resolvedInviteLink);
+        await navigator.clipboard.writeText(textToCopy);
       } else {
         const ta = document.createElement('textarea');
-        ta.value = resolvedInviteLink;
+        ta.value = textToCopy;
         document.body.appendChild(ta);
         ta.select();
         document.execCommand('copy');
@@ -464,23 +468,22 @@ function SecondaryInvitePageContent() {
         <div className="share-apps">
           {/* Telegram */}
           <a
-            href={`https://t.me/share/url?url=${encodedLanding}&text=${encodedMsg}`}
-            target="_blank"
-            rel="noopener noreferrer"
+            href="#"
             onClick={(e) => {
-              try { setShareSheetOpen(false); } catch {}
               e.preventDefault();
-              const appUrl = `tg://msg?text=${encodeURIComponent(shareText)}`;
-              try {
-                (window as any).location.href = appUrl;
-              } catch {}
+              try { setShareSheetOpen(false); } catch {}
+              // Telegram: use tg://msg?text=... with "message\nlink" so message appears ABOVE link
+              const appUrl = `tg://msg?text=${encodedTextWithLink}`;
+              window.location.href = appUrl;
+              // Fallback to web share after short delay
               setTimeout(() => {
+                const webUrl = `https://t.me/share/url?text=${encodedTextWithLink}`;
                 try {
-                  window.open(`https://t.me/share/url?url=${encodedLanding}&text=${encodedMsg}`, '_blank', 'noopener,noreferrer');
+                  window.open(webUrl, '_blank', 'noopener,noreferrer');
                 } catch {
-                  (window as any).location.href = `https://t.me/share/url?url=${encodedLanding}&text=${encodedMsg}`;
+                  window.location.href = webUrl;
                 }
-              }, 500);
+              }, 350);
             }}
           >
             <i className="fa-brands fa-telegram"></i>
@@ -488,17 +491,17 @@ function SecondaryInvitePageContent() {
           </a>
           {/* WhatsApp */}
           <a
-            href={`https://wa.me/?text=${encodedMsg}%20${encodedLanding}`}
+            href={`https://wa.me/?text=${encodedTextWithLink}`}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => {
               e.preventDefault();
               try { setShareSheetOpen(false); } catch {}
-              const appUrl = `whatsapp://send?text=${encodedMsg}%20${encodedLanding}`;
+              const appUrl = `whatsapp://send?text=${encodedTextWithLink}`;
               try { (window as any).location.href = appUrl; } catch {}
               setTimeout(() => {
-                try { window.open(`https://wa.me/?text=${encodedMsg}%20${encodedLanding}`, '_blank', 'noopener,noreferrer'); } catch {
-                  (window as any).location.href = `https://wa.me/?text=${encodedMsg}%20${encodedLanding}`;
+                try { window.open(`https://wa.me/?text=${encodedTextWithLink}`, '_blank', 'noopener,noreferrer'); } catch {
+                  (window as any).location.href = `https://wa.me/?text=${encodedTextWithLink}`;
                 }
               }, 400);
             }}
@@ -506,15 +509,42 @@ function SecondaryInvitePageContent() {
             <i className="fa-brands fa-whatsapp"></i>
             <span>واتساپ</span>
           </a>
-          {/* Instagram */}
+          {/* Instagram - copy link to clipboard since Instagram doesn't support direct share URLs */}
           <a
-            href={`https://www.instagram.com/?url=${encodedLanding}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => { try { setShareSheetOpen(false); } catch {} }}
+            href="#"
+            onClick={async (e) => {
+              e.preventDefault();
+              try { setShareSheetOpen(false); } catch {}
+              // Instagram doesn't support share URLs, so copy text+link to clipboard
+              const textToCopy = resolvedInviteLink ? `${shareMsg}\n${resolvedInviteLink}` : shareMsg;
+              try {
+                await navigator.clipboard.writeText(textToCopy);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              } catch {}
+              // Open Instagram app/website
+              window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer');
+            }}
           >
             <i className="fa-brands fa-instagram"></i>
             <span>اینستاگرام</span>
+          </a>
+          {/* SMS - use proper format for cross-device compatibility */}
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              try { setShareSheetOpen(false); } catch {}
+              // iOS format: sms:&body=  |  Android format: sms:?body=
+              const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+              const smsUrl = isIOS 
+                ? `sms:&body=${encodedTextWithLink}`
+                : `sms:?body=${encodedTextWithLink}`;
+              window.location.href = smsUrl;
+            }}
+          >
+            <i className="fa-solid fa-comment-sms"></i>
+            <span>پیامک</span>
           </a>
         </div>
       </aside>

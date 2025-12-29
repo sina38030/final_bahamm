@@ -80,8 +80,44 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 }catch(e){}})();`,
           }}
         />
-        {/* Telegram Mini App Script - MUST be synchronous for Android compatibility */}
-        <script src="https://telegram.org/js/telegram-web-app.js"></script>
+        {/* Telegram SDK - Conditionally loaded only in Telegram environment */}
+        {/* This prevents connection delays for non-Telegram users in regions where telegram.org is blocked */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{
+  // Detect if we're in a Telegram environment before loading the SDK
+  function isTelegram(){
+    if(typeof window==='undefined')return false;
+    // Check URL hash for tgWebAppData
+    if(location.hash.indexOf('tgWebAppData')!==-1)return true;
+    // Check for startapp parameter (Telegram Mini App deep link)
+    if(location.search.indexOf('startapp=')!==-1)return true;
+    // Check user agent
+    var ua=navigator.userAgent.toLowerCase();
+    if(ua.indexOf('telegram')!==-1||ua.indexOf('tgweb')!==-1)return true;
+    // Check referrer
+    var ref=document.referrer.toLowerCase();
+    if(ref.indexOf('telegram.org')!==-1||ref.indexOf('t.me')!==-1||ref.indexOf('web.telegram.org')!==-1)return true;
+    // Check if Telegram object already exists
+    if(window.Telegram&&window.Telegram.WebApp)return true;
+    // Check if in iframe (Telegram Mini Apps run in iframes)
+    try{if(window.self!==window.top)return true;}catch(e){return true;}
+    return false;
+  }
+  if(isTelegram()){
+    console.log('[TelegramLoader] Telegram environment detected, loading SDK');
+    var s=document.createElement('script');
+    s.src='https://telegram.org/js/telegram-web-app.js';
+    s.async=false;
+    s.onload=function(){console.log('[TelegramLoader] SDK loaded');window.dispatchEvent(new CustomEvent('telegram-sdk-loaded'));};
+    s.onerror=function(){console.warn('[TelegramLoader] SDK failed to load');};
+    document.head.appendChild(s);
+  }else{
+    console.log('[TelegramLoader] Not in Telegram environment, skipping SDK');
+  }
+}catch(e){console.error('[TelegramLoader] Error:',e);}})();`,
+          }}
+        />
         {/* Early error recovery: catch ALL errors and chunk loading failures */}
         <script
           dangerouslySetInnerHTML={{
