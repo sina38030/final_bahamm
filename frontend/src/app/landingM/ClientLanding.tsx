@@ -80,6 +80,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
     veggie_label: 'صیفی جات', 
     veggie_image: null as string | null 
   });
+  const [welcomeSheetShown, setWelcomeSheetShown] = useState(false);
   const initialExpiry = (() => {
     try {
       if (initialGroupMeta?.expiresAtMs != null) {
@@ -641,6 +642,30 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
     return () => { document.removeEventListener('keydown', onKey); prevFocused?.focus?.(); };
   }, [isSheetOpen]);
 
+  // Show welcome bottom sheet 3 seconds after page load
+  useEffect(() => {
+    if (welcomeSheetShown) return;
+    const timer = setTimeout(() => {
+      setWelcomeSheetShown(true);
+      openSheet('خرید گروهی چیست؟', (
+        <div className="sheet-info-card">
+          <div className="sheet-info-image">
+            <img src="/images/group-buy-illustration.svg" alt="خرید گروهی" />
+          </div>
+          <h3 className="sheet-info-title">به خرید گروهی خوش آمدید! 🎉</h3>
+          <p className="sheet-info-desc">
+            با پیوستن به این گروه، می‌توانید محصولات تازه را با قیمت ارزان‌تر خریداری کنید. 
+            هرچه تعداد اعضای گروه بیشتر باشد، قیمت برای همه کمتر می‌شود!
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '280px' }}>
+            <button className="sheet-info-btn" onClick={closeSheet}>متوجه شدم، بزن بریم!</button>
+          </div>
+        </div>
+      ));
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [welcomeSheetShown]);
+
   const openModalWithProduct = (sp: SelectionProduct) => {
     const bp: any = productsData.find((p: any) => Number(p.id) === Number(sp.id));
     if (!bp) return;
@@ -899,12 +924,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
               <div className="info">
                 <div className="title">{p.name}</div>
                 <div className="weight">{p.weight}</div>
-                <div className="qty-controller" data-id={id}>
-                  تعداد:
-                  <button className="plus" onClick={() => handleIncrement(id)} aria-label="افزایش">+</button>
-                  <span className="qty-num">{toFaDigits(String(qty))}</span>
-                  <button className="minus" onClick={() => handleDecrement(id)} aria-label="کاهش">-</button>
-                </div>
+                <div style={{ marginTop: 4, fontWeight: 700, color: '#c42121' }}>تعداد: {toFaDigits(String(qty))}</div>
               </div>
               <div className="prices">
                 <div className="price-old">{p.oldPrice} تومان</div>
@@ -997,7 +1017,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
           </svg>
         </button>
 
-        <div id="rotatingText" className={rotatingTextIndex !== 0 ? 'fade-up' : ''} onClick={() => openSheet("توضیحات", (
+        <div id="rotatingText" onClick={() => openSheet("توضیحات", (
           <div className="sheet-info-card">
             <div className="sheet-info-image">
               <img src="/images/group-buy-illustration.svg" alt="خرید گروهی" />
@@ -1168,7 +1188,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
               )}
               {isSearchOpen && (
                 <div className="inline-search">
-                  <FontAwesomeIcon icon={faMagnifyingGlass} className="inline-icon" />
+                  <button className="close-x" aria-label="بستن" onClick={closeSearch}>&times;</button>
                   <input
                     ref={searchInputRef}
                     type="text"
@@ -1177,17 +1197,17 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="search-input"
                   />
-                  <button className="close-x" aria-label="بستن" onClick={closeSearch}>&times;</button>
+                  <FontAwesomeIcon icon={faMagnifyingGlass} className="inline-icon" />
                 </div>
               )}
-              <span className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')} data-category="all">
-                {categorySettings.all_label}
+              <span className={`tab ${activeTab === 'veggie' ? 'active' : ''}`} onClick={() => setActiveTab('veggie')} data-category="veggie">
+                {categorySettings.veggie_label}
               </span>
               <span className={`tab ${activeTab === 'fruit' ? 'active' : ''}`} onClick={() => setActiveTab('fruit')} data-category="fruit">
                 {categorySettings.fruit_label}
               </span>
-              <span className={`tab ${activeTab === 'veggie' ? 'active' : ''}`} onClick={() => setActiveTab('veggie')} data-category="veggie">
-                {categorySettings.veggie_label}
+              <span className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')} data-category="all">
+                {categorySettings.all_label}
               </span>
             </div>
           </div>
@@ -1340,11 +1360,11 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
         }
         
         /* Keep the category tabs pinned while scrolling the product list, just below header */
-        /* z-index is below ProductModal overlay (60) to avoid overlapping the popup */
+        /* z-index is below progress-bar (20) to avoid overlapping the bottom sheet cart */
         .tabs { 
           position: sticky; 
           top: var(--landingTopOffset, 0px); 
-          z-index: 40; 
+          z-index: 10; 
           background: linear-gradient(180deg, #fff 0%, #fefefe 100%); 
           border-bottom: 1px solid rgba(0,0,0,0.05);
           box-shadow: 0 2px 8px rgba(0,0,0,0.03);
@@ -1374,9 +1394,15 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
           align-items: center; 
           gap: 8px; 
           width: 100%; 
-          justify-content: flex-end; 
+          justify-content: flex-start; 
+          flex-direction: row;
           overflow-x: auto; 
+          overflow-y: visible;
+          position: relative;
+          padding-left: 4px;
+          direction: ltr;
         }
+        .tabs-left::-webkit-scrollbar { display: none; }
         .tabs-left > :global(*) { flex: 0 0 auto; }
         .search-btn { 
           display: inline-flex; 
@@ -1398,24 +1424,30 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
         .inline-search { 
           display: flex; 
           align-items: center; 
-          gap: 8px; 
+          gap: 6px; 
           background: linear-gradient(135deg, #fff 0%, #f9f7f8 100%); 
-          padding: 4px 10px; 
+          padding: 4px 8px; 
           border-radius: 12px;
           border: 1px solid rgba(230,0,92,0.15);
+          flex-shrink: 0;
         }
-        .inline-icon { width: 14px; height: 14px; color: #e31c5f; }
+        .inline-icon { width: 14px; height: 14px; color: #e31c5f; flex-shrink: 0; }
         .search-input { 
-          width: 110px; 
+          width: 90px; 
           height: 28px; 
           border: none; 
           outline: none; 
           background: transparent; 
-          font-size: 13px;
+          font-size: 12px;
           color: #333;
+          direction: rtl;
         }
-        .search-input::placeholder { color: #aaa; }
-        @media (min-width: 390px) { .search-input { width: 140px; } }
+        .search-input::placeholder { color: #aaa; font-size: 11px; }
+        @media (min-width: 390px) { 
+          .search-input { width: 110px; font-size: 13px; } 
+          .search-input::placeholder { font-size: 12px; }
+        }
+        .close-x { flex-shrink: 0; }
         .close-x {
           background: none;
           border: none;
@@ -1426,7 +1458,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
           line-height: 1;
         }
         .close-x:hover { color: #e31c5f; }
-        .tab { font-size: 14px; font-weight: 600; }
+        .tab { font-size: 15px; font-weight: 700; }
         
         /* Ensure overlays cover sticky elements */
         .sheet-overlay { z-index: 10000; }

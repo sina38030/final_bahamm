@@ -183,8 +183,8 @@ async def get_order_public(order_id: int, db: Session = Depends(get_db)):
     total_original = float(order.total_amount or 0)
     total_paid = total_original
 
-    # For group orders, apply the 10,000 toman discount that was applied during payment
-    if order.order_type == OrderType.GROUP and order.group_order_id:
+    # For invited users who enabled consolidation, apply the 10,000 toman discount that was applied during payment
+    if order.ship_to_leader_address:
         total_paid = max(0, total_original - 10000)
 
     return {

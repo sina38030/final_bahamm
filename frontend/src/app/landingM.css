@@ -219,8 +219,9 @@ header {
   text-shadow: 0 1px 2px rgba(230,0,92,0.1);
 }
 .discount-text s {
-  color: #999;
+  color: #201e24;
   font-size: 0.95em;
+  opacity: 0.7;
 }
 .currency {
   font-size: 8px;
@@ -455,8 +456,8 @@ header {
 }
 
 /* ===== تب‌ها ===== */
-.tabs{display:flex;justify-content:space-around;margin:12px 0;font-size:.9rem;background:#fff;position:sticky;top:0;z-index:4;padding:8px 0;box-shadow:0 2px 4px rgba(0,0,0,.1)}
-.tab{cursor:pointer;padding:4px 8px;font-weight:700;color:#555}
+.tabs{display:flex;justify-content:space-around;margin:12px 0;font-size:1rem;background:#fff;position:sticky;top:0;z-index:4;padding:8px 0;box-shadow:0 2px 4px rgba(0,0,0,.1)}
+.tab{cursor:pointer;padding:6px 12px;font-weight:700;color:#555;font-size:15px}
 .tab.active{color:#e6005c;text-decoration:underline;text-decoration-color:#e6005c;text-decoration-thickness:2px;text-underline-offset:6px}
 
 /* استفاده از استایل‌های خانه برای گرید و کارت‌ها → هیچ استایلِ محلی برای add/qty */
@@ -469,7 +470,7 @@ header {
 .new-price::before,
 .sheet-item .price-new::before,
 .sheet-item-group .price-new::before,
-.price-with-friend::before{content:"با ۱ دوست: ";font-size:.85rem;color:#c42121}
+.price-with-friend::before{content:"گروهی: ";font-size:.85rem;color:#c42121}
         
 /* استایل قیمت‌های جدید */
 .price-alone{text-decoration:line-through;color:#888;font-size:.9rem}
@@ -685,7 +686,7 @@ header {
 .sheet-overlay.visible{opacity:1;pointer-events:auto}
 .bottom-sheet{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top-left-radius:24px;border-top-right-radius:24px;max-height:85vh;overflow-y:auto;transform:translateY(100%);transition:transform .35s cubic-bezier(0.4,0,0.2,1);z-index:35;box-shadow:0 -8px 32px rgba(0,0,0,0.15)}
 .bottom-sheet.open{transform:translateY(0)}
-.sheet-close-x{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.06);border:none;font-size:1.5rem;color:#666;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s ease;z-index:10;line-height:1}
+.sheet-close-x{position:absolute;top:12px;right:16px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.06);border:none;font-size:1.3rem;color:#666;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s ease;z-index:10;line-height:1;padding:0;font-weight:300}
 .sheet-close-x:hover{background:rgba(227,28,95,0.1);color:#e31c5f}
 .sheet-handle{width:48px;height:5px;background:linear-gradient(90deg,#ddd,#ccc,#ddd);border-radius:4px;margin:12px auto 8px}
 .sheet-content{padding:0 20px 32px}

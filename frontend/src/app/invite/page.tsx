@@ -1037,7 +1037,7 @@ function InvitePageContent() {
             {progressReady && nonLeaderPaid !== null ? (
               <p>
                 {nonLeaderPaid === 0
-                  ? 'هنوز کسی عضو گروهت نشده.'
+                  ? 'تا زمان تموم نشده دوستات رو دعوت کن!'
                   : nonLeaderPaid === 1
                   ? 'تا الان ۱ نفر از دوستانت عضو گروه شده است.'
                   : `تا الان ${toFa(nonLeaderPaid.toLocaleString())} نفر از دوستانت عضو گروه شده است.`}
@@ -1047,7 +1047,7 @@ function InvitePageContent() {
               <p>
                 {(isSecondaryFlow || isSecondaryGroup)
                   ? `هر دوستی که دعوت می‌کنی یک چهارم هزینه‌ی اولیه (${toFa(Math.round(originalTotal).toLocaleString())} تومان) را برمی‌گرداند؛ الان سهم تو ${currentTotal === 0 ? 'رایگان' : `${toFa(Math.round(currentTotal).toLocaleString())} تومان`} است.`
-                  : `قیمت از ${toFa(Math.round(originalTotal).toLocaleString())} تومان به ${currentTotal === 0 ? 'رایگان' : `${toFa(Math.round(currentTotal).toLocaleString())} تومان`} کاهش یافته!`}
+                  : `قیمت از ${toFa(Math.round(originalTotal).toLocaleString())} تومان به ${currentTotal === 0 ? 'رایگان' : `${toFa(Math.round(currentTotal).toLocaleString())} تومان`} کاهش یافت!`}
               </p>
             ) : null}
             {(groupStatus === 'success' || groupStatus === 'failed') && (
@@ -1059,10 +1059,10 @@ function InvitePageContent() {
           {progressReady && requiredMembers !== null && nonLeaderPaid !== null ? (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#6b7280', marginTop: '1.25rem', marginBottom: '0.5rem' }}>
-                <span>{toFa(Math.max(0, requiredMembers - nonLeaderPaid).toLocaleString())} دوست دیگر تا تکمیل</span>
+                <span>{toFa(Math.max(0, requiredMembers - nonLeaderPaid).toLocaleString())} دوست دیگر تا رایگان شدن سفارش</span>
               </div>
               <div style={{ height: '8px', background: '#e5e7eb', borderRadius: '6px', overflow: 'hidden', marginBottom: '1.25rem' }}>
-                <div style={{ height: '8px', width: `${Math.min(100, (nonLeaderPaid / requiredMembers) * 100)}%`, background: 'var(--pink)', borderRadius: '6px', transition: 'width .3s' }} />
+                <div style={{ height: '8px', width: `${Math.min(100, ((nonLeaderPaid + 1) / (requiredMembers + 1)) * 100)}%`, background: 'var(--pink)', borderRadius: '6px', transition: 'width .3s' }} />
               </div>
             </>
           ) : null}
@@ -1080,30 +1080,37 @@ function InvitePageContent() {
               ) : (
                 <>
                   <FontAwesomeIcon icon={faShareNodes} style={{ marginLeft: '8px' }} />
-                  دعوت دوستان
+                 دعوت دوستان
                 </>
               )}
-            </button>
-            
-            <button
-              className={`copy-icon-btn ${copied ? 'copied' : ''}`}
-              onClick={copyInviteLink}
-              title={copied ? 'کپی شد!' : 'کپی لینک'}
-            >
-              <FontAwesomeIcon icon={copied ? faCheck : faCopy} />
             </button>
           </div>
          </section>
 
         {/* Description Card */}
         <section className="description-card">
-          <h3>🎁 چگونه سفارش رو رایگان کنیم:</h3>
-          <p>
-            • لینک دعوت رو با ۳ تا از دوستات به اشتراک بذار.<br />
-            • هر دوستی که از لینک تو خرید کنه، یک چهارم هزینه برمی‌گرده.<br />
-            • اگه ۳ نفر خرید کنن، سفارش تو کاملاً رایگان می‌شه!<br />
-            • مبلغ برگشتی به کیف پول تو شارژ می‌شه.
-          </p>
+          <div className="description-header">
+            <span className="gift-icon">🎁</span>
+            <h3>چگونه سفارش رو رایگان کنیم:</h3>
+          </div>
+          <ul className="steps-list">
+            <li>
+              <span className="step-number">۱</span>
+              <span>لینک دعوت رو برای دوستات بفرست</span>
+            </li>
+            <li>
+              <span className="step-number">۲</span>
+              <span>تا قبل از اتمام مهلت، هر دوستی که از لینک تو خرید کنه عضو گروهت میشه</span>
+            </li>
+            <li>
+              <span className="step-number">۳</span>
+              <span>وقتی حداقل ۳ نفر عضو گروهت بشن، کل مبلغ سفارشت رایگان میشه!</span>
+            </li>
+            <li>
+              <span className="step-number bonus">✨</span>
+              <span>حتی با ۱ یا ۲ نفر هم تخفیف‌های عالی میگیری!</span>
+            </li>
+          </ul>
         </section>
       </div>
 
@@ -1171,7 +1178,7 @@ function InvitePageContent() {
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           </button>
-          <h4>دعوت دوستان</h4>
+          <h4>دعوت از طریق:</h4>
         </header>
 
         <div className="share-apps">
@@ -1273,6 +1280,21 @@ function InvitePageContent() {
               <FontAwesomeIcon icon={faCommentSms} />
             </div>
             <span>پیامک</span>
+          </a>
+
+          {/* Copy Link */}
+          <a
+            className={`copy-link ${copied ? 'copied' : ''}`}
+            href="#"
+            onClick={async (e) => {
+              e.preventDefault();
+              await copyInviteLink();
+            }}
+          >
+            <div className="icon-wrapper">
+              <FontAwesomeIcon icon={copied ? faCheck : faCopy} />
+            </div>
+            <span>{copied ? 'کپی شد!' : 'کپی لینک'}</span>
           </a>
         </div>
 

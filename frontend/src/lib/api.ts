@@ -55,4 +55,3 @@ export const pricingApi = {
     api.get<import("@/types/pricing").SecondaryPricingTiers>(`/pricing/tiers?type=secondary&order_id=${orderId}`),
 };
 
-

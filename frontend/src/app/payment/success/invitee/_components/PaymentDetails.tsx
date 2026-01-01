@@ -54,18 +54,6 @@ export default function PaymentDetails({ order }: PaymentDetailsProps) {
             </span>
           </div>
 
-          {/* Original Amount (if different) */}
-          {order.totalOriginal !== order.totalPaid && (
-            <div className="flex flex-row-reverse justify-between items-center">
-              <span className="text-gray-400 line-through">
-                {formatCurrency(order.totalOriginal)}
-              </span>
-              <span className="text-gray-600">
-                قیمت اصلی:
-              </span>
-            </div>
-          )}
-
           {/* Bank Reference */}
           {order.payment.bankRef && (
             <div className="flex flex-row-reverse justify-between items-center">

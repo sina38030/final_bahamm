@@ -6,6 +6,9 @@ import '../invite/invite.css';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateInviteLink, generateShareUrl, extractInviteCode, isTelegramMiniApp } from '@/utils/linkGenerator';
 import { API_BASE_URL } from '@/utils/api';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTelegram, faWhatsapp, faInstagram } from '@fortawesome/free-brands-svg-icons';
+import { faCommentSms, faCopy, faCheck, faShareNodes } from '@fortawesome/free-solid-svg-icons';
 
 interface BasketItem {
   productId: string;
@@ -14,6 +17,10 @@ interface BasketItem {
   unitPrice: number;
   discountedUnitPrice: number;
   image?: string;
+  friend_1_price?: number;
+  friend_2_price?: number;
+  friend_3_price?: number;
+  solo_price?: number;
 }
 
 interface GroupData {
@@ -55,6 +62,48 @@ function SecondaryInvitePageContent() {
   const [copied, setCopied] = useState(false);
   const [expiryMs, setExpiryMs] = useState<number | null>(null);
   const [inviteDisabled, setInviteDisabled] = useState(false);
+  const [productImages, setProductImages] = useState<Record<string, string>>({});
+
+  // Fetch product images from API
+  useEffect(() => {
+    const fetchProductImages = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/admin/products`, { cache: 'no-store' });
+        const products = await response.json();
+        if (Array.isArray(products)) {
+          const imageMap: Record<string, string> = {};
+          products.forEach((product: any) => {
+            if (product.id && product.images && product.images.length > 0) {
+              imageMap[String(product.id)] = product.images[0];
+            }
+          });
+          setProductImages(imageMap);
+        }
+      } catch (err) {
+        console.log('[SecondaryInvite] Failed to fetch product images:', err);
+      }
+    };
+    fetchProductImages();
+  }, []);
+
+  // Helper function to get product image URL
+  const getProductImageUrl = (item: BasketItem) => {
+    // First check if image exists in item
+    if (item.image && item.image.trim() !== '' && item.image !== 'null' && !item.image.includes('undefined')) {
+      if (item.image.startsWith('/')) {
+        return `${API_BASE_URL}${item.image}`;
+      }
+      if (item.image.startsWith('http')) {
+        return item.image;
+      }
+    }
+    // Try to get from productImages map
+    if (item.productId && productImages[item.productId]) {
+      return productImages[item.productId];
+    }
+    // Fallback to local placeholder or data URI
+    return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300"><rect fill="#E5006A" width="300" height="300"/><text fill="#FFFFFF" font-family="Arial" font-size="24" x="50%" y="50%" text-anchor="middle" dy=".3em">${item.name.slice(0, 8)}</text></svg>`)}`;
+  };
 
   // Convert numbers to Persian digits
   const toFa = (n: number | string) => n.toString().replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[parseInt(d)]);
@@ -168,6 +217,16 @@ function SecondaryInvitePageContent() {
   };
 
   const originalTotal = groupData?.pricing?.originalTotal || 0;
+  
+  // Calculate the amount user paid (sum of friend_1_price for all items in basket)
+  const userPaidAmount = useMemo(() => {
+    if (!groupData?.basket) return 0;
+    return groupData.basket.reduce((sum, item) => {
+      const price = item.friend_1_price || item.unitPrice || 0;
+      return sum + (price * item.qty);
+    }, 0);
+  }, [groupData]);
+  
   const currentTotal = useMemo(() => {
     if (!groupData) return 0;
     const { solo, current } = computeSecondaryTotals(nonLeaderPaid, originalTotal);
@@ -320,22 +379,16 @@ function SecondaryInvitePageContent() {
             مشاهدهٔ کامل سبد ({toFa(totalItems)} کالا)
           </button>
           <div className="thumbs">
-            {groupData.basket.slice(0, 5).map((item, index) => {
-              const imageUrl = item.image 
-                ? item.image 
-                : `https://via.placeholder.com/300x300/E5006A/FFFFFF?text=${encodeURIComponent(item.name)}`;
-              
-              return (
-                <img 
-                  key={index} 
-                  src={imageUrl} 
-                  alt={item.name}
-                  onError={(e) => {
-                    e.currentTarget.src = `https://via.placeholder.com/300x300/E5006A/FFFFFF?text=${encodeURIComponent(item.name)}`;
-                  }}
-                />
-              );
-            })}
+            {groupData.basket.slice(0, 5).map((item, index) => (
+              <img 
+                key={index} 
+                src={getProductImageUrl(item)} 
+                alt={item.name}
+                onError={(e) => {
+                  e.currentTarget.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300"><rect fill="#E5006A" width="300" height="300"/><text fill="#FFFFFF" font-family="Arial" font-size="24" x="50%" y="50%" text-anchor="middle" dy=".3em">${item.name.slice(0, 8)}</text></svg>`)}`;
+                }}
+              />
+            ))}
           </div>
         </section>
 
@@ -344,14 +397,13 @@ function SecondaryInvitePageContent() {
           <div className="text-right">
             <p>
               {nonLeaderPaid === 0
-                ? 'هنوز هیچ دوستی به گروهت ملحق نشده است.'
+                ? 'تا زمان تموم نشده دوستات رو دعوت کن!'
                 : nonLeaderPaid === 1
                   ? 'تا الان ۱ نفر از دوستانت عضو گروه شده است.'
-                  : `تا الان ${toFa(nonLeaderPaid.toLocaleString())} نفر از دوستانت عضو گروه شده است.`}
+                  : `تا الان ${toFa(nonLeaderPaid.toLocaleString())} نفر از دوستانت عضو گروه شده‌اند.`}
             </p>
-            <p>
-              هر دوستی که دعوت می‌کنی یک چهارم هزینه‌ی اولیه ({toFa(Math.round(originalTotal).toLocaleString())} تومان) را برمی‌گرداند؛ 
-              الان سهم تو {currentTotal === 0 ? 'رایگان' : `${toFa(Math.round(currentTotal).toLocaleString())} تومان`} است.
+            <p style={{ color: '#E5006A', fontWeight: 'bold', marginTop: '4px' }}>
+              {toFa(Math.round(nonLeaderPaid * (userPaidAmount / 4)).toLocaleString())} تومن از سفارشت برمیگرده!
             </p>
             {(groupStatus === 'success' || groupStatus === 'failed') && (
               <div className={`text-sm mt-1 ${groupStatus === 'success' ? 'text-green-600' : 'text-red-600'}`}>
@@ -361,21 +413,24 @@ function SecondaryInvitePageContent() {
           </div>
           
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#6b7280', marginBottom: '4px' }}>
-            <span>{toFa(Math.max(0, requiredMembers - nonLeaderPaid).toLocaleString())} دوست دیگر تا تکمیل</span>
+            <span>{toFa(Math.max(0, requiredMembers - nonLeaderPaid).toLocaleString())} دوست دیگر تا برگشت کامل پرداختیت!</span>
           </div>
           <div style={{ height: '8px', background: '#e5e7eb', borderRadius: '6px', overflow: 'hidden' }}>
-            <div style={{ height: '8px', width: `${Math.min(100, (nonLeaderPaid / requiredMembers) * 100)}%`, background: 'var(--pink)', borderRadius: '6px', transition: 'width .3s' }} />
+            <div style={{ height: '8px', width: `${Math.min(100, ((nonLeaderPaid + 1) / (requiredMembers + 1)) * 100)}%`, background: 'var(--pink)', borderRadius: '6px', transition: 'width .3s' }} />
           </div>
 
-          <button
-            className={`invite-btn${inviteDisabled ? ' disabled' : ''}`}
-            onClick={handleShareClick}
-            disabled={inviteDisabled}
-            aria-disabled={inviteDisabled}
-            title="اشتراک‌گذاری لینک دعوت"
-          >
-            دعوت دوستان
-          </button>
+          <div className="invite-actions">
+            <button
+              className={`invite-btn${inviteDisabled ? ' disabled' : ''}`}
+              onClick={handleShareClick}
+              disabled={inviteDisabled}
+              aria-disabled={inviteDisabled}
+              title="اشتراک‌گذاری لینک دعوت"
+            >
+              <FontAwesomeIcon icon={faShareNodes} style={{ marginLeft: '8px' }} />
+              دعوت دوستان
+            </button>
+          </div>
         </section>
 
         {/* Description Card */}
@@ -401,80 +456,57 @@ function SecondaryInvitePageContent() {
           <button className="close" onClick={closeSheets}>&times;</button>
         </header>
         <ul className="basket-list">
-          {groupData.basket.map((item, index) => {
-            const imageUrl = item.image 
-              ? item.image 
-              : `https://via.placeholder.com/300x300/E5006A/FFFFFF?text=${encodeURIComponent(item.name)}`;
-            
-            return (
-              <li key={index} className="basket-item">
-                <img 
-                  src={imageUrl} 
-                  alt={item.name}
-                  onError={(e) => {
-                    e.currentTarget.src = `https://via.placeholder.com/300x300/E5006A/FFFFFF?text=${encodeURIComponent(item.name)}`;
-                  }}
-                />
-                <div className="info">
-                  <div className="name">{item.name}</div>
-                  <div className="qty">تعداد: {toFa(item.qty)}</div>
-                </div>
-                <div className="price">
-                  {item.unitPrice > item.discountedUnitPrice && (
-                    <s>{toFa(Math.round(item.unitPrice * item.qty).toLocaleString())}&nbsp;تومان</s>
-                  )}
-                  <span className="new">{toFa(Math.round(item.discountedUnitPrice * item.qty).toLocaleString())}&nbsp;تومان</span>
-                </div>
-              </li>
-            );
-          })}
+          {groupData.basket.map((item, index) => (
+            <li key={index} className="basket-item">
+              <img 
+                src={getProductImageUrl(item)} 
+                alt={item.name}
+                onError={(e) => {
+                  e.currentTarget.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300"><rect fill="#E5006A" width="300" height="300"/><text fill="#FFFFFF" font-family="Arial" font-size="24" x="50%" y="50%" text-anchor="middle" dy=".3em">${item.name.slice(0, 8)}</text></svg>`)}`;
+                }}
+              />
+              <div className="info">
+                <div className="name">{item.name}</div>
+                <div className="qty">تعداد: {toFa(item.qty)}</div>
+              </div>
+              <div className="price">
+                {item.unitPrice > item.discountedUnitPrice && (
+                  <s>{toFa(Math.round(item.unitPrice * item.qty).toLocaleString())}&nbsp;تومان</s>
+                )}
+                <span className="new">{toFa(Math.round(item.discountedUnitPrice * item.qty).toLocaleString())}&nbsp;تومان</span>
+              </div>
+            </li>
+          ))}
         </ul>
       </aside>
 
       {/* Share Sheet */}
-      <aside 
+      <aside
         className={`sheet ${shareSheetOpen ? 'open' : ''}`}
         onClick={(e) => e.target === e.currentTarget && closeSheets()}
       >
         <header>
-          <h4>دعوت دوستان</h4>
-          <button className="close" onClick={closeSheets}>&times;</button>
+          <div className="sheet-handle" />
+          <button className="close" onClick={closeSheets}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          <h4>دعوت از طریق:</h4>
         </header>
-        {/* Invite link with copy + open options */}
-        <div className="share-direct">
-          <label>لینک دعوت</label>
-          <div className="copy-row">
-            <input
-              type="text"
-              readOnly
-              value={resolvedInviteLink || ''}
-              onFocus={(e) => (e.currentTarget as HTMLInputElement).select()}
-            />
-            <button onClick={copyInviteLink}>کپی</button>
-          </div>
-          {resolvedInviteLink && (
-            <a
-              className="open-link"
-              href={resolvedInviteLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setShareSheetOpen(false)}
-            >
-              باز کردن لینک دعوت
-            </a>
-          )}
-          {copied && <small className="copied-hint">لینک کپی شد ✅</small>}
-        </div>
+
         <div className="share-apps">
           {/* Telegram */}
           <a
+            className="telegram"
             href="#"
             onClick={(e) => {
               e.preventDefault();
               try { setShareSheetOpen(false); } catch {}
               // Telegram: use tg://msg?text=... with "message\nlink" so message appears ABOVE link
-              const appUrl = `tg://msg?text=${encodedTextWithLink}`;
-              window.location.href = appUrl;
+              const deepLink = `tg://msg?text=${encodedTextWithLink}`;
+              window.location.href = deepLink;
               // Fallback to web share after short delay
               setTimeout(() => {
                 const webUrl = `https://t.me/share/url?text=${encodedTextWithLink}`;
@@ -486,11 +518,15 @@ function SecondaryInvitePageContent() {
               }, 350);
             }}
           >
-            <i className="fa-brands fa-telegram"></i>
+            <div className="icon-wrapper">
+              <FontAwesomeIcon icon={faTelegram} />
+            </div>
             <span>تلگرام</span>
           </a>
+
           {/* WhatsApp */}
           <a
+            className="whatsapp"
             href={`https://wa.me/?text=${encodedTextWithLink}`}
             target="_blank"
             rel="noopener noreferrer"
@@ -506,11 +542,15 @@ function SecondaryInvitePageContent() {
               }, 400);
             }}
           >
-            <i className="fa-brands fa-whatsapp"></i>
+            <div className="icon-wrapper">
+              <FontAwesomeIcon icon={faWhatsapp} />
+            </div>
             <span>واتساپ</span>
           </a>
+
           {/* Instagram - copy link to clipboard since Instagram doesn't support direct share URLs */}
           <a
+            className="instagram"
             href="#"
             onClick={async (e) => {
               e.preventDefault();
@@ -526,16 +566,22 @@ function SecondaryInvitePageContent() {
               window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer');
             }}
           >
-            <i className="fa-brands fa-instagram"></i>
+            <div className="icon-wrapper">
+              <FontAwesomeIcon icon={faInstagram} />
+            </div>
             <span>اینستاگرام</span>
           </a>
-          {/* SMS - use proper format for cross-device compatibility */}
+
+          {/* SMS - use sms:&body= format for better compatibility across devices */}
           <a
-            href="#"
+            className="sms"
+            href={`sms:&body=${encodedTextWithLink}`}
             onClick={(e) => {
-              e.preventDefault();
               try { setShareSheetOpen(false); } catch {}
-              // iOS format: sms:&body=  |  Android format: sms:?body=
+              // Try multiple SMS URI formats for cross-device compatibility
+              e.preventDefault();
+              // iOS format: sms:&body=
+              // Android format: sms:?body=
               const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
               const smsUrl = isIOS 
                 ? `sms:&body=${encodedTextWithLink}`
@@ -543,13 +589,31 @@ function SecondaryInvitePageContent() {
               window.location.href = smsUrl;
             }}
           >
-            <i className="fa-solid fa-comment-sms"></i>
+            <div className="icon-wrapper">
+              <FontAwesomeIcon icon={faCommentSms} />
+            </div>
             <span>پیامک</span>
           </a>
+
+          {/* Copy Link */}
+          <a
+            className={`copy-link ${copied ? 'copied' : ''}`}
+            href="#"
+            onClick={async (e) => {
+              e.preventDefault();
+              await copyInviteLink();
+            }}
+          >
+            <div className="icon-wrapper">
+              <FontAwesomeIcon icon={copied ? faCheck : faCopy} />
+            </div>
+            <span>{copied ? 'کپی شد!' : 'کپی لینک'}</span>
+          </a>
         </div>
+
       </aside>
 
-      {/* Styles for success banner and share-direct */}
+      {/* Styles for success banner */}
       <style jsx>{`
         .success-banner { position: fixed; bottom: 80px; right: 10px; left: 10px; z-index: 1000; }
         .success-content { background: #e6f7ec; border: 1px solid #95d5a0; color: #14532d; border-radius: 12px; padding: 12px 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.06); position: relative; }
@@ -557,15 +621,6 @@ function SecondaryInvitePageContent() {
         .success-details { display: grid; grid-template-columns: 1fr; gap: 2px; font-size: 0.9rem; }
         .success-details span { color: #3f8360; margin-left: 6px; }
         @media (min-width: 480px){ .success-banner { left: auto; width: 420px; } }
-        
-        .share-direct { padding: 1rem; }
-        .share-direct label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; color: #374151; }
-        .copy-row { display: flex; gap: 0.5rem; }
-        .copy-row input { flex: 1; padding: 0.6rem 0.8rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.85rem; direction: ltr; text-align: left; background: #f9fafb; }
-        .copy-row button { padding: 0.6rem 1rem; background: var(--pink); color: white; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
-        .copy-row button:hover { opacity: 0.9; }
-        .open-link { display: block; margin-top: 0.5rem; text-align: center; color: var(--pink); font-size: 0.85rem; text-decoration: underline; }
-        .copied-hint { display: block; margin-top: 0.5rem; text-align: center; color: #059669; font-size: 0.8rem; }
       `}</style>
     </>
   );

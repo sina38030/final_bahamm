@@ -381,6 +381,42 @@ function InviteeSuccessContent() {
               {/* Content */}
               <div className="flex flex-col h-full px-6 pb-6">
                 <div className="flex-1 space-y-4">
+                {/* Hero Image */}
+                <div className="flex justify-center">
+                  <div className="w-28 h-28 relative">
+                    <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                      {/* Background circle */}
+                      <circle cx="60" cy="60" r="58" fill="url(#gradient1)" fillOpacity="0.15"/>
+                      {/* Money/Coin */}
+                      <circle cx="60" cy="50" r="25" fill="url(#gradient2)"/>
+                      <circle cx="60" cy="50" r="20" fill="#FCD34D"/>
+                      <text x="60" y="56" textAnchor="middle" fill="#92400E" fontSize="18" fontWeight="bold">$</text>
+                      {/* Arrow pointing back */}
+                      <path d="M35 85 L60 70 L85 85" stroke="url(#gradient2)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                      <path d="M60 70 L60 100" stroke="url(#gradient2)" strokeWidth="4" strokeLinecap="round"/>
+                      {/* People icons */}
+                      <circle cx="30" cy="95" r="8" fill="#EC4899"/>
+                      <circle cx="30" cy="85" r="5" fill="#EC4899"/>
+                      <circle cx="90" cy="95" r="8" fill="#8B5CF6"/>
+                      <circle cx="90" cy="85" r="5" fill="#8B5CF6"/>
+                      {/* Sparkles */}
+                      <circle cx="25" cy="35" r="3" fill="#FCD34D"/>
+                      <circle cx="95" cy="40" r="2" fill="#EC4899"/>
+                      <circle cx="40" cy="25" r="2" fill="#8B5CF6"/>
+                      <defs>
+                        <linearGradient id="gradient1" x1="0" y1="0" x2="120" y2="120">
+                          <stop offset="0%" stopColor="#EC4899"/>
+                          <stop offset="100%" stopColor="#8B5CF6"/>
+                        </linearGradient>
+                        <linearGradient id="gradient2" x1="0" y1="0" x2="100" y2="100">
+                          <stop offset="0%" stopColor="#EC4899"/>
+                          <stop offset="100%" stopColor="#8B5CF6"/>
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                  </div>
+                </div>
+                
                 <div className="text-center">
                   <h3 className="text-lg font-bold text-gray-900 mb-2">
                     دوستات رو دعوت کن و مبلغی که الان پرداخت کردی رو پس بگیر!!
@@ -439,13 +475,6 @@ function InviteeSuccessContent() {
                       زمان ایجاد گروه ثانویه به پایان رسید
                     </div>
                   )}
-
-                  <button
-                    onClick={() => setIsSheetOpen(false)}
-                    className="w-full text-gray-500 py-2 px-4 rounded-lg text-sm hover:bg-gray-50 transition-colors"
-                  >
-                    بعداً
-                  </button>
                 </div>
               </div>
             </div>

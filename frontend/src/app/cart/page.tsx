@@ -20,9 +20,9 @@ const comma = (n?: number | null) => {
   return toFa(n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '٬'));
 };
 
-const Toman = ({ value }: { value?: number | null }) => (
+const Toman = ({ value, small }: { value?: number | null; small?: boolean }) => (
   <span className="money">
-    {comma(value)}{'\u00A0'}<span className="toman">تومان</span>
+    {comma(value)}{'\u00A0'}<span style={{ fontSize: small ? '10px' : '10px', marginRight: small ? '4px' : '2px' }}>تومان</span>
   </span>
 );
 
@@ -61,6 +61,7 @@ export default function CartPage() {
   const [friends, setFriends] = useState(1); // 0 = تنها ... 3 = چهار نفر (=رایگان)
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [pendingCheckoutMode, setPendingCheckoutMode] = useState<'alone' | 'group' | null>(null);
+  const [showHelpSheet, setShowHelpSheet] = useState(false);
 
   // Update slider background dynamically based on value
   useEffect(() => {
@@ -76,6 +77,18 @@ export default function CartPage() {
       slider.style.background = `linear-gradient(to left, ${pink} 0%, ${pink} ${percentage}%, ${gray} ${percentage}%)`;
     }
   }, [friends]);
+
+  // Handle help sheet - prevent body scroll when open
+  useEffect(() => {
+    if (showHelpSheet) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showHelpSheet]);
 
 
   /* جمع کل‌ها */
@@ -238,34 +251,68 @@ export default function CartPage() {
       {/*  Discount card  */}
       {totalItems > 0 && (
       <section className="discount">
-        {friends === 0 ? (
-          <p className="text">
-            اگر هیچ کس عضو گروهت نشه، مبلغ سفارشت از{' '}
-            <b className="pink">
-              <Toman value={totals.alone} />
-            </b>{' '}
-            کاهش پیدا نمیکنه.
-          </p>
-        ) : (
-          <p className={`text ${friends === 3 ? 'tight' : ''}`}>
-            وقتی{' '}
-            <b className="pink">
-              {toFa(friends)} دوست
-            </b>{' '}
-             سبدت رو بخرن، مبلغ سفارشِت <span className="nowrap">بجای{' '}
-            <b className="pink">
-              <Toman value={totals.alone} />
-            </b></span>{' '}
-            به{' '}
-            <b className="pink x-amount">
-              {totals.your === 0 ? 'رایگان!' : <Toman value={totals.your} />}
-            </b>{' '}
-            کاهش پیدا میکنه.
-          </p>
-        )}
+        <div className="discount-header">
+          {friends === 0 ? (
+            <p className="text">
+              اگر کسی عضو گروهت نشه، گروه ناموفق و مبلغ پرداختی برگشت داده میشه.
+            </p>
+          ) : friends === 1 ? (
+            <p className="text">
+              وقتی{' '}
+              <b className="pink">
+                ۱ دوست
+              </b>{' '}
+               عضو گروهت بشه, پرداختیت  <span className="nowrap">بجای{' '}
+              <b className="pink">
+                <Toman value={totals.alone} small />
+              </b></span>{' '}
+              میشه{' '}
+              <b className="pink x-amount">
+                <Toman value={totals.your} small />
+              </b>
+            </p>
+          ) : friends === 2 ? (
+            <p className="text">
+              وقتی{' '}
+              <b className="pink">
+                ۲ دوست
+              </b>{' '}
+              عضو گروهت بشن,پرداختیت <span className="nowrap">بجای{' '}
+              <b className="pink">
+                <Toman value={totals.alone} small />
+              </b></span>{' '}
+              میشه{' '}
+              <b className="pink x-amount">
+                <Toman value={totals.your} small />
+              </b>
+            </p>
+          ) : (
+            <p className="text tight">
+              وقتی{' '}
+              <b className="pink">
+                ۳ دوست
+              </b>{' '}
+              عضو گروهت بشن, پرداختیت{' '}
+              <b className="pink x-amount">
+                صفر!
+              </b>{' '}
+              میشه
+            </p>
+          )}
+          <div 
+            className="help-btn-discount" 
+            role="button"
+            tabIndex={0}
+            onClick={() => setShowHelpSheet(true)}
+            onKeyDown={(e) => e.key === 'Enter' && setShowHelpSheet(true)}
+            aria-label="راهنما"
+          >
+            ?
+          </div>
+        </div>
         {friends !== 0 && (
           <p className="sub">
-            قیمت سبد برای دوستانت: <Toman value={totals.withFriend} />
+            قیمت سبد برای دوستانت: <Toman value={totals.withFriend} small />
           </p>
         )}
 
@@ -303,7 +350,7 @@ export default function CartPage() {
           }}
         >
           خرید به تنهایی<br />
-          <Toman value={totals.alone} />
+          <Toman value={totals.alone} small />
         </button>
         <button
           className="group"
@@ -338,18 +385,92 @@ export default function CartPage() {
             router.push(`/checkout?${params.toString()}`);
           }}
         >
-          شروع خرید گروهی<br />
+          خرید گروهی<br />
           {friends > 0 ? (
             totals.paymentPercentage === 0 ? (
               <span className="free">رایگان!</span>
             ) : (
-              <Toman value={totals.leaderPaymentAmount} />
+              <Toman value={totals.leaderPaymentAmount} small />
             )
           ) : (
-            <Toman value={totals.withFriend} />
+            <Toman value={totals.withFriend} small />
           )}
         </button>
       </footer>
+      )}
+
+      {/* Help Bottom Sheet */}
+      {showHelpSheet && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+          }}
+        >
+          <div 
+            onClick={() => setShowHelpSheet(false)}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+            }}
+          />
+          <div 
+            style={{
+              position: 'relative',
+              zIndex: 101,
+              background: '#fff',
+              borderRadius: '24px 24px 0 0',
+              width: '100%',
+              maxWidth: '500px',
+              padding: '16px 20px 24px',
+            }}
+          >
+            <div style={{ width: 40, height: 4, background: '#ddd', borderRadius: 2, margin: '0 auto 16px' }} />
+            <h3 style={{ fontSize: 16, fontWeight: 700, textAlign: 'center', marginBottom: 20, color: '#333' }}>
+              خرید گروهی چطور کار می‌کنه؟
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 12, background: '#f8f8f8', borderRadius: 12 }}>
+                <span style={{ width: 28, height: 28, minWidth: 28, background: '#e31c5f', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700 }}>۱</span>
+                <p style={{ fontSize: 13, lineHeight: 1.7, color: '#444', margin: 0 }}>سبد خریدت رو انتخاب کن و روی <b style={{ color: '#e31c5f' }}>خرید گروهی</b> بزن</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 12, background: '#f8f8f8', borderRadius: 12 }}>
+                <span style={{ width: 28, height: 28, minWidth: 28, background: '#e31c5f', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700 }}>۲</span>
+                <p style={{ fontSize: 13, lineHeight: 1.7, color: '#444', margin: 0 }}>یک لینک دعوت برات ساخته میشه که میتونی برای دوستات بفرستی</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 12, background: '#f8f8f8', borderRadius: 12 }}>
+                <span style={{ width: 28, height: 28, minWidth: 28, background: '#e31c5f', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700 }}>۳</span>
+                <p style={{ fontSize: 13, lineHeight: 1.7, color: '#444', margin: 0 }}>هر دوستی که با لینک تو همین سبد رو سفارش بده، قیمت سفارش تو کمتر میشه!</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 12, background: '#fff0f5', borderRadius: 12, border: '1px solid #e31c5f' }}>
+                <span style={{ width: 28, height: 28, minWidth: 28, fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🎁</span>
+                <p style={{ fontSize: 13, lineHeight: 1.7, color: '#444', margin: 0 }}>با ۳ دوست، سفارشت <b style={{ color: '#e31c5f' }}>کاملاً رایگان</b> میشه!</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setShowHelpSheet(false)}
+              style={{
+                width: '100%',
+                marginTop: 20,
+                padding: 14,
+                background: '#e31c5f',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 14,
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              متوجه شدم
+            </button>
+          </div>
+        </div>
       )}
 
       {/* ========== styles ========== */}
@@ -366,6 +487,7 @@ export default function CartPage() {
           color: #333;
         }
         .toman { font-size: 12px; margin-left: 2px; }
+        .toman-sm { font-size: 9px; }
         .money { white-space: nowrap; }
         .hdr {
           position: sticky;
@@ -390,13 +512,61 @@ export default function CartPage() {
         .hdr h1 { font-size: 14px; font-weight: 700; }
         .hdr .count {
           position: absolute;
-          left: 115px;
+          left: 100px;
           top: 55%;
           transform: translateY(-50%);
           background: #ccc;
           padding: 0.08rem 0.5rem;
           border-radius: 0.3rem;
           font-size: 12px;
+        }
+        .help-btn-header {
+          position: absolute;
+          left: 1rem;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 26px;
+          height: 26px;
+          min-width: 26px;
+          border-radius: 50%;
+          background: #e31c5f;
+          color: #fff;
+          border: none;
+          font-size: 15px;
+          font-weight: 700;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 6px rgba(227, 28, 95, 0.3);
+          transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .help-btn-header:hover {
+          transform: translateY(-50%) scale(1.1);
+          box-shadow: 0 4px 10px rgba(227, 28, 95, 0.4);
+        }
+        .help-btn-discount {
+          width: 22px;
+          height: 22px;
+          min-width: 22px;
+          border-radius: 50%;
+          background: #e31c5f;
+          color: #fff;
+          border: none;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 6px rgba(227, 28, 95, 0.3);
+          transition: transform 0.2s, box-shadow 0.2s;
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+        .help-btn-discount:hover {
+          transform: scale(1.1);
+          box-shadow: 0 4px 10px rgba(227, 28, 95, 0.4);
         }
         .basket {
           background: #fff;
@@ -530,6 +700,17 @@ export default function CartPage() {
         }
         .group .free {
           color: #fff;
+        }
+
+        /* Help button */
+        .discount-header {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+        }
+        .discount-header .text {
+          flex: 1;
+          margin-bottom: 0.7rem;
         }
 
       `}</style>
