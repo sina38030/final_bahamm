@@ -1,6 +1,7 @@
 'use client';
 import { createContext, useContext, useState, useEffect } from 'react';
 import styles from '../styles.module.css';
+import sheetStyles from './sheetContent.module.css';
 import sheetContent from './content';
 
 type SheetKey = keyof typeof sheetContent;
@@ -37,6 +38,9 @@ export function BottomSheetProvider({ children }: { children: React.ReactNode })
         <div className={`${styles.sheet} ${show ? styles.sheetShow : ''}`}>
           <button className={styles.sheetClose} onClick={close}>&times;</button>
           {sheetContent[key]}
+          <button className={sheetStyles.button} onClick={close}>
+            متوجه شدم
+          </button>
         </div>
       )}
     </SheetCtx.Provider>

@@ -81,6 +81,7 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
     veggie_image: null as string | null 
   });
   const [welcomeSheetShown, setWelcomeSheetShown] = useState(false);
+  const [helpSlideIndex, setHelpSlideIndex] = useState(0);
   const initialExpiry = (() => {
     try {
       if (initialGroupMeta?.expiresAtMs != null) {
@@ -657,13 +658,52 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
             با پیوستن به این گروه، می‌توانید محصولات تازه را با قیمت ارزان‌تر خریداری کنید. 
             هرچه تعداد اعضای گروه بیشتر باشد، قیمت برای همه کمتر می‌شود!
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '280px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '280px', alignItems: 'center' }}>
             <button className="sheet-info-btn" onClick={closeSheet}>متوجه شدم، بزن بریم!</button>
+            <button 
+              className="sheet-more-info-link" 
+              onClick={() => {
+                closeSheet();
+                // Open a more detailed explanation sheet
+                setTimeout(() => {
+                  openSheet('خرید گروهی چطور کار می‌کند؟', (
+                    <div className="sheet-info-card">
+                      <div className="sheet-info-image">
+                        <img src="/images/group-buy-illustration.svg" alt="خرید گروهی" />
+                      </div>
+                      <h3 className="sheet-info-title">مراحل خرید گروهی 📋</h3>
+                      <div className="sheet-info-steps">
+                        <div className="sheet-step">
+                          <span className="step-number">۱</span>
+                          <p>محصولات مورد نظرتان را انتخاب کنید و به سبد خرید اضافه کنید.</p>
+                        </div>
+                        <div className="sheet-step">
+                          <span className="step-number">۲</span>
+                          <p>لینک گروه را با دوستان و آشنایان به اشتراک بگذارید.</p>
+                        </div>
+                        <div className="sheet-step">
+                          <span className="step-number">۳</span>
+                          <p>هر چه تعداد اعضای گروه بیشتر شود، قیمت برای همه کمتر می‌شود!</p>
+                        </div>
+                        <div className="sheet-step">
+                          <span className="step-number">۴</span>
+                          <p>پس از تکمیل گروه، سفارش‌ها ارسال می‌شوند.</p>
+                        </div>
+                      </div>
+                      <button className="sheet-info-btn" onClick={closeSheet}>متوجه شدم!</button>
+                    </div>
+                  ));
+                }, 350);
+              }}
+            >
+              بیشتر توضیح بده
+            </button>
           </div>
         </div>
       ));
     }, 3000);
     return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [welcomeSheetShown]);
 
   const openModalWithProduct = (sp: SelectionProduct) => {
@@ -980,40 +1020,65 @@ export default function ClientLanding({ invite, initialProducts, initialGroupOrd
   return (
     <div className="landing-root" ref={rootRef}>
       <header ref={headerRef}>
-        <button className="share-icon" aria-label="اشتراک‌گذاری" onClick={() => {
-          if (typeof window === 'undefined') return;
-          
-          // Generate environment-aware link
-          let shareUrl = window.location.href;
-          const inviteCode = extractInviteCode(shareUrl);
-          if (inviteCode) {
-            // Regenerate the link based on current environment
-            shareUrl = generateInviteLink(inviteCode);
-          }
-          
-          const urlEnc = encodeURIComponent(shareUrl);
-          
-          if (navigator.share) {
-            navigator.share({ title: document.title || 'اشتراک‌گذاری', url: shareUrl }).catch(() => {});
-            return;
-          }
-          
-          const shareMessage = 'بیا با هم سبد رو بخریم تا رایگان بگیریم!';
-          
-          openSheet("اشتراک‌گذاری", (
-            <div className="share-grid">
-              <a href={generateShareUrl('telegram', shareUrl, shareMessage)} target="_blank" rel="noopener noreferrer"><img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/telegram.svg" alt="تلگرام" loading="lazy" /></a>
-              <a href={generateShareUrl('whatsapp', shareUrl, shareMessage)} target="_blank" rel="noopener noreferrer"><img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/whatsapp.svg" alt="واتساپ" loading="lazy" /></a>
-              <button className="copy-link" onClick={async () => { try { await navigator.clipboard.writeText(shareUrl); alert('لینک کپی شد'); } catch { window.prompt('کپی لینک', shareUrl); }}}>کپی لینک</button>
-            </div>
-          ));
+        <button className="share-icon" aria-label="راهنما" onClick={() => {
+          setHelpSlideIndex(0);
+          const HelpSlider = () => {
+            const [currentSlide, setCurrentSlide] = useState(0);
+            const slides = [
+              {
+                image: '/images/group-buy-illustration.svg',
+                title: '۱. یک محصول انتخاب کن',
+                description: 'محصولات مورد نظرت رو انتخاب کن و به سبد خرید اضافه کن. قیمت‌ها بسته به تعداد اعضای گروه تغییر می‌کنه!'
+              },
+              {
+                image: '/images/group-buy-illustration.svg',
+                title: '۲. لینک رو به اشتراک بذار',
+                description: 'لینک گروه رو با دوستان و آشنایانت به اشتراک بذار. هرچه تعداد بیشتر، قیمت کمتر!'
+              },
+              {
+                image: '/images/group-buy-illustration.svg',
+                title: '۳. سفارش رو دریافت کن',
+                description: 'بعد از تکمیل گروه، سفارش‌ها پردازش و ارسال می‌شن. محصولات تازه مستقیم از مزرعه!'
+              }
+            ];
+            
+            const nextSlide = () => {
+              if (currentSlide < slides.length - 1) {
+                setCurrentSlide(currentSlide + 1);
+              } else {
+                closeSheet();
+              }
+            };
+            
+            return (
+              <div className="help-slider">
+                <div className="help-slider-content">
+                  <div className="help-slider-image">
+                    <img src={slides[currentSlide].image} alt={slides[currentSlide].title} />
+                  </div>
+                  <h3 className="help-slider-title">{slides[currentSlide].title}</h3>
+                  <p className="help-slider-desc">{slides[currentSlide].description}</p>
+                </div>
+                <div className="help-slider-dots">
+                  {slides.map((_, idx) => (
+                    <span 
+                      key={idx} 
+                      className={`help-slider-dot ${idx === currentSlide ? 'active' : ''}`}
+                      onClick={() => setCurrentSlide(idx)}
+                    />
+                  ))}
+                </div>
+                <button className="sheet-info-btn" onClick={nextSlide}>
+                  {currentSlide < slides.length - 1 ? 'بعدی' : 'متوجه شدم!'}
+                </button>
+              </div>
+            );
+          };
+          openSheet('', <HelpSlider />);
         }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="18" cy="5" r="3" stroke="currentColor" strokeWidth="2"/>
-            <circle cx="6" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
-            <circle cx="18" cy="19" r="3" stroke="currentColor" strokeWidth="2"/>
-            <path d="M8.59 13.51L15.42 17.49" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            <path d="M15.41 6.51L8.59 10.49" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="14" cy="14" r="14" fill="#e31c5f"/>
+            <text x="14" y="20" textAnchor="middle" fill="white" fontSize="18" fontWeight="bold" fontFamily="Arial, sans-serif">?</text>
           </svg>
         </button>
 

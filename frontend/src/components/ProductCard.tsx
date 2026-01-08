@@ -213,7 +213,15 @@ const ProductCard = memo(function ProductCard({ p }: { p: Product }) {
       </div>
 
       {/* قیمت‌های گروهی */}
-      <div className={`prices ${showAllPrices ? 'open' : ''}`}>
+      <div 
+        className={`prices ${showAllPrices ? 'open' : ''}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          setShowAllPrices(!showAllPrices);
+        }}
+        style={{ cursor: 'pointer' }}
+      >
         {/* قیمت‌های پیش‌فرض (با ۱ دوست و رایگان) - حذف خرید تنهایی */}
         {visibleOptions.map((option, index) => (
           <div key={option.key} className="price-line">
@@ -231,14 +239,9 @@ const ProductCard = memo(function ProductCard({ p }: { p: Product }) {
                 <FontAwesomeIcon 
                   icon={showAllPrices ? faChevronUp : faChevronDown}
                   style={{ 
-                    marginLeft: '5px', 
+                    marginRight: '6px', 
                     cursor: 'pointer',
                     fontSize: '12px'
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    setShowAllPrices(!showAllPrices);
                   }}
                 />
               )}

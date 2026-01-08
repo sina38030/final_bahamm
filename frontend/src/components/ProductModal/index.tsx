@@ -329,10 +329,10 @@ const ProductModalInner = memo(function ProductModalInner() {
           {/* قیمت‌ها */}
           <div className={styles.pricing}>
             {hideActions ? (
-              // حالت invited در landing: فقط «تنها» و «با ۱ دوست»
+              // حالت invited در landing: فقط «خرید به تنهایی» و «خرید گروهی»
               <>
                 <div className={styles.priceRow}>
-                  <span className={styles.priceLabel}>تنها:</span>
+                  <span className={styles.priceLabel}>خرید به تنهایی:</span>
                   <span className={styles.price}>
                     {toFa(comma(
                       Number((product as any).solo_price ?? (product as any).market_price ?? product.price ?? 0)
@@ -340,7 +340,7 @@ const ProductModalInner = memo(function ProductModalInner() {
                   </span>
                 </div>
                 <div className={styles.priceRow}>
-                  <span className={styles.priceLabel}>با ۱ دوست:</span>
+                  <span className={styles.priceLabel}>خرید گروهی:</span>
                   <span className={styles.price}>
                     {toFa(comma(
                       Number((product as any).friend_1_price ?? (product as any).base_price ?? product.price ?? 0)
@@ -365,7 +365,7 @@ const ProductModalInner = memo(function ProductModalInner() {
 
           {/* قیمت برای دوست - مخفی برای invited (landing) */}
           {!hideActions && (
-            <div className={styles.friendBox}>
+            <div className={styles.friendBox} onClick={() => open('friend')} style={{ cursor: 'pointer' }}>
               <span className={styles.friendLabel}>قیمت برای دوستانت</span>
               <span className={styles.friendPrice}>
                 {(product as any).friend_1_price ? 
@@ -387,15 +387,15 @@ const ProductModalInner = memo(function ProductModalInner() {
               <span className={styles.green}>۱ روز کاری</span>
             </div>
           </div>
-          {/* بنر تعهدات */}
-          <h2 className={styles.sectionTitle}>تعهدات باهم</h2>
+          {/* بنر تعهدات - موقتاً مخفی شده */}
+          {/* <h2 className={styles.sectionTitle}>تعهدات باهم</h2>
           <div
             className={styles.bannerWrap}
             onClick={() => open('commit')}
           >
             <div className={styles.banner}>بنر</div>
             <div className={styles.banner}>بنر</div>
-          </div>
+          </div> */}
 
           {/* کارت مرجوعی */}
           <div className={styles.returnCard} onClick={() => open('return')}>

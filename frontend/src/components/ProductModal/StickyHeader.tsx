@@ -38,7 +38,7 @@ export default function StickyHeader({close}:{close:()=>void}){
   return(
     <header className={`${styles.stickyBar} ${show?styles.barShow:''}`}>
       <button className={styles.smallBtn} onClick={close}>&times;</button>
-      <span className={styles.msg}>{msgs[idx]}</span>
+      <span className={styles.msg} onClick={() => open('headline')} style={{ cursor: 'pointer' }}>{msgs[idx]}</span>
     </header>
   );
 }

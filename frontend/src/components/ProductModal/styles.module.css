@@ -330,6 +330,18 @@
 
 
 /* ───── bottom sheet ───── */
+.sheetBackdrop{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.5);
+  backdrop-filter:blur(4px);
+  z-index:110;
+  opacity:0;
+  transition:opacity 0.35s ease;
+  cursor:pointer;
+}
+.sheetBackdrop:global(.show){
+  opacity:1;
+}
 .sheet{
   position:fixed;left:0;right:0;bottom:0;
   transform:translateY(120%);
